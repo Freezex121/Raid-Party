@@ -7,6 +7,7 @@
 #include "ui/enemy_render.h"
 #include "ui/floating_text.h"
 #include "ui/theme.h"
+#include "ui/layout.h"
 #include "data/enemy_defs.h"
 #include "data/encounter_defs.h"
 #include "util/log.h"
@@ -18,26 +19,6 @@
 
 static bool combat_initialized = false;
 
-static int party_frame_w(int count)
-{
-    if (count >= 5) return 80;
-    if (count == 4) return 100;
-    return FRAME_W;
-}
-
-static int party_frame_gap(int count)
-{
-    return count >= 4 ? 4 : FRAME_GAP;
-}
-
-static int party_start_x(Party *party)
-{
-    int fw = party_frame_w(party->count);
-    int gap = party_frame_gap(party->count);
-    int tw = party->count * fw + (party->count - 1) * gap;
-    return (VIRT_W - tw) / 2;
-}
-
 static float preview_combo_mult(CombatState *cs, const CardDef *card)
 {
     if (!card || card->class == CLASS_NONE) return 1.0f;
@@ -48,25 +29,22 @@ static float preview_combo_mult(CombatState *cs, const CardDef *card)
 
 static int preview_hits(const CardDef *card)
 {
-    if (!card) return 1;
-    if (strcmp(card->id, "mag_missiles") == 0) return 3;
-    if (strcmp(card->id, "shm_fury") == 0) return 2;
-    return 1;
+    return card_repeat_hits(card);
 }
 
 static void draw_preview_box(int x, int y, const char *title, const char *line1, const char *line2, Color accent)
 {
-    int w = 92;
-    int h = line2 && line2[0] ? 34 : 26;
+    int w = 132;
+    int h = line2 && line2[0] ? 42 : 32;
     if (x < 2) x = 2;
     if (x + w > VIRT_W - 2) x = VIRT_W - w - 2;
     if (y + h > HAND_Y - 3) y = HAND_Y - h - 3;
     DrawRectangleRec((Rectangle){ (float)x, (float)y, (float)w, (float)h }, (Color){ 12, 12, 22, 235 });
     DrawRectangleLinesEx((Rectangle){ (float)x, (float)y, (float)w, (float)h }, 1.0f, accent);
-    DrawText(title, x + 4, y + 4, 5, accent);
-    DrawText(line1, x + 4, y + 13, 6, RAYWHITE);
+    DrawText(title, x + 5, y + 5, 6, accent);
+    DrawText(line1, x + 5, y + 17, 7, RAYWHITE);
     if (line2 && line2[0])
-        DrawText(line2, x + 4, y + 24, 5, (Color){ 180, 180, 205, 230 });
+        DrawText(line2, x + 5, y + 31, 6, (Color){ 180, 180, 205, 230 });
 }
 
 static void draw_target_preview(CombatState *cs)
@@ -108,7 +86,7 @@ static void draw_target_preview(CombatState *cs)
     else if (cs->target_mode == TGT_SELECT_ALLY && cs->hovered_ally >= 0)
     {
         PartyMember *pm = &cs->party.members[cs->hovered_ally];
-        bool revive = strcmp(card->id, "clr_revive") == 0;
+        bool revive = card_has_effect(card, CARD_EFFECT_REVIVE_TARGET);
         if (!pm->alive && !revive)
             snprintf(line1, sizeof(line1), "Invalid target");
         else if (revive && pm->alive)
@@ -124,16 +102,22 @@ static void draw_target_preview(CombatState *cs)
         else
             snprintf(line1, sizeof(line1), "Apply effect");
 
-        if (strcmp(card->id, "rog_smoke") == 0)
+        if (card_has_effect(card, CARD_EFFECT_TRANSFER_AGGRO_TO_GUARDIAN))
             snprintf(line2, sizeof(line2), "Moves aggro to Guardian");
-        else if (strcmp(card->id, "clr_renew") == 0)
+        else if (card_has_effect(card, CARD_EFFECT_APPLY_STATUS_TARGET_ALLY))
             snprintf(line2, sizeof(line2), "Renew: +5 HP for 3 turns");
 
-        int fw = party_frame_w(cs->party.count);
-        int gap = party_frame_gap(cs->party.count);
-        int sx = party_start_x(&cs->party);
-        draw_preview_box(sx + cs->hovered_ally * (fw + gap), 31, "Preview", line1, line2, (Color){ 120, 245, 165, 245 });
+        Rectangle ally_rect = layout_party_frame_rect(cs->party.count, cs->hovered_ally);
+        draw_preview_box((int)ally_rect.x, (int)(ally_rect.y + ally_rect.height + 6), "Preview", line1, line2, (Color){ 120, 245, 165, 245 });
     }
+}
+
+static void draw_panel(Rectangle panel, const char *title, Color accent)
+{
+    DrawRectangleRec(panel, (Color){ 9, 10, 17, 210 });
+    DrawRectangleLinesEx(panel, 1.0f, (Color){ accent.r, accent.g, accent.b, 165 });
+    if (title && title[0])
+        DrawText(title, (int)panel.x + 6, (int)panel.y + 5, 6, accent);
 }
 
 static void draw_combat_feedback(CombatState *cs)
@@ -164,16 +148,16 @@ static void draw_combat_feedback(CombatState *cs)
     if (cs->enemy_banner_timer > 0.0f)
     {
         float a = cs->enemy_banner_timer / 0.55f;
-        DrawRectangleRec((Rectangle){ (float)(VIRT_W / 2 - 48), 94.0f, 96.0f, 16.0f }, (Color){ 100, 35, 40, (unsigned char)(190 * a) });
-        DrawText("ENEMY ACTIONS", VIRT_W / 2 - MeasureText("ENEMY ACTIONS", 8) / 2, 99, 8, (Color){ 255, 180, 170, (unsigned char)(255 * a) });
+        DrawRectangleRec((Rectangle){ (float)(VIRT_W / 2 - 62), 106.0f, 124.0f, 20.0f }, (Color){ 100, 35, 40, (unsigned char)(190 * a) });
+        DrawText("ENEMY ACTIONS", VIRT_W / 2 - MeasureText("ENEMY ACTIONS", 10) / 2, 112, 10, (Color){ 255, 180, 170, (unsigned char)(255 * a) });
     }
 
     if (cs->turn_banner_timer > 0.0f && cs->turn_banner_text[0])
     {
         float a = cs->turn_banner_timer / 0.9f;
         if (a > 1.0f) a = 1.0f;
-        DrawRectangleRec((Rectangle){ (float)(VIRT_W / 2 - 44), 42.0f, 88.0f, 14.0f }, (Color){ 35, 70, 105, (unsigned char)(175 * a) });
-        DrawText(cs->turn_banner_text, VIRT_W / 2 - MeasureText(cs->turn_banner_text, 7) / 2, 46, 7, (Color){ 210, 235, 255, (unsigned char)(255 * a) });
+        DrawRectangleRec((Rectangle){ (float)(VIRT_W / 2 - 54), 48.0f, 108.0f, 17.0f }, (Color){ 35, 70, 105, (unsigned char)(175 * a) });
+        DrawText(cs->turn_banner_text, VIRT_W / 2 - MeasureText(cs->turn_banner_text, 8) / 2, 53, 8, (Color){ 210, 235, 255, (unsigned char)(255 * a) });
     }
 
     if (cs->play_flash_timer > 0.0f && cs->play_flash_text[0])
@@ -186,13 +170,15 @@ static void draw_combat_feedback(CombatState *cs)
         DrawText(cs->play_flash_text, (int)cs->play_flash_x + 4, (int)y + 4, 5, (Color){ 245, 235, 190, a });
     }
 
-    int feed_x = 4;
-    int feed_y = 64;
+    Rectangle feed = layout_action_feed_panel();
+    draw_panel(feed, "ACTIONS", (Color){ 130, 145, 185, 220 });
+    int feed_x = (int)feed.x + 7;
+    int feed_y = (int)feed.y + 18;
     for (int i = 0; i < 5; i++)
     {
         if (cs->action_feed_timer[i] <= 0.0f || !cs->action_feed[i][0]) continue;
         float a = cs->action_feed_timer[i] > 0.5f ? 1.0f : cs->action_feed_timer[i] / 0.5f;
-        DrawText(cs->action_feed[i], feed_x, feed_y + i * 7, 5, (Color){ 175, 180, 205, (unsigned char)(210 * a) });
+        DrawText(cs->action_feed[i], feed_x, feed_y + i * 12, 6, (Color){ 175, 180, 205, (unsigned char)(210 * a) });
     }
 }
 
@@ -265,7 +251,7 @@ void run_screen_draw(void)
         Color bg = { 0, 0, 0, 180 };
         DrawRectangle(0, 0, VIRT_W, VIRT_H, bg);
         Color msg_col = cs->phase == COMBAT_VICTORY ? (Color){ 70, 220, 120, 255 } : (Color){ 220, 60, 60, 255 };
-        DrawText(cs->result_message, VIRT_W / 2 - MeasureText(cs->result_message, 12) / 2, 114, 12, msg_col);
+        DrawText(cs->result_message, VIRT_W / 2 - MeasureText(cs->result_message, 16) / 2, 170, 16, msg_col);
         return;
     }
 
@@ -275,13 +261,13 @@ void run_screen_draw(void)
 
     if (targeting && cs->target_mode == TGT_SELECT_ENEMY)
     {
-        DrawText("Select a target", 4, 34, 7, (Color){ 255, 255, 100, 220 });
-        DrawText("Right-click to cancel", 4, 43, 5, (Color){ 160, 160, 180, 180 });
+        DrawText("Select a target", 12, 154, 8, (Color){ 255, 255, 100, 220 });
+        DrawText("Right-click to cancel", 12, 166, 6, (Color){ 160, 160, 180, 180 });
     }
     else if (targeting && cs->target_mode == TGT_SELECT_ALLY)
     {
-        DrawText("Select an ally", 4, 34, 7, (Color){ 100, 255, 150, 220 });
-        DrawText("Right-click to cancel", 4, 43, 5, (Color){ 160, 160, 180, 180 });
+        DrawText("Select an ally", 12, 154, 8, (Color){ 100, 255, 150, 220 });
+        DrawText("Right-click to cancel", 12, 166, 6, (Color){ 160, 160, 180, 180 });
     }
 
     for (int i = 0; i < cs->enemy_count; i++)
@@ -294,11 +280,12 @@ void run_screen_draw(void)
             if (cs->enemies[i].intent.ability_idx >= 0)
             {
                 int ab_idx = cs->enemies[i].intent.ability_idx;
+                Rectangle bar = layout_enemy_cast_bar_rect((Vector2){ (float)cs->enemies[i].pos_x, (float)cs->enemies[i].pos_y });
                 cast_bar_draw_ability(
                     &cs->enemies[i].def->abilities[ab_idx],
                     cs->enemies[i].intent.remaining_turns,
                     cs->enemies[i].def->abilities[ab_idx].cast_time,
-                    cs->enemies[i].pos_x - CAST_BAR_W / 2, cs->enemies[i].pos_y - ENEMY_SIZE / 2 - CAST_BAR_HEIGHT - 6
+                    (int)bar.x, (int)bar.y
                 );
             }
         }
@@ -315,7 +302,7 @@ void run_screen_draw(void)
         int font = (int)(7 * scale);
         if (font < 6) font = 6;
         int tw = MeasureText(cb, font);
-        Rectangle badge = { (float)(VIRT_W / 2) - tw / 2.0f - 6.0f, 31.0f - (scale - 1.0f) * 3.0f, (float)tw + 12.0f, 13.0f * scale };
+        Rectangle badge = { (float)(VIRT_W / 2) - tw / 2.0f - 7.0f, 48.0f - (scale - 1.0f) * 3.0f, (float)tw + 14.0f, 15.0f * scale };
         DrawRectangleRec(badge, (Color){ 70, 50, 18, 220 });
         DrawRectangleLinesEx(badge, 1.0f, (Color){ 255, 220, 80, 220 });
         DrawText(cb, VIRT_W / 2 - tw / 2, (int)(badge.y + 4), font, (Color){ 255, 225, 95, 240 });
@@ -325,22 +312,18 @@ void run_screen_draw(void)
     {
         char ch_text[64];
         snprintf(ch_text, sizeof(ch_text), "%s channeling: %d turns", cs->channel_card->name, cs->channel_remaining);
-        DrawText(ch_text, VIRT_W / 2 - MeasureText(ch_text, 6) / 2, 47, 6, (Color){ 200, 180, 100, 220 });
+        DrawText(ch_text, VIRT_W / 2 - MeasureText(ch_text, 7) / 2, 66, 7, (Color){ 200, 180, 100, 220 });
 
         // Draw channel cast bar on the channeling party member
-        int fw = party_frame_w(cs->party.count);
-        int fh = FRAME_H;
-        int gap = party_frame_gap(cs->party.count);
-        int tw = cs->party.count * fw + (cs->party.count - 1) * gap;
-        int sx = (VIRT_W - tw) / 2;
         for (int i = 0; i < cs->party.count; i++)
         {
             if (cs->party.members[i].class == cs->channel_class && cs->party.members[i].alive)
             {
-                int bar_x = sx + i * (fw + gap) + 4;
-                int bar_y = FRAME_Y + fh + 2;
-                int bar_w = fw - 8;
-                int bar_h = 4;
+                Rectangle frame = layout_party_frame_rect(cs->party.count, i);
+                int bar_x = (int)frame.x + 5;
+                int bar_y = (int)(frame.y + frame.height + 3);
+                int bar_w = (int)frame.width - 10;
+                int bar_h = 5;
 
                 DrawRectangleRec((Rectangle){ (float)bar_x, (float)bar_y, (float)bar_w, (float)bar_h }, (Color){ 40, 30, 20, 255 });
 
@@ -360,19 +343,37 @@ void run_screen_draw(void)
     hand_render_draw(&cs->deck, &cs->energy, cs->hovered_card, cs->channel_class, cs->target_hand_idx, cs->target_offset);
     draw_combat_feedback(cs);
 
-    DrawText(TextFormat("Turn %d", cs->turn), 4, VIRT_H - 10, 5, (Color){ 100, 100, 130, 200 });
+    int inspector_idx = targeting ? cs->target_hand_idx : cs->hovered_card;
+    Rectangle inspector = layout_card_inspector_panel();
+    if (inspector_idx >= 0 && inspector_idx < cs->deck.hand_count)
+    {
+        CardInstance *inst = &cs->deck.cards[cs->deck.hand[inspector_idx]];
+        if (inst->def)
+            theme_draw_card_tooltip(inspector, inst->def, inst->upgraded);
+    }
+    else
+    {
+        draw_panel(inspector, "CARD", (Color){ 130, 145, 185, 220 });
+    }
 
-    char etext[48];
-    snprintf(etext, sizeof(etext), "Energy: %d/%d (+%d/turn)", cs->energy.current, cs->energy.max, cs->energy.regen);
-    DrawText(etext, 4, 3, 5, (Color){ 220, 200, 60, 200 });
+    DrawText(TextFormat("Turn %d", cs->turn), 12, VIRT_H - 14, 6, (Color){ 100, 100, 130, 200 });
 
-    Rectangle end_turn_btn = { (float)(VIRT_W - 43), (float)(VIRT_H - BTN_H - 3), 40.0f, (float)BTN_H };
+    Rectangle energy_panel = layout_energy_panel();
+    draw_panel(energy_panel, "ENERGY", (Color){ 230, 205, 70, 220 });
+    char energy_big[8];
+    snprintf(energy_big, sizeof(energy_big), "%d/%d", cs->energy.current, cs->energy.max);
+    DrawText(energy_big, (int)energy_panel.x + 10, (int)energy_panel.y + 19, 14, (Color){ 255, 225, 95, 245 });
+    char regen_text[16];
+    snprintf(regen_text, sizeof(regen_text), "+%d/turn", cs->energy.regen);
+    DrawText(regen_text, (int)energy_panel.x + 11, (int)energy_panel.y + 36, 6, (Color){ 180, 180, 205, 220 });
+
+    Rectangle end_turn_btn = layout_end_turn_button();
     Vector2 mouse = GetMousePosition();
     bool hover = CheckCollisionPointRec(mouse, end_turn_btn);
     Color btn_col = hover ? (Color){ 80, 80, 120, 255 } : (Color){ 50, 50, 80, 255 };
     DrawRectangleRec(end_turn_btn, btn_col);
     DrawRectangleLinesEx(end_turn_btn, 1.0f, (Color){ 100, 100, 140, 200 });
-    DrawText("End", (int)(end_turn_btn.x + 5), (int)(end_turn_btn.y + 5), 6, RAYWHITE);
+    DrawText("End Turn", (int)(end_turn_btn.x + end_turn_btn.width / 2 - MeasureText("End Turn", 7) / 2), (int)(end_turn_btn.y + 7), 7, RAYWHITE);
 
 }
 

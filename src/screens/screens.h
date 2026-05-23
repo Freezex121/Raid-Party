@@ -22,6 +22,9 @@ void shop_screen_draw(void);
 void reward_screen_update(void);
 void reward_screen_draw(void);
 
+void discard_screen_update(void);
+void discard_screen_draw(void);
+
 void game_over_screen_update(void);
 void game_over_screen_draw(void);
 

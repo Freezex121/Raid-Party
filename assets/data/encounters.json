@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "floors": [
+    {
+      "floor": 1,
+      "normal": [
+        { "id": "f1_spider", "enemies": [ "giant_spider" ] },
+        { "id": "f1_wolf", "enemies": [ "dire_wolf" ] },
+        { "id": "f1_treant_boar", "enemies": [ "elder_treant", "forest_boar" ] }
+      ],
+      "elite": { "id": "f1_elite_alpha_treant", "enemies": [ "alpha_wolf", "elder_treant" ] },
+      "boss": { "id": "f1_boss_alpha_pack", "enemies": [ "alpha_wolf", "giant_spider", "dire_wolf" ] }
+    },
+    {
+      "floor": 2,
+      "normal": [
+        { "id": "f2_priest_manticore", "enemies": [ "venom_priest", "manticore" ] },
+        { "id": "f2_basilisk_stalker", "enemies": [ "basilisk", "venom_stalker" ] },
+        { "id": "f2_manticore_priest", "enemies": [ "manticore", "venom_priest" ] }
+      ],
+      "elite": { "id": "f2_elite_greater_priest", "enemies": [ "greater_manticore", "venom_priest" ] },
+      "boss": { "id": "f2_boss_hydra", "enemies": [ "venom_hydra", "greater_manticore" ] }
+    },
+    {
+      "floor": 3,
+      "normal": [
+        { "id": "f3_warden_imp", "enemies": [ "cinder_warden", "flame_imp" ] },
+        { "id": "f3_drake_armor", "enemies": [ "fire_drake", "living_armor" ] },
+        { "id": "f3_warden_drake_imp", "enemies": [ "cinder_warden", "fire_drake", "flame_imp" ] }
+      ],
+      "elite": { "id": "f3_elite_giant_warden", "enemies": [ "fire_giant", "cinder_warden" ] },
+      "boss": { "id": "f3_boss_elder_dragon", "enemies": [ "elder_dragon", "fire_giant", "fire_drake" ] }
+    }
+  ]
+}

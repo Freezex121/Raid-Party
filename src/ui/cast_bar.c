@@ -44,19 +44,19 @@ static void draw_tooltip(Rectangle bounds, const EnemyAbility *ability)
 
     int x = (int)bounds.x;
     int y = (int)(bounds.y + bounds.height + 2);
-    int w = 120;
-    int h = 34;
+    int w = 160;
+    int h = 46;
     if (x + w > VIRT_W - 2) x = VIRT_W - w - 2;
     if (y + h > VIRT_H - 2) y = (int)bounds.y - h - 2;
     DrawRectangleRec((Rectangle){ (float)x, (float)y, (float)w, (float)h }, (Color){ 18, 18, 28, 245 });
     DrawRectangleLinesEx((Rectangle){ (float)x, (float)y, (float)w, (float)h }, 1.0f, (Color){ 100, 100, 130, 220 });
 
-    DrawText(ability->description, x + 4, y + 4, 5, (Color){ 220, 220, 235, 240 });
+    DrawText(ability->description, x + 5, y + 5, 6, (Color){ 220, 220, 235, 240 });
 
     char details[96];
     snprintf(details, sizeof(details), "Damage %d   Heal %d   Shield %d", ability->base_damage, ability->heal_amount, ability->shield_amount);
-    DrawText(details, x + 4, y + 16, 5, (Color){ 170, 170, 200, 230 });
-    DrawText((ability->is_wipe || ability->intent == INTENT_WIPE) ? "Uninterruptible" : "Interruptible", x + 4, y + 25, 5,
+    DrawText(details, x + 5, y + 20, 6, (Color){ 170, 170, 200, 230 });
+    DrawText((ability->is_wipe || ability->intent == INTENT_WIPE) ? "Uninterruptible" : "Interruptible", x + 5, y + 33, 6,
         (ability->is_wipe || ability->intent == INTENT_WIPE) ? (Color){ 230, 110, 80, 240 } : (Color){ 140, 220, 160, 240 });
 }
 
@@ -76,16 +76,16 @@ void cast_bar_draw_ex(const char *ability_name, int remaining_turns, int total_t
 
     DrawRectangleLinesEx((Rectangle){ (float)bar_x, (float)bar_y, (float)bar_w, (float)bar_h }, 1.0f, (Color){ 60, 60, 80, 200 });
 
-    DrawText(ability_name, bar_x + 3, bar_y + 2, 5, RAYWHITE);
+    DrawText(ability_name, bar_x + 4, bar_y + 3, 6, RAYWHITE);
 
     char turns_text[16];
     snprintf(turns_text, sizeof(turns_text), "%dT", remaining_turns);
-    int tw = MeasureText(turns_text, 5);
-    DrawText(turns_text, bar_x + bar_w - tw - 3, bar_y + 2, 5, (Color){ 200, 200, 220, 200 });
+    int tw = MeasureText(turns_text, 6);
+    DrawText(turns_text, bar_x + bar_w - tw - 4, bar_y + 3, 6, (Color){ 200, 200, 220, 200 });
 
     if (is_wipe)
     {
-        DrawText("WIPE!", bar_x + bar_w / 2 - MeasureText("WIPE!", 6) / 2, bar_y - 7, 6, (Color){ 255, 60, 60, 255 });
+        DrawText("WIPE!", bar_x + bar_w / 2 - MeasureText("WIPE!", 7) / 2, bar_y - 9, 7, (Color){ 255, 60, 60, 255 });
     }
 }
 
@@ -108,11 +108,11 @@ void cast_bar_draw_ability(const EnemyAbility *ability, int remaining_turns, int
     DrawRectangleLinesEx(bounds, 1.0f, locked ? (Color){ 230, 90, 80, 230 } : (Color){ 80, 90, 125, 230 });
 
     const char *icon = intent_icon(ability->intent, ability->is_wipe);
-    DrawText(icon, bar_x + 2, bar_y + 3, 4, RAYWHITE);
-    int name_size = 5;
-    while (name_size > 4 && MeasureText(ability->name, name_size) > 45)
+    DrawText(icon, bar_x + 4, bar_y + 4, 5, RAYWHITE);
+    int name_size = 6;
+    while (name_size > 5 && MeasureText(ability->name, name_size) > 54)
         name_size--;
-    DrawText(ability->name, bar_x + 18, bar_y + 2, name_size, RAYWHITE);
+    DrawText(ability->name, bar_x + 24, bar_y + 4, name_size, RAYWHITE);
 
     char amount[48];
     if (ability->heal_amount > 0)
@@ -121,13 +121,13 @@ void cast_bar_draw_ability(const EnemyAbility *ability, int remaining_turns, int
         snprintf(amount, sizeof(amount), "+%dS", ability->shield_amount);
     else
         snprintf(amount, sizeof(amount), "%dD", ability->base_damage);
-    DrawText(amount, bar_x + 64, bar_y + 3, 4, (Color){ 220, 220, 235, 230 });
+    DrawText(amount, bar_x + 84, bar_y + 4, 5, (Color){ 220, 220, 235, 230 });
 
     char turns_text[20];
     snprintf(turns_text, sizeof(turns_text), "%dT", remaining_turns);
-    DrawText(turns_text, bar_x + bar_w - 12, bar_y + 2, 5, (Color){ 230, 230, 245, 235 });
+    DrawText(turns_text, bar_x + bar_w - 17, bar_y + 3, 6, (Color){ 230, 230, 245, 235 });
 
-    DrawText(locked ? "LOCK" : "INT", bar_x + bar_w - 27, bar_y + 3, 4,
+    DrawText(locked ? "LOCK" : "INT", bar_x + bar_w - 40, bar_y + 5, 4,
         locked ? (Color){ 240, 120, 90, 230 } : (Color){ 130, 220, 160, 230 });
 
     draw_tooltip(bounds, ability);

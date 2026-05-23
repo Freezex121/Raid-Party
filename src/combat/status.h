@@ -4,6 +4,7 @@
 #define MAX_STATUSES 4
 
 typedef enum {
+    STATUS_NONE = -1,
     STATUS_BURNING,
     STATUS_RENEW,
     STATUS_TRAP,

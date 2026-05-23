@@ -3,13 +3,13 @@
 
 #include "systems/deck.h"
 
-#define CLASS_CARD_COUNT 8
-#define GUARDIAN_CARD_COUNT 7
+#define CLASS_CARD_COUNT 9
+#define GUARDIAN_CARD_COUNT 8
 #define CLERIC_CARD_COUNT 8
-#define MAGE_CARD_COUNT 8
-#define ROGUE_CARD_COUNT 7
-#define SHAMAN_CARD_COUNT 7
-#define RANGER_CARD_COUNT 7
+#define MAGE_CARD_COUNT 9
+#define ROGUE_CARD_COUNT 8
+#define SHAMAN_CARD_COUNT 8
+#define RANGER_CARD_COUNT 8
 
 extern const CardDef guardian_cards[CLASS_CARD_COUNT];
 extern const CardDef cleric_cards[CLASS_CARD_COUNT];

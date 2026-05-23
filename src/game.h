@@ -18,6 +18,7 @@ typedef enum {
     SCREEN_REST,
     SCREEN_SHOP,
     SCREEN_REWARD,
+    SCREEN_DISCARD,
     SCREEN_GAME_OVER
 } GameScreen;
 
@@ -42,7 +43,12 @@ typedef struct {
     const CardDef *reward_cards[MAX_REWARD_CARDS];
     bool reward_upgraded[MAX_REWARD_CARDS];
     int reward_count;
+    int reward_picks_remaining;
+    bool reward_picked[MAX_REWARD_CARDS];
     int gold;
+    int discard_count;
+    int discard_selected;
+    int discard_uids[2];
     bool run_won;
     int result_floor;
     int result_bosses_defeated;

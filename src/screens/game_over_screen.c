@@ -24,45 +24,45 @@ void game_over_screen_draw(void)
     const char *title = g_state.run_won ? "VICTORY" : "PARTY WIPED";
     Color title_col = g_state.run_won ? (Color){ 90, 230, 140, 255 } : (Color){ 230, 80, 80, 255 };
 
-    DrawText(title, (VIRT_W / 2) - MeasureText(title, 18) / 2, 24, 18, title_col);
+    DrawText(title, (VIRT_W / 2) - MeasureText(title, 26) / 2, 58, 26, title_col);
 
     const char *reason = g_state.result_reason[0] ? g_state.result_reason :
         (g_state.run_won ? "The raid is complete." : "The run has ended.");
-    DrawText(reason, (VIRT_W / 2) - MeasureText(reason, 7) / 2, 50, 7, (Color){ 190, 190, 215, 230 });
+    DrawText(reason, (VIRT_W / 2) - MeasureText(reason, 9) / 2, 92, 9, (Color){ 190, 190, 215, 230 });
 
     char line[96];
     snprintf(line, sizeof(line), "Floor reached: %d", g_state.result_floor);
-    int stats_x = (VIRT_W / 2) - 58;
-    DrawText(line, stats_x, 78, 7, RAYWHITE);
+    int stats_x = (VIRT_W / 2) - 86;
+    DrawText(line, stats_x, 132, 9, RAYWHITE);
 
     snprintf(line, sizeof(line), "Bosses defeated: %d", g_state.result_bosses_defeated);
-    DrawText(line, stats_x, 91, 7, RAYWHITE);
+    DrawText(line, stats_x, 148, 9, RAYWHITE);
 
     snprintf(line, sizeof(line), "Gold earned: %d", g_state.gold);
-    DrawText(line, stats_x, 104, 7, (Color){ 230, 200, 80, 255 });
+    DrawText(line, stats_x, 164, 9, (Color){ 230, 200, 80, 255 });
 
     int valid_cards = 0;
     for (int i = 0; i < g_state.run_deck.card_count; i++)
         if (g_state.run_deck.cards[i].def)
             valid_cards++;
     snprintf(line, sizeof(line), "Deck size: %d", valid_cards);
-    DrawText(line, stats_x, 117, 7, RAYWHITE);
+    DrawText(line, stats_x, 180, 9, RAYWHITE);
 
-    int y = 145;
-    DrawText("Final party", stats_x, y, 6, (Color){ 160, 160, 190, 220 });
-    y += 12;
+    int y = 220;
+    DrawText("Final party", stats_x, y, 8, (Color){ 160, 160, 190, 220 });
+    y += 16;
 
     for (int i = 0; i < g_state.run_party.count; i++)
     {
         PartyMember *pm = &g_state.run_party.members[i];
         snprintf(line, sizeof(line), "%s  %d/%d HP%s", pm->name, pm->hp, pm->max_hp, pm->alive ? "" : "  DOWNED");
         Color c = pm->alive ? RAYWHITE : (Color){ 230, 90, 90, 230 };
-        DrawText(line, stats_x, y, 6, c);
-        y += 10;
+        DrawText(line, stats_x, y, 7, c);
+        y += 13;
     }
 
     const char *hint = "Click to return to title";
-    DrawText(hint, (VIRT_W / 2) - MeasureText(hint, 6) / 2, VIRT_H - 20, 6, (Color){ 160, 160, 190, 220 });
+    DrawText(hint, (VIRT_W / 2) - MeasureText(hint, 8) / 2, VIRT_H - 28, 8, (Color){ 160, 160, 190, 220 });
 }
 
 

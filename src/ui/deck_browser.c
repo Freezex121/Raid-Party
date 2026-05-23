@@ -3,8 +3,8 @@
 #include "ui/theme.h"
 #include <string.h>
 
-#define BROWSER_GAP_X 3
-#define BROWSER_GAP_Y 3
+#define BROWSER_GAP_X DECK_GAP
+#define BROWSER_GAP_Y DECK_GAP
 #define BROWSER_SCROLL_W 4
 
 static int class_sort_key(ClassType ct)
@@ -196,6 +196,7 @@ void deck_browser_draw(DeckBrowser *browser, Deck *deck, bool require_unupgraded
 
         if (disabled)
             DrawText("UPG", (int)(r.x + r.width - MeasureText("UPG", 5) - 3), (int)r.y + 4, 5, (Color){ 190, 190, 205, 210 });
+
     }
 
     draw_scrollbar(browser);
@@ -203,4 +204,5 @@ void deck_browser_draw(DeckBrowser *browser, Deck *deck, bool require_unupgraded
     if (count == 0)
         DrawText("No cards", (int)(browser->viewport.x + browser->viewport.width / 2 - MeasureText("No cards", 7) / 2),
             (int)(browser->viewport.y + browser->viewport.height / 2 - 4), 7, (Color){ 160, 160, 180, 220 });
+
 }

@@ -30,6 +30,7 @@ typedef struct {
 typedef struct {
     const EnemyDef *def;
     int hp;
+    int max_hp;
     int shield;
     EnemyIntent intent;
     int current_ability;
@@ -76,6 +77,7 @@ typedef struct {
     char play_flash_text[64];
     char action_feed[5][96];
     float action_feed_timer[5];
+    float floor_scale;
 } CombatState;
 
 void combat_start(CombatState *cs, const Party *party, const EncounterDef *encounter);

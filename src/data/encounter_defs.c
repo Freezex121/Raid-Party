@@ -13,27 +13,27 @@ static void init_encounters(void)
 {
     if (initialized) return;
 
-    // Floor 1: Flame Imp, Cult Healer, Venom Stalker
-    f1_storage[0] = (EncounterDef){ .enemies = { &flame_imp, 0, 0 }, .count = 1 };
-    f1_storage[1] = (EncounterDef){ .enemies = { &cult_healer, &flame_imp, 0 }, .count = 2 };
-    f1_storage[2] = (EncounterDef){ .enemies = { &venom_stalker, 0, 0 }, .count = 1 };
-    f1_elite_storage = (EncounterDef){ .enemies = { &flame_imp, &cult_healer, 0 }, .count = 2 };
+    // Floor 1 — Basic Nature (spider, wolf, boar, treant guardian)
+    f1_storage[0] = (EncounterDef){ .enemies = { &giant_spider, 0, 0 }, .count = 1 };
+    f1_storage[1] = (EncounterDef){ .enemies = { &dire_wolf, 0, 0 }, .count = 1 };
+    f1_storage[2] = (EncounterDef){ .enemies = { &elder_treant, &forest_boar, 0 }, .count = 2 };
+    f1_elite_storage = (EncounterDef){ .enemies = { &alpha_wolf, &elder_treant, 0 }, .count = 2 };
 
-    // Floor 2: Rage Knight, Arcane Wisp, Berserker, mixed
-    f2_storage[0] = (EncounterDef){ .enemies = { &rage_knight, 0, 0 }, .count = 1 };
-    f2_storage[1] = (EncounterDef){ .enemies = { &arcane_wisp, &flame_imp, 0 }, .count = 2 };
-    f2_storage[2] = (EncounterDef){ .enemies = { &berserker, &venom_stalker, 0 }, .count = 2 };
-    f2_elite_storage = (EncounterDef){ .enemies = { &rage_knight, &cult_healer, 0 }, .count = 2 };
+    // Floor 2 — Poison (manticore, basilisk, stalker, venom priest guardian)
+    f2_storage[0] = (EncounterDef){ .enemies = { &venom_priest, &manticore, 0 }, .count = 2 };
+    f2_storage[1] = (EncounterDef){ .enemies = { &basilisk, &venom_stalker, 0 }, .count = 2 };
+    f2_storage[2] = (EncounterDef){ .enemies = { &manticore, &venom_priest, 0 }, .count = 2 };
+    f2_elite_storage = (EncounterDef){ .enemies = { &greater_manticore, &venom_priest, 0 }, .count = 2 };
 
-    // Floor 3: Living Armor, all mixed
-    f3_storage[0] = (EncounterDef){ .enemies = { &living_armor, &flame_imp, 0 }, .count = 2 };
-    f3_storage[1] = (EncounterDef){ .enemies = { &berserker, &arcane_wisp, 0 }, .count = 2 };
-    f3_storage[2] = (EncounterDef){ .enemies = { &rage_knight, &venom_stalker, &cult_healer }, .count = 3 };
-    f3_elite_storage = (EncounterDef){ .enemies = { &living_armor, &berserker, &arcane_wisp }, .count = 3 };
+    // Floor 3 — Fire / Dragon (flame_imp, fire_drake, cinder warden guardian, living_armor)
+    f3_storage[0] = (EncounterDef){ .enemies = { &cinder_warden, &flame_imp, 0 }, .count = 2 };
+    f3_storage[1] = (EncounterDef){ .enemies = { &fire_drake, &living_armor, 0 }, .count = 2 };
+    f3_storage[2] = (EncounterDef){ .enemies = { &cinder_warden, &fire_drake, &flame_imp }, .count = 3 };
+    f3_elite_storage = (EncounterDef){ .enemies = { &fire_giant, &cinder_warden, 0 }, .count = 2 };
 
-    boss_storage[0] = (EncounterDef){ .enemies = { &rage_knight, 0, 0 }, .count = 1 };
-    boss_storage[1] = (EncounterDef){ .enemies = { &living_armor, &arcane_wisp, 0 }, .count = 2 };
-    boss_storage[2] = (EncounterDef){ .enemies = { &rage_knight, &berserker, &cult_healer }, .count = 3 };
+    boss_storage[0] = (EncounterDef){ .enemies = { &alpha_wolf, &giant_spider, &dire_wolf }, .count = 3 };
+    boss_storage[1] = (EncounterDef){ .enemies = { &venom_hydra, &greater_manticore, 0 }, .count = 2 };
+    boss_storage[2] = (EncounterDef){ .enemies = { &elder_dragon, &fire_giant, &fire_drake }, .count = 3 };
 
     initialized = 1;
 }

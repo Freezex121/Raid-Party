@@ -2,6 +2,7 @@
 #include "raylib.h"
 #include "util/tween.h"
 #include "ui/theme.h"
+#include "ui/layout.h"
 #include "constants.h"
 #include <stdio.h>
 #include <string.h>
@@ -11,34 +12,11 @@ static float shown_shield[MAX_PARTY_SIZE];
 static ClassType shown_class[MAX_PARTY_SIZE];
 static int shown_count = -1;
 
-static int frame_w_for_count(int count)
-{
-    if (count >= 5) return 80;
-    if (count == 4) return 100;
-    return FRAME_W;
-}
-
-static int frame_gap_for_count(int count)
-{
-    return count >= 4 ? 4 : FRAME_GAP;
-}
-
-static int frame_start_x(Party *party)
-{
-    int fw = frame_w_for_count(party->count);
-    int gap = frame_gap_for_count(party->count);
-    int tw = party->count * fw + (party->count - 1) * gap;
-    return (VIRT_W - tw) / 2;
-}
-
 int party_frame_hit_test(Party *party, Vector2 mouse)
 {
-    int fw = frame_w_for_count(party->count);
-    int gap = frame_gap_for_count(party->count);
-    int sx = frame_start_x(party);
     for (int i = 0; i < party->count; i++)
     {
-        Rectangle r = { (float)(sx + i * (fw + gap)), FRAME_Y, (float)fw, FRAME_H };
+        Rectangle r = layout_party_frame_rect(party->count, i);
         if (CheckCollisionPointRec(mouse, r)) return i;
     }
     return -1;
@@ -100,11 +78,6 @@ static int highest_aggro_index(Party *party)
 
 void party_frames_draw(Party *party)
 {
-    int frame_w = frame_w_for_count(party->count);
-    int frame_h = FRAME_H;
-    int gap = frame_gap_for_count(party->count);
-    int total_w = party->count * frame_w + (party->count - 1) * gap;
-    int start_x = (VIRT_W - total_w) / 2;
     float dt = GetFrameTime();
     int target_idx = highest_aggro_index(party);
 
@@ -118,8 +91,11 @@ void party_frames_draw(Party *party)
     for (int i = 0; i < party->count; i++)
     {
         PartyMember *m = &party->members[i];
-        int x = start_x + i * (frame_w + gap);
-        int y = FRAME_Y;
+        Rectangle frame_rect = layout_party_frame_rect(party->count, i);
+        int x = (int)frame_rect.x;
+        int y = (int)frame_rect.y;
+        int frame_w = (int)frame_rect.width;
+        int frame_h = (int)frame_rect.height;
 
         Color tint = theme_class_color(m->class);
 
@@ -147,12 +123,12 @@ void party_frames_draw(Party *party)
         }
 
         Color bar_bg = (Color){ 20, 20, 30, 255 };
-        int portrait_x = x + 10;
-        int portrait_y = y + 12;
-        int bar_x = x + 22;
-        int bar_y = y + 4;
-        int bar_w = frame_w - 27;
-        int bar_h = 5;
+        int portrait_x = x + 14;
+        int portrait_y = y + 17;
+        int bar_x = x + 30;
+        int bar_y = y + 7;
+        int bar_w = frame_w - 38;
+        int bar_h = 7;
         DrawRectangleRec((Rectangle){ (float)bar_x, (float)bar_y, (float)bar_w, (float)bar_h }, bar_bg);
 
         float hp_ratio = shown_hp[i] / (float)m->max_hp;
@@ -175,34 +151,34 @@ void party_frames_draw(Party *party)
             DrawRectangleRec((Rectangle){ (float)bar_x, (float)bar_y, (float)shield_fill, (float)bar_h }, shield_col);
         }
 
-        theme_draw_class_portrait(m->class, portrait_x, portrait_y, 7, m->alive);
+        theme_draw_class_portrait(m->class, portrait_x, portrait_y, 10, m->alive);
 
         char hp_text[32];
         snprintf(hp_text, sizeof(hp_text), "%d / %d", m->hp, m->max_hp);
-        DrawText(hp_text, x + 22, y + 11, 5, (Color){ 200, 200, 220, 210 });
+        DrawText(hp_text, x + 30, y + 17, 6, (Color){ 200, 200, 220, 210 });
 
         Color aggro_col = (Color){ 220, 160, 60, 200 };
         char agg_text[16];
         snprintf(agg_text, sizeof(agg_text), "A:%d", m->aggro);
-        DrawText(agg_text, x + 22, y + 17, 4, aggro_col);
+        DrawText(agg_text, x + 30, y + 25, 5, aggro_col);
 
         if (!m->alive)
         {
             DrawRectangleRec((Rectangle){ (float)(x + 2), (float)(y + 2), (float)(frame_w - 4), (float)(frame_h - 4) }, (Color){ 80, 10, 18, 120 });
-            DrawText("DOWNED", x + frame_w / 2 - MeasureText("DOWNED", 7) / 2, y + 9, 7, (Color){ 255, 95, 95, 230 });
+            DrawText("DOWNED", x + frame_w / 2 - MeasureText("DOWNED", 8) / 2, y + 13, 8, (Color){ 255, 95, 95, 230 });
         }
 
-        int sx = x + frame_w - 49;
-        int sy = y + 16;
+        int sx = x + frame_w - 54;
+        int sy = y + 24;
         for (int s = 0; s < m->status_count && s < 3; s++)
         {
             StatusEffect *st = &m->statuses[s];
             Color sc = status_color(st->type);
-            Rectangle pill = { (float)(sx + s * 16), (float)sy, 14.0f, 7.0f };
+            Rectangle pill = { (float)(sx + s * 18), (float)sy, 16.0f, 8.0f };
             DrawRectangleRec(pill, (Color){ sc.r, sc.g, sc.b, 70 });
             DrawRectangleLinesEx(pill, 1.0f, (Color){ sc.r, sc.g, sc.b, 180 });
             DrawText(status_label(st->type), (int)pill.x + 1, (int)pill.y + 2, 3, (Color){ 235, 235, 245, 230 });
-            DrawText(TextFormat("%d", st->turns), (int)pill.x + 10, (int)pill.y + 1, 5, RAYWHITE);
+            DrawText(TextFormat("%d", st->turns), (int)pill.x + 11, (int)pill.y + 1, 5, RAYWHITE);
         }
     }
 }

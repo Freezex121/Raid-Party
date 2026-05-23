@@ -9,26 +9,46 @@
 static Color enemy_accent(const char *id)
 {
     if (!id) return (Color){ 190, 70, 70, 255 };
-    if (strcmp(id, "flame_imp") == 0) return (Color){ 235, 105, 55, 255 };
-    if (strcmp(id, "rage_knight") == 0) return (Color){ 210, 70, 82, 255 };
-    if (strcmp(id, "cult_healer") == 0) return (Color){ 95, 210, 125, 255 };
-    if (strcmp(id, "berserker") == 0) return (Color){ 230, 120, 60, 255 };
-    if (strcmp(id, "living_armor") == 0) return (Color){ 110, 160, 220, 255 };
+    if (strcmp(id, "giant_spider") == 0) return (Color){ 160, 200, 90, 255 };
+    if (strcmp(id, "dire_wolf") == 0) return (Color){ 185, 160, 120, 255 };
+    if (strcmp(id, "forest_boar") == 0) return (Color){ 140, 110, 80, 255 };
+    if (strcmp(id, "alpha_wolf") == 0) return (Color){ 210, 180, 100, 255 };
+    if (strcmp(id, "elder_treant") == 0) return (Color){ 100, 185, 95, 255 };
+    if (strcmp(id, "manticore") == 0) return (Color){ 180, 130, 200, 255 };
+    if (strcmp(id, "basilisk") == 0) return (Color){ 100, 200, 140, 255 };
     if (strcmp(id, "venom_stalker") == 0) return (Color){ 120, 210, 90, 255 };
-    if (strcmp(id, "arcane_wisp") == 0) return (Color){ 165, 105, 235, 255 };
+    if (strcmp(id, "greater_manticore") == 0) return (Color){ 200, 100, 220, 255 };
+    if (strcmp(id, "venom_hydra") == 0) return (Color){ 140, 220, 110, 255 };
+    if (strcmp(id, "venom_priest") == 0) return (Color){ 155, 90, 185, 255 };
+    if (strcmp(id, "flame_imp") == 0) return (Color){ 235, 105, 55, 255 };
+    if (strcmp(id, "fire_drake") == 0) return (Color){ 230, 130, 50, 255 };
+    if (strcmp(id, "cinder_warden") == 0) return (Color){ 235, 155, 65, 255 };
+    if (strcmp(id, "living_armor") == 0) return (Color){ 110, 160, 220, 255 };
+    if (strcmp(id, "fire_giant") == 0) return (Color){ 230, 90, 70, 255 };
+    if (strcmp(id, "elder_dragon") == 0) return (Color){ 220, 70, 50, 255 };
     return (Color){ 190, 70, 70, 255 };
 }
 
 static const char *enemy_mark(const char *id)
 {
     if (!id) return "EN";
-    if (strcmp(id, "flame_imp") == 0) return "FI";
-    if (strcmp(id, "rage_knight") == 0) return "RK";
-    if (strcmp(id, "cult_healer") == 0) return "CH";
-    if (strcmp(id, "berserker") == 0) return "BR";
-    if (strcmp(id, "living_armor") == 0) return "LA";
+    if (strcmp(id, "giant_spider") == 0) return "GS";
+    if (strcmp(id, "dire_wolf") == 0) return "DW";
+    if (strcmp(id, "forest_boar") == 0) return "FB";
+    if (strcmp(id, "alpha_wolf") == 0) return "AW";
+    if (strcmp(id, "elder_treant") == 0) return "ET";
+    if (strcmp(id, "manticore") == 0) return "MC";
+    if (strcmp(id, "basilisk") == 0) return "BS";
     if (strcmp(id, "venom_stalker") == 0) return "VS";
-    if (strcmp(id, "arcane_wisp") == 0) return "AW";
+    if (strcmp(id, "greater_manticore") == 0) return "GM";
+    if (strcmp(id, "venom_hydra") == 0) return "VH";
+    if (strcmp(id, "venom_priest") == 0) return "VP";
+    if (strcmp(id, "flame_imp") == 0) return "FI";
+    if (strcmp(id, "fire_drake") == 0) return "FD";
+    if (strcmp(id, "cinder_warden") == 0) return "CW";
+    if (strcmp(id, "living_armor") == 0) return "LA";
+    if (strcmp(id, "fire_giant") == 0) return "FG";
+    if (strcmp(id, "elder_dragon") == 0) return "ED";
     return "EN";
 }
 
@@ -60,46 +80,46 @@ void enemy_render_draw(EnemyState *enemy, bool highlighted, bool targeting)
         DrawCircle(cx, draw_y, size / 2 + (highlighted ? 6 : 3), highlight);
     }
 
-    DrawEllipse(cx, cy + size / 2 + 5, size / 2, 3, shadow);
+    DrawEllipse(cx, cy + size / 2 + 8, size / 2, 4, shadow);
 
-    Rectangle body_rect = { (float)(cx - 13), (float)(draw_y - 3), 26.0f, 23.0f };
+    Rectangle body_rect = { (float)(cx - 18), (float)(draw_y - 4), 36.0f, 32.0f };
     DrawRectangleRec(body_rect, body);
     DrawRectangleLinesEx(body_rect, highlighted ? 2.0f : 1.0f, highlighted ? (Color){ 255, 245, 150, 255 } : accent);
 
-    DrawCircle(cx, draw_y - 11, 10, darken(accent, 0.55f));
-    DrawCircleLines(cx, draw_y - 11, 10, (Color){ accent.r, accent.g, accent.b, 220 });
+    DrawCircle(cx, draw_y - 15, 14, darken(accent, 0.55f));
+    DrawCircleLines(cx, draw_y - 15, 14, (Color){ accent.r, accent.g, accent.b, 220 });
 
-    DrawTriangle((Vector2){ (float)(cx - 8), (float)(draw_y - 19) },
-                 (Vector2){ (float)(cx - 4), (float)(draw_y - 29) },
-                 (Vector2){ (float)(cx - 1), (float)(draw_y - 18) },
+    DrawTriangle((Vector2){ (float)(cx - 11), (float)(draw_y - 26) },
+                 (Vector2){ (float)(cx - 6), (float)(draw_y - 39) },
+                 (Vector2){ (float)(cx - 1), (float)(draw_y - 25) },
                  darken(accent, 0.70f));
-    DrawTriangle((Vector2){ (float)(cx + 8), (float)(draw_y - 19) },
-                 (Vector2){ (float)(cx + 4), (float)(draw_y - 29) },
-                 (Vector2){ (float)(cx + 1), (float)(draw_y - 18) },
+    DrawTriangle((Vector2){ (float)(cx + 11), (float)(draw_y - 26) },
+                 (Vector2){ (float)(cx + 6), (float)(draw_y - 39) },
+                 (Vector2){ (float)(cx + 1), (float)(draw_y - 25) },
                  darken(accent, 0.70f));
 
-    DrawCircle(cx - 3, draw_y - 12, 1, (Color){ 255, 235, 170, 255 });
-    DrawCircle(cx + 3, draw_y - 12, 1, (Color){ 255, 235, 170, 255 });
+    DrawCircle(cx - 4, draw_y - 16, 2, (Color){ 255, 235, 170, 255 });
+    DrawCircle(cx + 4, draw_y - 16, 2, (Color){ 255, 235, 170, 255 });
 
     const char *mark = enemy_mark(enemy->def->id);
-    DrawText(mark, cx - MeasureText(mark, 6) / 2, draw_y + 4, 6, RAYWHITE);
+    DrawText(mark, cx - MeasureText(mark, 8) / 2, draw_y + 8, 8, RAYWHITE);
 
-    Rectangle nameplate = { (float)(cx - 33), (float)(draw_y - size / 2 - 15), 66.0f, 10.0f };
+    Rectangle nameplate = { (float)(cx - 42), (float)(draw_y - size / 2 - 22), 84.0f, 14.0f };
     DrawRectangleRec(nameplate, (Color){ 18, 18, 28, 220 });
     DrawRectangleLinesEx(nameplate, 1.0f, (Color){ accent.r, accent.g, accent.b, 170 });
-    int name_size = 6;
-    while (name_size > 4 && MeasureText(enemy->def->name, name_size) > (int)nameplate.width - 4)
+    int name_size = 8;
+    while (name_size > 5 && MeasureText(enemy->def->name, name_size) > (int)nameplate.width - 6)
         name_size--;
-    DrawText(enemy->def->name, cx - MeasureText(enemy->def->name, name_size) / 2, (int)nameplate.y + 2, name_size, RAYWHITE);
+    DrawText(enemy->def->name, cx - MeasureText(enemy->def->name, name_size) / 2, (int)nameplate.y + 3, name_size, RAYWHITE);
 
-    int hp_bar_w = 46;
-    int hp_bar_h = 6;
+    int hp_bar_w = 72;
+    int hp_bar_h = 8;
     int hp_x = cx - hp_bar_w / 2;
     int hp_y = cy + size / 2 + 8;
 
     DrawRectangleRec((Rectangle){ (float)hp_x, (float)hp_y, (float)hp_bar_w, (float)hp_bar_h }, (Color){ 42, 20, 25, 245 });
 
-    float hp_ratio = (float)enemy->hp / (float)enemy->def->max_hp;
+    float hp_ratio = (float)enemy->hp / (float)enemy->max_hp;
     if (hp_ratio < 0.0f) hp_ratio = 0.0f;
     if (hp_ratio > 1.0f) hp_ratio = 1.0f;
     int hp_fill_w = (int)((hp_bar_w - 4) * hp_ratio);
@@ -110,14 +130,14 @@ void enemy_render_draw(EnemyState *enemy, bool highlighted, bool targeting)
     }
 
     char hp_text[32];
-    snprintf(hp_text, sizeof(hp_text), "%d / %d", enemy->hp, enemy->def->max_hp);
-    DrawText(hp_text, cx - MeasureText(hp_text, 5) / 2, hp_y + 1, 5, RAYWHITE);
+    snprintf(hp_text, sizeof(hp_text), "%d / %d", enemy->hp, enemy->max_hp);
+    DrawText(hp_text, cx - MeasureText(hp_text, 6) / 2, hp_y + 1, 6, RAYWHITE);
 
     if (enemy->shield > 0)
     {
         char shield_text[24];
         snprintf(shield_text, sizeof(shield_text), "S%d", enemy->shield);
-        DrawText(shield_text, cx - MeasureText(shield_text, 5) / 2, hp_y + 8, 5, (Color){ 130, 200, 255, 235 });
+        DrawText(shield_text, cx - MeasureText(shield_text, 6) / 2, hp_y + 11, 6, (Color){ 130, 200, 255, 235 });
     }
 }
 

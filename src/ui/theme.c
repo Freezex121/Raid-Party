@@ -1,6 +1,6 @@
 #include "theme.h"
 #include "assets.h"
-#include <string.h>
+#include <stdarg.h>
 #include <stdio.h>
 
 static Color color_fade_alpha(Color c, unsigned char a)
@@ -39,7 +39,7 @@ static int scaled_font(Rectangle r, int source_px)
 {
     float s = r.width / (float)CARD_ART_SOURCE_W;
     int f = (int)(source_px * s);
-    return f < 4 ? 4 : f;
+    return f < 3 ? 3 : f;
 }
 
 static void draw_text_fit(const char *text, int x, int y, int max_w, int size, Color color)
@@ -48,6 +48,262 @@ static void draw_text_fit(const char *text, int x, int y, int max_w, int size, C
     while (size > 4 && MeasureText(text, size) > max_w)
         size--;
     DrawText(text, x, y, size, color);
+}
+
+static const CardEffect *card_effect(const CardDef *card, CardEffectType type)
+{
+    if (!card || !card->effects || card->effect_count <= 0) return NULL;
+    for (int i = 0; i < card->effect_count; i++)
+        if (card->effects[i].type == type)
+            return &card->effects[i];
+    return NULL;
+}
+
+static const char *target_code(const CardDef *card)
+{
+    if (card && card->channel && card->target == TARGET_SELF)
+    {
+        if (card->damage > 0) return "ALL EN";
+        if (card->heal > 0 || card->shield > 0) return "ALL AL";
+    }
+    if (card_effect(card, CARD_EFFECT_APPLY_STATUS_ALL_ALLIES)) return "ALL AL";
+
+    switch (card ? card->target : TARGET_SELF)
+    {
+        case TARGET_ENEMY:       return "1 EN";
+        case TARGET_ALL_ENEMIES: return "ALL EN";
+        case TARGET_ALLY:        return "1 AL";
+        case TARGET_ALL_ALLIES:  return "ALL AL";
+        case TARGET_SELF:        return "SELF";
+    }
+    return "SELF";
+}
+
+static const char *target_name(TargetType target)
+{
+    switch (target)
+    {
+        case TARGET_ENEMY:       return "one enemy";
+        case TARGET_ALL_ENEMIES: return "all enemies";
+        case TARGET_ALLY:        return "one ally";
+        case TARGET_ALL_ALLIES:  return "all allies";
+        case TARGET_SELF:        return "self";
+    }
+    return "self";
+}
+
+static const char *effect_target_name(const CardDef *card)
+{
+    if (card && card->channel && card->target == TARGET_SELF)
+    {
+        if (card->damage > 0) return "all enemies";
+        if (card->heal > 0 || card->shield > 0) return "all allies";
+    }
+    if (card_effect(card, CARD_EFFECT_APPLY_STATUS_ALL_ALLIES)) return "all allies";
+    return target_name(card ? card->target : TARGET_SELF);
+}
+
+static const char *card_class_label(const CardDef *card)
+{
+    if (!card || card->class == CLASS_NONE) return "Utility";
+    return class_name(card->class);
+}
+
+static Color token_color(const char *token, Color fallback)
+{
+    if (!token || !token[0]) return fallback;
+    if (token[0] == 'D') return (Color){ 235, 95, 85, 255 };
+    if (token[0] == 'H' || token[0] == 'R') return (Color){ 105, 235, 130, 255 };
+    if (token[0] == 'S') return (Color){ 125, 190, 255, 255 };
+    if (token[0] == 'B' || token[0] == 'T') return (Color){ 245, 155, 75, 255 };
+    if (token[0] == 'I' || token[0] == 'C') return (Color){ 205, 135, 245, 255 };
+    if (token[0] == 'E') return (Color){ 255, 235, 120, 255 };
+    if (token[0] == 'A') return (Color){ 185, 200, 240, 255 };
+    return fallback;
+}
+
+static int add_token(char tokens[][12], int count, int max_tokens, const char *fmt, ...)
+{
+    if (count >= max_tokens) return count;
+
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(tokens[count], 12, fmt, args);
+    va_end(args);
+    return count + 1;
+}
+
+static int build_card_tokens(const CardDef *card, bool upgraded, char tokens[][12], int max_tokens)
+{
+    if (!card) return 0;
+
+    int count = 0;
+    int dmg = card_damage(card, upgraded);
+    int heal = card_heal(card, upgraded);
+    int shield = card_shield(card, upgraded);
+    int hits = card_repeat_hits(card);
+
+    if (dmg > 0)
+    {
+        if (hits > 1) count = add_token(tokens, count, max_tokens, "D%dx%d", dmg, hits);
+        else count = add_token(tokens, count, max_tokens, "D%d", dmg);
+    }
+    if (heal > 0 && card->heal2 > 0)
+        count = add_token(tokens, count, max_tokens, "H%d+%d", heal, card->heal2);
+    else if (heal > 0)
+        count = add_token(tokens, count, max_tokens, "H%d", heal);
+    if (shield > 0)
+        count = add_token(tokens, count, max_tokens, "S%d", shield);
+    if (card->burn_stacks > 0)
+        count = add_token(tokens, count, max_tokens, "B%d", card->burn_stacks);
+    if (card->interrupt)
+        count = add_token(tokens, count, max_tokens, "INT");
+    if (card->taunt)
+        count = add_token(tokens, count, max_tokens, "T%d", card->taunt_turns);
+    if (card->channel)
+        count = add_token(tokens, count, max_tokens, "CH%d", card->channel_turns);
+
+    const CardEffect *effect = card_effect(card, CARD_EFFECT_DRAW_CARDS);
+    if (effect) count = add_token(tokens, count, max_tokens, "DRAW%d", effect->amount);
+    effect = card_effect(card, CARD_EFFECT_GAIN_ENERGY);
+    if (effect) count = add_token(tokens, count, max_tokens, "EN+%d", effect->amount);
+    if (card_effect(card, CARD_EFFECT_REVIVE_TARGET)) count = add_token(tokens, count, max_tokens, "REV");
+    effect = card_effect(card, CARD_EFFECT_APPLY_STATUS_TARGET_ALLY);
+    if (effect && effect->status == STATUS_RENEW) count = add_token(tokens, count, max_tokens, "REN%d", effect->turns);
+    effect = card_effect(card, CARD_EFFECT_APPLY_STATUS_ALL_ALLIES);
+    if (effect && effect->status == STATUS_TOTEM_HEAL) count = add_token(tokens, count, max_tokens, "TOT%d", effect->turns);
+    effect = card_effect(card, CARD_EFFECT_APPLY_STATUS_TARGET_ENEMY);
+    if (effect && effect->status == STATUS_TRAP) count = add_token(tokens, count, max_tokens, "TRAP");
+    if (card_effect(card, CARD_EFFECT_RESET_CASTER_AGGRO)) count = add_token(tokens, count, max_tokens, "AG0");
+    if (card_effect(card, CARD_EFFECT_TRANSFER_AGGRO_TO_GUARDIAN)) count = add_token(tokens, count, max_tokens, "AG>GD");
+
+    if (card->exhaust && !card_has_effect(card, CARD_EFFECT_REVIVE_TARGET) && !card->channel)
+        count = add_token(tokens, count, max_tokens, "EXH");
+
+    return count;
+}
+
+static void draw_card_tokens(Rectangle dest, const CardDef *card, bool upgraded, Color fallback)
+{
+    char tokens[12][12];
+    int token_count = build_card_tokens(card, upgraded, tokens, 12);
+    int size = scaled_font(dest, 4);
+    int x0 = scaled_x(dest, 5);
+    int x = x0;
+    int max_x = scaled_x(dest, 56);
+    int y = scaled_y(dest, 47);
+    int line_h = (int)(7.0f * (dest.width / (float)CARD_ART_SOURCE_W));
+    if (line_h < size + 2) line_h = size + 2;
+    int gap = (int)(3.0f * (dest.width / (float)CARD_ART_SOURCE_W));
+    if (gap < 2) gap = 2;
+
+    int row = 0;
+    for (int i = 0; i < token_count && row < 3; i++)
+    {
+        int tw = MeasureText(tokens[i], size);
+        if (x > x0 && x + tw > max_x)
+        {
+            row++;
+            if (row >= 3) break;
+            x = x0;
+            y += line_h;
+        }
+
+        DrawText(tokens[i], x, y, size, token_color(tokens[i], fallback));
+        x += tw + gap;
+    }
+}
+
+static void add_detail_line(char lines[][80], int *count, int max_lines, const char *fmt, ...)
+{
+    if (*count >= max_lines) return;
+
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(lines[*count], 80, fmt, args);
+    va_end(args);
+    (*count)++;
+}
+
+static int build_card_detail_lines(const CardDef *card, bool upgraded, char lines[][80], int max_lines)
+{
+    if (!card) return 0;
+
+    int count = 0;
+    int dmg = card_damage(card, upgraded);
+    int heal = card_heal(card, upgraded);
+    int shield = card_shield(card, upgraded);
+    int hits = card_repeat_hits(card);
+
+    if (card->channel)
+        add_detail_line(lines, &count, max_lines, "Channel: %d turns, then resolves", card->channel_turns);
+
+    if (dmg > 0)
+    {
+        if (hits > 1)
+            add_detail_line(lines, &count, max_lines, "Damage: %d x%d to %s", dmg, hits, effect_target_name(card));
+        else
+            add_detail_line(lines, &count, max_lines, "Damage: %d to %s", dmg, effect_target_name(card));
+    }
+
+    if (heal > 0)
+    {
+        if (card->target == TARGET_ENEMY && !card->heal_self)
+            add_detail_line(lines, &count, max_lines, "Heal: %d to lowest HP ally", heal);
+        else if (card->heal_self)
+            add_detail_line(lines, &count, max_lines, "Heal: %d to self", heal);
+        else
+            add_detail_line(lines, &count, max_lines, "Heal: %d to %s", heal, effect_target_name(card));
+    }
+
+    if (card->heal2 > 0)
+        add_detail_line(lines, &count, max_lines, "Bonus heal: %d to another ally", card->heal2);
+
+    if (shield > 0)
+    {
+        if (card->target == TARGET_ENEMY)
+            add_detail_line(lines, &count, max_lines, "Shield: %d to caster", shield);
+        else
+            add_detail_line(lines, &count, max_lines, "Shield: %d to %s", shield, effect_target_name(card));
+    }
+
+    if (card->burn_stacks > 0)
+        add_detail_line(lines, &count, max_lines, "Burning: %d stacks for 3 turns", card->burn_stacks);
+    if (card->interrupt)
+        add_detail_line(lines, &count, max_lines, "Interrupts the target's cast");
+    if (card->taunt)
+        add_detail_line(lines, &count, max_lines, "Taunt: pull enemy attacks for %d turn%s", card->taunt_turns, card->taunt_turns == 1 ? "" : "s");
+
+    const CardEffect *effect = card_effect(card, CARD_EFFECT_DRAW_CARDS);
+    if (effect)
+        add_detail_line(lines, &count, max_lines, "Draw: %d card%s", effect->amount, effect->amount == 1 ? "" : "s");
+    effect = card_effect(card, CARD_EFFECT_GAIN_ENERGY);
+    if (effect)
+        add_detail_line(lines, &count, max_lines, "Energy: gain %d", effect->amount);
+    if (card_effect(card, CARD_EFFECT_REVIVE_TARGET))
+        add_detail_line(lines, &count, max_lines, "Revive a downed ally; exhaust");
+    effect = card_effect(card, CARD_EFFECT_APPLY_STATUS_TARGET_ALLY);
+    if (effect && effect->status == STATUS_RENEW)
+        add_detail_line(lines, &count, max_lines, "Renew: +%d HP for %d turns", effect->amount, effect->turns);
+    effect = card_effect(card, CARD_EFFECT_APPLY_STATUS_ALL_ALLIES);
+    if (effect && effect->status == STATUS_TOTEM_HEAL)
+        add_detail_line(lines, &count, max_lines, "All allies gain +%d HP for %d turns", effect->amount, effect->turns);
+    effect = card_effect(card, CARD_EFFECT_APPLY_STATUS_TARGET_ENEMY);
+    if (effect && effect->status == STATUS_TRAP)
+        add_detail_line(lines, &count, max_lines, "Trap: target deals -%d damage for %d turns", effect->amount, effect->turns);
+    if (card_effect(card, CARD_EFFECT_RESET_CASTER_AGGRO))
+        add_detail_line(lines, &count, max_lines, "Reset caster aggro to 0");
+    if (card_effect(card, CARD_EFFECT_TRANSFER_AGGRO_TO_GUARDIAN))
+        add_detail_line(lines, &count, max_lines, "Move target ally aggro to Guardian");
+    if (card->aggro_self > 0)
+        add_detail_line(lines, &count, max_lines, "Aggro: +%d to caster", card->aggro_self);
+    if (card->exhaust && !card_has_effect(card, CARD_EFFECT_REVIVE_TARGET) && !card->channel)
+        add_detail_line(lines, &count, max_lines, "Exhausts after use");
+
+    if (count == 0 && card->description)
+        add_detail_line(lines, &count, max_lines, "%s", card->description);
+
+    return count;
 }
 
 static Texture2D class_icon_texture(ClassType ct)
@@ -163,6 +419,11 @@ const char *theme_primary_effect_label(const CardDef *card)
     if (card->interrupt) return "INT";
     if (card->taunt) return "TAUNT";
     if (card->burn_stacks > 0) return "BURN";
+    if (card_has_effect(card, CARD_EFFECT_REVIVE_TARGET)) return "REV";
+    if (card_has_effect(card, CARD_EFFECT_DRAW_CARDS)) return "DRAW";
+    if (card_has_effect(card, CARD_EFFECT_GAIN_ENERGY)) return "ENER";
+    if (card_has_effect(card, CARD_EFFECT_RESET_CASTER_AGGRO)) return "AGRO";
+    if (card_has_effect(card, CARD_EFFECT_TRANSFER_AGGRO_TO_GUARDIAN)) return "AGRO";
     if (card->channel) return "CHAN";
     if (card->damage > 0 && card->heal > 0) return "DRAIN";
     if (card->damage > 0) return "DMG";
@@ -289,7 +550,7 @@ void theme_draw_card_art(Rectangle bounds, const CardDef *card, bool upgraded)
     snprintf(cost, sizeof(cost), "%d", card->cost);
     int cost_size = scaled_font(dest, 6);
     DrawText(cost,
-        scaled_x(dest, 55) - MeasureText(cost, cost_size) / 2,
+        scaled_x(dest, 50) - MeasureText(cost, cost_size) / 2,
         scaled_y(dest, 2),
         cost_size,
         (Color){ 25, 25, 20, 255 });
@@ -322,39 +583,67 @@ void theme_draw_card_art(Rectangle bounds, const CardDef *card, bool upgraded)
             WHITE);
     }
 
-    DrawText(theme_card_type_label(card->type), scaled_x(dest, 5), scaled_y(dest, 39), scaled_font(dest, 4), type);
-    DrawText(theme_primary_effect_label(card), scaled_x(dest, 31), scaled_y(dest, 39), scaled_font(dest, 4), c);
-
-    int stat_y = scaled_y(dest, 63);
-    int stat_size = scaled_font(dest, 4);
-    int stat_x = scaled_x(dest, 5);
-    if (card->damage > 0)
-    {
-        char b[16]; snprintf(b, sizeof(b), "D%d", card->damage);
-        DrawText(b, stat_x, stat_y, stat_size, (Color){ 230, 95, 85, 255 });
-        stat_x += (int)(17 * s);
-    }
-    if (card->heal > 0)
-    {
-        char b[16]; snprintf(b, sizeof(b), "H%d", card->heal);
-        DrawText(b, stat_x, stat_y, stat_size, (Color){ 105, 235, 130, 255 });
-        stat_x += (int)(17 * s);
-    }
-    if (card->shield > 0)
-    {
-        char b[16]; snprintf(b, sizeof(b), "S%d", card->shield);
-        DrawText(b, stat_x, stat_y, stat_size, (Color){ 125, 190, 255, 255 });
-        stat_x += (int)(17 * s);
-    }
-
-    int desc_size = scaled_font(dest, 3);
-    const char *desc = card->description ? card->description : "";
-    char desc_buf[64];
-    snprintf(desc_buf, sizeof(desc_buf), "%.24s", desc);
-    DrawText(desc_buf, scaled_x(dest, 5), scaled_y(dest, 48), desc_size, (Color){ 205, 208, 226, 255 });
+    int info_size = scaled_font(dest, 4);
+    DrawText(theme_card_type_label(card->type), scaled_x(dest, 5), scaled_y(dest, 39), info_size, type);
+    draw_text_fit(target_code(card), scaled_x(dest, 27), scaled_y(dest, 39), (int)(29 * s), info_size, c);
+    draw_card_tokens(dest, card, upgraded, c);
 
     if (upgraded)
         DrawText("*", scaled_x(dest, 45), scaled_y(dest, 2), scaled_font(dest, 5), (Color){ 255, 245, 120, 255 });
+}
+
+void theme_draw_card_tooltip(Rectangle bounds, const CardDef *card, bool upgraded)
+{
+    if (!card) return;
+
+    if (bounds.x < 2.0f) bounds.x = 2.0f;
+    if (bounds.y < 2.0f) bounds.y = 2.0f;
+    if (bounds.x + bounds.width > VIRT_W - 2)
+        bounds.x = (float)(VIRT_W - 2) - bounds.width;
+    if (bounds.y + bounds.height > VIRT_H - 2)
+        bounds.y = (float)(VIRT_H - 2) - bounds.height;
+
+    Color accent = theme_class_color(card->class);
+    Color type = theme_card_type_color(card->type);
+
+    DrawRectangleRec(bounds, (Color){ 8, 9, 15, 244 });
+    DrawRectangleRec((Rectangle){ bounds.x, bounds.y, bounds.width, 16.0f }, color_fade_alpha(theme_class_dark(card->class), 235));
+    DrawRectangleLinesEx(bounds, 1.0f, color_fade_alpha(accent, 230));
+
+    int x = (int)bounds.x + 5;
+    int y = (int)bounds.y + 3;
+    int right = (int)(bounds.x + bounds.width) - 5;
+
+    char cost[16];
+    snprintf(cost, sizeof(cost), "E%d", card->cost);
+    DrawText(cost, right - MeasureText(cost, 7), y, 7, (Color){ 255, 235, 120, 255 });
+
+    int title_w = right - x - MeasureText(cost, 7) - 8;
+    draw_text_fit(card->name, x, y, title_w, 8, RAYWHITE);
+
+    char meta[80];
+    snprintf(meta, sizeof(meta), "%s  %s  %s",
+        card_class_label(card),
+        theme_card_type_label(card->type),
+        target_code(card));
+    DrawText(meta, x, (int)bounds.y + 20, 6, type);
+
+    char lines[12][80];
+    int line_count = build_card_detail_lines(card, upgraded, lines, 12);
+    int line_y = (int)bounds.y + 32;
+    int line_h = 10;
+    int max_lines = ((int)(bounds.y + bounds.height) - line_y - 3) / line_h;
+    if (max_lines < 0) max_lines = 0;
+    if (line_count > max_lines) line_count = max_lines;
+
+    for (int i = 0; i < line_count; i++)
+    {
+        Color line_color = i == 0 ? RAYWHITE : (Color){ 190, 194, 215, 235 };
+        draw_text_fit(lines[i], x, line_y + i * line_h, (int)bounds.width - 10, 6, line_color);
+    }
+
+    if (upgraded)
+        DrawText("UPG", right - MeasureText("UPG", 6), (int)(bounds.y + bounds.height) - 11, 6, (Color){ 255, 245, 120, 230 });
 }
 
 

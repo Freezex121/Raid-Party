@@ -75,8 +75,8 @@ static void calc_positions(MapNode *nodes, int count, int floor)
         if (nodes[i].row > rows) rows = nodes[i].row;
     rows++;
 
-    int top_y = 55;
-    int bottom_y = VIRT_H - 38;
+    int top_y = 72;
+    int bottom_y = 300;
     int row_height = (rows > 1) ? (bottom_y - top_y) / (rows - 1) : 0;
 
     for (int i = 0; i < count; i++)

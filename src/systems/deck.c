@@ -20,6 +20,21 @@ int card_shield(const CardDef *def, bool upgraded)
     return upgraded ? (def->shield * 3 + 1) / 2 : def->shield;
 }
 
+int card_repeat_hits(const CardDef *def)
+{
+    if (!def || def->repeat_hits < 1) return 1;
+    return def->repeat_hits;
+}
+
+bool card_has_effect(const CardDef *def, CardEffectType type)
+{
+    if (!def || !def->effects || def->effect_count <= 0) return false;
+    for (int i = 0; i < def->effect_count; i++)
+        if (def->effects[i].type == type)
+            return true;
+    return false;
+}
+
 void deck_init(Deck *deck)
 {
     memset(deck, 0, sizeof(Deck));
@@ -143,6 +158,30 @@ void deck_discard_hand(Deck *deck)
             deck->discard[deck->discard_count++] = card_idx;
     }
     deck->hand_count = 0;
+}
+
+void deck_remove_card_by_uid(Deck *deck, int uid)
+{
+    for (int i = 0; i < deck->card_count; i++)
+    {
+        if (!deck->cards[i].def || deck->cards[i].uid != uid) continue;
+
+        for (int j = 0; j < deck->draw_count; j++)
+            if (deck->cards[deck->draw[j]].uid == uid)
+                { deck->draw[j] = deck->draw[--deck->draw_count]; break; }
+        for (int j = 0; j < deck->hand_count; j++)
+            if (deck->cards[deck->hand[j]].uid == uid)
+                { for (int k = j; k < deck->hand_count - 1; k++) deck->hand[k] = deck->hand[k + 1]; deck->hand_count--; break; }
+        for (int j = 0; j < deck->discard_count; j++)
+            if (deck->cards[deck->discard[j]].uid == uid)
+                { deck->discard[j] = deck->discard[--deck->discard_count]; break; }
+        for (int j = 0; j < deck->exhaust_count; j++)
+            if (deck->cards[deck->exhaust[j]].uid == uid)
+                { deck->exhaust[j] = deck->exhaust[--deck->exhaust_count]; break; }
+
+        deck->cards[i].def = NULL;
+        return;
+    }
 }
 
 void deck_remove_class_cards(Deck *deck, ClassType ct)

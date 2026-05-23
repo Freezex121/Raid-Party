@@ -2,6 +2,7 @@
 #include "util/text.h"
 #include "util/log.h"
 #include "ui/theme.h"
+#include "ui/layout.h"
 #include "constants.h"
 #include "raylib.h"
 #include <stdio.h>
@@ -36,6 +37,34 @@ static Color class_accent(ClassType ct)
     }
 }
 
+static void draw_hand_card(Rectangle card_rect, const CardDef *card, bool upgraded, bool hovered, bool low_energy, bool locked)
+{
+    Color accent = theme_class_color(card->class);
+    int cx = (int)card_rect.x;
+    int cy = (int)card_rect.y;
+    int cw = (int)card_rect.width;
+    int ch = (int)card_rect.height;
+
+    theme_draw_card_art(card_rect, card, upgraded);
+    DrawRectangleLinesEx(card_rect, hovered ? 2.5f : 1.0f,
+        low_energy ? (Color){ 95, 90, 105, 210 } : (hovered ? RAYWHITE : accent));
+
+    if (locked)
+    {
+        DrawRectangleRec(card_rect, (Color){ 40, 20, 22, 165 });
+        DrawText("CHANNELING", cx + cw / 2 - MeasureText("CHANNELING", 7) / 2, cy + ch / 2 - 4, 7, (Color){ 240, 120, 120, 230 });
+        return;
+    }
+
+    if (low_energy)
+    {
+        DrawRectangleRec(card_rect, (Color){ 8, 8, 12, 120 });
+        DrawRectangle(cx, cy + ch - 9, cw, 9, (Color){ 190, 60, 65, 210 });
+        if (hovered)
+            DrawText("Not enough energy", cx + 5, cy + ch - 19, 6, (Color){ 240, 110, 115, 240 });
+    }
+}
+
 void hand_render_draw(Deck *deck, Energy *energy, int hovered_card, ClassType channel_class, int target_idx, float target_offset)
 {
     LOG_T("HRD: start");
@@ -55,11 +84,13 @@ void hand_render_draw(Deck *deck, Energy *energy, int hovered_card, ClassType ch
 
     float dt = GetFrameTime();
 
-    int card_w = HAND_CARD_W, card_h = HAND_CARD_H;
-    int gap = HAND_GAP;
-    int total_w = deck->hand_count * (card_w + gap) - gap;
-    int start_x = (VIRT_W - total_w) / 2;
-    int card_y = HAND_Y;
+    HandLayout hand_layout = layout_hand(deck->hand_count);
+    Rectangle draw_rects[MAX_HAND_SIZE] = { 0 };
+    bool draw_valid[MAX_HAND_SIZE] = { 0 };
+    bool draw_low_energy[MAX_HAND_SIZE] = { 0 };
+    bool draw_locked[MAX_HAND_SIZE] = { 0 };
+    bool draw_upgraded[MAX_HAND_SIZE] = { 0 };
+    const CardDef *draw_cards[MAX_HAND_SIZE] = { 0 };
 
     for (int i = 0; i < deck->hand_count; i++)
     {
@@ -86,50 +117,46 @@ void hand_render_draw(Deck *deck, Energy *energy, int hovered_card, ClassType ch
 
         LOG_T("HRD: card=%s ch=%d turns=%d tgt=%d", card->name, card->channel, card->channel_turns, card->target);
         bool ug = inst->upgraded;
-        int dmg = card_damage(card, ug);
-        int hl  = card_heal(card, ug);
-        int sh  = card_shield(card, ug);
-        int x = start_x + i * (card_w + gap);
+        Rectangle base_rect = layout_hand_card_rect(hand_layout, i);
+        int x = (int)base_rect.x;
 
         float entry = visual_entry[i];
         if (entry < 0.0f) entry = 0.0f;
-        float hover_offset = -22.0f * visual_hover[i];
+        float hover_offset = -28.0f * visual_hover[i];
         float deal_offset = (1.0f - entry) * 90.0f;
         float select_offset = (i == target_idx) ? target_offset : 0.0f;
-        float draw_y = card_y + hover_offset + select_offset + deal_offset;
-
-        Color type_col = theme_card_type_color(card->type);
-        Color accent = theme_class_color(card->class);
+        float draw_y = base_rect.y + hover_offset + select_offset + deal_offset;
 
         bool low_energy = !energy_has(energy, card->cost);
         float scale = 1.0f + 0.08f * visual_hover[i];
-        int cw = (int)(card_w * scale);
-        int ch = (int)(card_h * scale);
-        int cx = x - (cw - card_w) / 2;
-        int cy = (int)(draw_y - (ch - card_h) / 2);
+        int cw = (int)(hand_layout.card_w * scale);
+        int ch = (int)(hand_layout.card_h * scale);
+        int cx = x - (cw - hand_layout.card_w) / 2;
+        int cy = (int)(draw_y - (ch - hand_layout.card_h) / 2);
 
         bool locked = (channel_class != CLASS_NONE && card->class == channel_class);
-        Rectangle card_rect = { (float)cx, (float)cy, (float)cw, (float)ch };
-        theme_draw_card_art(card_rect, card, ug);
+        draw_rects[i] = (Rectangle){ (float)cx, (float)cy, (float)cw, (float)ch };
+        draw_valid[i] = true;
+        draw_low_energy[i] = low_energy;
+        draw_locked[i] = locked;
+        draw_upgraded[i] = ug;
+        draw_cards[i] = card;
+    }
 
-        LOG_T("HRD: border");
-        DrawRectangleLinesEx(card_rect, (i == hovered_card) ? 2.5f : 1.0f, low_energy ? (Color){ 95, 90, 105, 210 } : ((i == hovered_card) ? RAYWHITE : accent));
-        LOG_T("HRD: border done");
+    for (int i = 0; i < deck->hand_count; i++)
+    {
+        if (!draw_valid[i] || i == hovered_card || i == target_idx) continue;
+        draw_hand_card(draw_rects[i], draw_cards[i], draw_upgraded[i], false, draw_low_energy[i], draw_locked[i]);
+    }
 
-        if (locked)
-        {
-            DrawRectangleRec(card_rect, (Color){ 40, 20, 22, 165 });
-            DrawText("CHANNELING", cx + cw / 2 - MeasureText("CHANNELING", 6) / 2, cy + ch / 2 - 3, 6, (Color){ 240, 120, 120, 230 });
-            continue;
-        }
+    if (target_idx >= 0 && target_idx < deck->hand_count && target_idx != hovered_card && draw_valid[target_idx])
+    {
+        draw_hand_card(draw_rects[target_idx], draw_cards[target_idx], draw_upgraded[target_idx], true, draw_low_energy[target_idx], draw_locked[target_idx]);
+    }
 
-        if (low_energy)
-        {
-            DrawRectangleRec(card_rect, (Color){ 8, 8, 12, 120 });
-            DrawRectangle(cx, cy + ch - 7, cw, 7, (Color){ 190, 60, 65, 210 });
-            if (i == hovered_card)
-                DrawText("Not enough energy", cx + 4, cy + ch - 15, 5, (Color){ 240, 110, 115, 240 });
-        }
+    if (hovered_card >= 0 && hovered_card < deck->hand_count && draw_valid[hovered_card])
+    {
+        draw_hand_card(draw_rects[hovered_card], draw_cards[hovered_card], draw_upgraded[hovered_card], true, draw_low_energy[hovered_card], draw_locked[hovered_card]);
     }
     LOG_T("HRD: end");
 }

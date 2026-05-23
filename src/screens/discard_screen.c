@@ -1,0 +1,178 @@
+#include "screens.h"
+#include "game.h"
+#include "ui/theme.h"
+#include "util/log.h"
+#include "constants.h"
+#include "raylib.h"
+#include <stdio.h>
+
+static int hovered_card = -1;
+static int scroll_offset = 0;
+
+void discard_screen_update(void)
+{
+    if (g_state.discard_count <= 0)
+    {
+        g_state.discard_selected = 0;
+        game_change_screen(SCREEN_MAP);
+        return;
+    }
+
+    Vector2 mouse = GetMousePosition();
+    hovered_card = -1;
+
+    // Scroll with mouse wheel
+    int wheel = GetMouseWheelMove();
+    scroll_offset -= wheel * 16;
+    if (scroll_offset < 0) scroll_offset = 0;
+
+    int cards_per_row = 4;
+    int card_w = 60;
+    int card_h = 84;
+    int gap = 6;
+    int total_w = cards_per_row * (card_w + gap) - gap;
+    int start_x = (VIRT_W - total_w) / 2;
+    int start_y = 80;
+
+    Deck *deck = &g_state.run_deck;
+
+    for (int i = 0; i < deck->card_count; i++)
+    {
+        if (!deck->cards[i].def) continue;
+
+        int row = i / cards_per_row;
+        int col = i % cards_per_row;
+        int cx = start_x + col * (card_w + gap);
+        int cy = start_y + row * (card_h + gap) - scroll_offset;
+
+        if (cy + card_h < 60 || cy > VIRT_H) continue;
+
+        Rectangle r = { (float)cx, (float)cy, (float)card_w, (float)card_h };
+        if (CheckCollisionPointRec(mouse, r))
+        {
+            hovered_card = i;
+            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+            {
+                // Toggle selection
+                int uid = deck->cards[i].uid;
+                int already = -1;
+                for (int j = 0; j < g_state.discard_selected; j++)
+                    if (g_state.discard_uids[j] == uid) { already = j; break; }
+
+                if (already >= 0)
+                {
+                    for (int j = already; j < g_state.discard_selected - 1; j++)
+                        g_state.discard_uids[j] = g_state.discard_uids[j + 1];
+                    g_state.discard_selected--;
+                }
+                else if (g_state.discard_selected < g_state.discard_count)
+                {
+                    g_state.discard_uids[g_state.discard_selected++] = uid;
+                }
+            }
+            break;
+        }
+    }
+
+    // Skip button (always visible)
+    Rectangle skip_btn = { (float)(VIRT_W / 2 + 10), (float)(VIRT_H - 40), 80.0f, 26.0f };
+    if (CheckCollisionPointRec(mouse, skip_btn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    {
+        LOG_I(CAT_SCREEN, "Skipped card discard");
+        g_state.discard_count = 0;
+        g_state.discard_selected = 0;
+        game_change_screen(SCREEN_MAP);
+    }
+
+    // Confirm button (only when enough selected)
+    if (g_state.discard_selected >= g_state.discard_count)
+    {
+        Rectangle confirm_btn = { (float)(VIRT_W / 2 - 90), (float)(VIRT_H - 40), 100.0f, 26.0f };
+        if (CheckCollisionPointRec(mouse, confirm_btn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+        {
+            for (int i = 0; i < g_state.discard_selected; i++)
+                deck_remove_card_by_uid(deck, g_state.discard_uids[i]);
+
+            LOG_I(CAT_SCREEN, "Discarded %d card(s)", g_state.discard_selected);
+            g_state.discard_count = 0;
+            g_state.discard_selected = 0;
+            game_change_screen(SCREEN_MAP);
+        }
+    }
+}
+
+void discard_screen_draw(void)
+{
+    theme_draw_background();
+
+    const char *title = g_state.discard_count == 2 ? "BOSS REWARD: Discard 2 Cards" : "ELITE REWARD: Discard 1 Card";
+    Color title_col = g_state.discard_count == 2 ? (Color){ 220, 180, 50, 255 } : (Color){ 200, 100, 220, 255 };
+    DrawText(title, (VIRT_W / 2) - MeasureText(title, 12) / 2, 18, 12, title_col);
+
+    char hint[64];
+    snprintf(hint, sizeof(hint), "Select %d card%s to remove from your deck", g_state.discard_count, g_state.discard_count > 1 ? "s" : "");
+    DrawText(hint, (VIRT_W / 2) - MeasureText(hint, 8) / 2, 40, 8, (Color){ 160, 160, 180, 200 });
+
+    char sel[32];
+    snprintf(sel, sizeof(sel), "Selected: %d / %d", g_state.discard_selected, g_state.discard_count);
+    Color sel_col = g_state.discard_selected >= g_state.discard_count ? (Color){ 100, 255, 130, 255 } : (Color){ 200, 200, 220, 200 };
+    DrawText(sel, (VIRT_W / 2) - MeasureText(sel, 8) / 2, 56, 8, sel_col);
+
+    Deck *deck = &g_state.run_deck;
+    int cards_per_row = 4;
+    int card_w = 60;
+    int card_h = 84;
+    int gap = 6;
+    int total_w = cards_per_row * (card_w + gap) - gap;
+    int start_x = (VIRT_W - total_w) / 2;
+    int start_y = 80;
+
+    for (int i = 0; i < deck->card_count; i++)
+    {
+        if (!deck->cards[i].def) continue;
+
+        int row = i / cards_per_row;
+        int col = i % cards_per_row;
+        int cx = start_x + col * (card_w + gap);
+        int cy = start_y + row * (card_h + gap) - scroll_offset;
+
+        if (cy + card_h < 60 || cy > VIRT_H) continue;
+
+        Rectangle r = { (float)cx, (float)cy, (float)card_w, (float)card_h };
+        bool selected = false;
+        for (int j = 0; j < g_state.discard_selected; j++)
+            if (g_state.discard_uids[j] == deck->cards[i].uid) { selected = true; break; }
+
+        theme_draw_card_art(r, deck->cards[i].def, deck->cards[i].upgraded);
+
+        if (selected)
+        {
+            DrawRectangleRec(r, (Color){ 255, 80, 80, 50 });
+            DrawRectangleLinesEx(r, 2.0f, (Color){ 255, 80, 80, 255 });
+        }
+        else if (i == hovered_card)
+        {
+            DrawRectangleLinesEx(r, 2.0f, RAYWHITE);
+        }
+    }
+
+    // Skip button (always visible)
+    Rectangle skip_btn = { (float)(VIRT_W / 2 + 10), (float)(VIRT_H - 40), 80.0f, 26.0f };
+    Vector2 mouse = GetMousePosition();
+    bool skip_hover = CheckCollisionPointRec(mouse, skip_btn);
+    Color skip_col = skip_hover ? (Color){ 100, 100, 130, 255 } : (Color){ 60, 60, 85, 255 };
+    DrawRectangleRec(skip_btn, skip_col);
+    DrawRectangleLinesEx(skip_btn, 1.0f, (Color){ 110, 110, 140, 200 });
+    DrawText("Skip", (int)(skip_btn.x + skip_btn.width / 2 - MeasureText("Skip", 8) / 2), (int)(skip_btn.y + 7), 8, RAYWHITE);
+
+    // Confirm button
+    if (g_state.discard_selected >= g_state.discard_count)
+    {
+        Rectangle confirm_btn = { (float)(VIRT_W / 2 - 90), (float)(VIRT_H - 40), 100.0f, 26.0f };
+        bool hover = CheckCollisionPointRec(mouse, confirm_btn);
+        Color btn_col = hover ? (Color){ 70, 180, 90, 255 } : (Color){ 45, 120, 60, 255 };
+        DrawRectangleRec(confirm_btn, btn_col);
+        DrawRectangleLinesEx(confirm_btn, 1.0f, (Color){ 100, 220, 120, 220 });
+        DrawText("Confirm", (int)(confirm_btn.x + confirm_btn.width / 2 - MeasureText("Confirm", 8) / 2), (int)(confirm_btn.y + 7), 8, RAYWHITE);
+    }
+}

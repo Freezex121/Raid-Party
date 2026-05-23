@@ -15,6 +15,7 @@ int main(void)
     log_init();
 
     InitWindow(SCREEN_W, SCREEN_H, "Raid Party - devlog");
+    InitAudioDevice();
     SetTargetFPS(60);
     SetExitKey(0); // Disable default exit key (ESC)
     SetMouseScale(1.0f / (float)SCALE, 1.0f / (float)SCALE);
@@ -44,6 +45,7 @@ int main(void)
                 case SCREEN_REST:  rest_screen_update();  break;
                 case SCREEN_SHOP:  shop_screen_update();  break;
                 case SCREEN_REWARD: reward_screen_update(); break;
+                case SCREEN_DISCARD: discard_screen_update(); break;
                 case SCREEN_GAME_OVER: game_over_screen_update(); break;
                 default: break;
             }
@@ -53,6 +55,7 @@ int main(void)
             LOG_I(CAT_SCREEN, "Screen transition: %d -> %d", prev, g_state.screen);
 
         tween_update(dt);
+        assets_update_audio();
 
         BeginTextureMode(target);
         ClearBackground((Color){ 14, 14, 26, 255 });
@@ -66,6 +69,7 @@ int main(void)
             case SCREEN_REST:  rest_screen_draw();  break;
             case SCREEN_SHOP:  shop_screen_draw();  break;
             case SCREEN_REWARD: reward_screen_draw(); break;
+            case SCREEN_DISCARD: discard_screen_draw(); break;
             case SCREEN_GAME_OVER: game_over_screen_draw(); break;
             default: break;
         }
@@ -88,6 +92,8 @@ int main(void)
 
     UnloadRenderTexture(target);
     assets_unload();
+    if (IsAudioDeviceReady())
+        CloseAudioDevice();
     CloseWindow();
 
     LOG_I(CAT_SCREEN, "Shutting down.");

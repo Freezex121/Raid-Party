@@ -40,6 +40,89 @@ static Texture2D load_art_texture(const char *filename)
     return (Texture2D){0};
 }
 
+static bool build_asset_path(char *out, int out_size, const char *folder, const char *filename)
+{
+    const char *roots[] = {
+        "assets",
+        "../assets",
+        "../../assets",
+    };
+
+    for (int i = 0; i < 3; i++)
+    {
+        snprintf(out, out_size, "%s/%s/%s", roots[i], folder, filename);
+        if (FileExists(out))
+            return true;
+    }
+
+    out[0] = '\0';
+    return false;
+}
+
+static void load_audio_assets(void)
+{
+    g_assets.audio_loaded = false;
+    g_assets.music_playing = false;
+    g_assets.current_music = MUSIC_COUNT;
+
+    for (int i = 0; i < SFX_COUNT; i++)
+        g_assets.sfx_loaded[i] = false;
+    for (int i = 0; i < MUSIC_COUNT; i++)
+        g_assets.music_loaded[i] = false;
+
+    if (!IsAudioDeviceReady())
+        return;
+
+    const char *sfx_files[SFX_COUNT] = {
+        [SFX_BUTTON_HOVER] = "button_hover.wav",
+        [SFX_BUTTON_CLICK] = "button_click.wav",
+        [SFX_CARD_HOVER] = "card_hover.wav",
+        [SFX_CARD_PLAY] = "card_play.wav",
+        [SFX_CARD_DISCARD] = "card_discard.wav",
+        [SFX_DAMAGE] = "damage.wav",
+        [SFX_HEAL] = "heal.wav",
+        [SFX_SHIELD] = "shield.wav",
+        [SFX_TAUNT] = "taunt.wav",
+        [SFX_INTERRUPT] = "interrupt.wav",
+        [SFX_BURN_TICK] = "burn_tick.wav",
+        [SFX_PARTY_DOWNED] = "party_downed.wav",
+        [SFX_PARTY_REVIVED] = "party_revived.wav",
+        [SFX_ENEMY_CAST_WARNING] = "enemy_cast_warning.wav",
+        [SFX_BOSS_CAST_WARNING] = "boss_cast_warning.wav",
+        [SFX_GOLD_PICKUP] = "gold_pickup.wav",
+        [SFX_REWARD_PICKUP] = "reward_pickup.wav",
+    };
+
+    const char *music_files[MUSIC_COUNT] = {
+        [MUSIC_TITLE] = "title.ogg",
+        [MUSIC_COMBAT] = "combat.ogg",
+        [MUSIC_BOSS] = "boss.ogg",
+    };
+
+    char path[192];
+    for (int i = 0; i < SFX_COUNT; i++)
+    {
+        if (sfx_files[i] && build_asset_path(path, sizeof(path), "audio/sfx", sfx_files[i]))
+        {
+            g_assets.sfx[i] = LoadSound(path);
+            g_assets.sfx_loaded[i] = g_assets.sfx[i].frameCount > 0;
+        }
+    }
+
+    for (int i = 0; i < MUSIC_COUNT; i++)
+    {
+        if (music_files[i] && build_asset_path(path, sizeof(path), "audio/music", music_files[i]))
+        {
+            g_assets.music[i] = LoadMusicStream(path);
+            g_assets.music_loaded[i] = g_assets.music[i].frameCount > 0;
+            if (g_assets.music_loaded[i])
+                g_assets.music[i].looping = true;
+        }
+    }
+
+    g_assets.audio_loaded = true;
+}
+
 void assets_load(void)
 {
     g_assets.ui_font = GetFontDefault();
@@ -105,12 +188,25 @@ void assets_load(void)
     for (int i = 0; i < CLASS_COUNT; i++)
         g_assets.class_icons[i] = load_art_texture(icon_files[i]);
 
+    load_audio_assets();
+
     g_assets.loaded = true;
 }
 
 void assets_unload(void)
 {
     if (!g_assets.loaded) return;
+
+    assets_stop_music();
+    if (IsAudioDeviceReady())
+    {
+        for (int i = 0; i < SFX_COUNT; i++)
+            if (g_assets.sfx_loaded[i])
+                UnloadSound(g_assets.sfx[i]);
+        for (int i = 0; i < MUSIC_COUNT; i++)
+            if (g_assets.music_loaded[i])
+                UnloadMusicStream(g_assets.music[i]);
+    }
 
     if (g_assets.ui_font_loaded)
         UnloadFont(g_assets.ui_font);
@@ -120,4 +216,49 @@ void assets_unload(void)
         if (g_assets.class_icons[i].id != 0)
             UnloadTexture(g_assets.class_icons[i]);
     g_assets.loaded = false;
+}
+
+void assets_update_audio(void)
+{
+    if (!IsAudioDeviceReady()) return;
+    if (!g_assets.music_playing) return;
+    if (g_assets.current_music < 0 || g_assets.current_music >= MUSIC_COUNT) return;
+    if (!g_assets.music_loaded[g_assets.current_music]) return;
+
+    UpdateMusicStream(g_assets.music[g_assets.current_music]);
+}
+
+void assets_play_sfx(GameSfx sfx)
+{
+    if (!IsAudioDeviceReady()) return;
+    if (sfx < 0 || sfx >= SFX_COUNT) return;
+    if (!g_assets.sfx_loaded[sfx]) return;
+
+    PlaySound(g_assets.sfx[sfx]);
+}
+
+void assets_play_music(GameMusic music)
+{
+    if (!IsAudioDeviceReady()) return;
+    if (music < 0 || music >= MUSIC_COUNT) return;
+    if (!g_assets.music_loaded[music]) return;
+
+    if (g_assets.music_playing && g_assets.current_music == music)
+        return;
+
+    assets_stop_music();
+    g_assets.current_music = music;
+    g_assets.music_playing = true;
+    PlayMusicStream(g_assets.music[music]);
+}
+
+void assets_stop_music(void)
+{
+    if (!IsAudioDeviceReady()) return;
+    if (!g_assets.music_playing) return;
+    if (g_assets.current_music >= 0 && g_assets.current_music < MUSIC_COUNT && g_assets.music_loaded[g_assets.current_music])
+        StopMusicStream(g_assets.music[g_assets.current_music]);
+
+    g_assets.current_music = MUSIC_COUNT;
+    g_assets.music_playing = false;
 }

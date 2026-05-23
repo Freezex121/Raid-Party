@@ -1,6 +1,6 @@
 # Raid Party Dev Plan
 
-Last updated: 2026-05-22
+Last updated: 2026-05-23
 
 This plan tracks what the current Raylib prototype already has, what is only partially working, and what should be added next to make the game look and feel polished, readable, and professional.
 
@@ -16,6 +16,7 @@ The current codebase is a playable prototype slice, not yet a production-quality
 
 - C99 + Raylib project builds through CMake.
 - Main loop, 1280x720 window, fixed 60 FPS target, and game state routing exist.
+- The game renders to a 640x360 virtual canvas and upscales 2x to a 1280x720 pixel-perfect window.
 - Core screens exist: Title, Draft, Map, Combat/Run, Rest, Shop, Card Reward.
 - Title and draft screens have basic tweened entrance/hover motion.
 - Shared tween engine exists in `src/util/tween.c` and is called once per frame from `main.c`.
@@ -47,19 +48,22 @@ The current codebase is a playable prototype slice, not yet a production-quality
 - Game over/victory results screen exists with floor reached, bosses defeated, gold, deck size, and final party state.
 - P1 combat feel pass is implemented: target previews, readable intent bars, party-frame smoothing/statuses/target highlight, hand entry/hover motion, disabled-card treatment, turn/action feedback, combo badge, recent action feed, and screen fades.
 - P2 visual polish pass is implemented: shared assets/theme layer, textured tactical background, class/card/node color language, cost gems, effect badges, 64x96 full-card pixel-art template scaled 3x, class portraits, illustrated enemy stand-ins, map icon nodes, deck card previews, combat/reward VFX bursts, burn sparks, and boss danger flash.
+- The 640x360 UI layout pass is implemented across all screens with shared layout helpers, larger cards, larger party/enemy/cast UI, combat side panels, card inspector panels, and overlap-aware hand hit-testing.
+- P3 audio foundation is started: Raylib audio lifecycle is initialized, optional SFX/music slots load from `assets/audio`, and safe play/update/stop helpers exist.
+- P4 data/content/balance pass is implemented: JSON content manifests exist under `assets/data`, card special behavior now resolves through effect chains, content validation and balance-report scripts exist, and each floor has a named boss encounter.
 
 ### Partially Done Or Risky
 
 - Party growth is designed as 3 starting slots, then 4th/5th slots through upgrades. The upgrade source and UI still need to be built.
-- Content is not JSON-driven yet. Cards, enemies, and encounters are hardcoded in C arrays.
-- Boss encounters now use floor-specific enemy mixes, but named boss identities and multi-phase boss logic are still missing.
+- Runtime content still uses compiled C arrays. JSON manifests now mirror cards, enemies, and encounters for validation and balance reporting; a runtime loader or codegen step can be added later if iteration speed needs it.
+- Named boss identities and mechanics exist for all 3 floors. True multi-phase boss scripting remains future scope.
 - Upgrade support affects damage/heal/shield numbers, but future special-effect upgrades still need a content/balance audit.
 - Card text/effect audits should continue whenever new cards or effect types are added.
-- Screen changes are instant. The planned fade-out/fade-in transition manager is not implemented.
 - Many visuals use immediate scale/position changes instead of the shared tween system.
-- UI is still primitive-shape placeholder art. There is no asset loader, no sprite/icon pipeline, no custom font pass, and no audio pass.
+- UI is now deliberately laid out for 640x360, but it still needs interactive visual QA across all screens after large layout changes.
+- Some visuals are still primitive-shape stand-ins. There is no full sprite pipeline, no final custom font art pass beyond the current pixel font foundation, and no audio content pass.
 - There are no relics, event nodes, meta-progression, persistence, or save/load.
-- No automated tests or repeatable balance test harness exist.
+- Simple content validation and balance reporting exist. There are still no in-game automated tests.
 - Build portability is limited because CMake references a hardcoded local Raylib path.
 
 ## Next Milestone: Polished Vertical Slice v0.2
@@ -82,6 +86,7 @@ Exit criteria:
 - Damage, healing, shields, aggro, interrupts, deaths, and rewards all have clear visual/audio feedback.
 - No screen looks like a debug placeholder.
 - Text does not overlap or clip at 1280x720.
+- All hitboxes match their 640x360 visual layout, especially overlapped hand cards and map/deck selections.
 - The game can be played without reading logs.
 
 ## Priority Work
@@ -168,10 +173,21 @@ Exit criteria:
   - [x] Animate hovered available nodes.
   - [x] Clearly distinguish available, completed, locked, elite, shop, rest, and boss nodes.
   - [x] Show floor title and route prompt.
+- [x] Rework the UI for the 640x360 virtual canvas:
+  - [x] Add shared layout helpers for combat, deck browser, and reward geometry.
+  - [x] Resize party frames, enemies, cast bars, cards, buttons, and deck/reward cards.
+  - [x] Add combat side panels for action feed and persistent card inspection.
+  - [x] Make the bottom hand lane overlap-aware for large hands.
+  - [x] Resize title, draft, map, reward, rest, shop, and game-over screens.
+  - [x] Keep compact card tokens on-card and move full explanations into inspector panels.
 
 ### P3 - Add Audio Polish
 
-- Add audio asset loader.
+- [x] Add audio asset loader:
+  - [x] Initialize/shutdown Raylib audio from the main lifecycle.
+  - [x] Define stable SFX/music slots and asset path conventions.
+  - [x] Load optional files without failing when placeholders are missing.
+  - [x] Add safe play/update/stop helpers for future SFX/music wiring.
 - Add SFX for:
   - Button hover/click.
   - Card hover/play/discard/exhaust.
@@ -188,26 +204,26 @@ Exit criteria:
 
 ### P4 - Data, Content, And Balance
 
-- Move content to data files when the vertical slice is stable:
-  - `assets/data/cards.json`
-  - `assets/data/enemies.json`
-  - `assets/data/encounters.json`
-  - later: `relics.json`, `events.json`
-- Create a card effect resolver that supports effect chains instead of one-off ID checks.
-- Add a simple content validation step:
-  - No missing names/descriptions.
-  - All effects are supported.
-  - Costs and target types are valid.
-  - Card text can be generated or checked from effect data.
-- Build a balance sheet or script:
-  - Average damage per energy.
-  - Average healing per energy.
-  - Expected incoming damage per floor.
-  - Boss time-to-kill estimates.
-- Add real bosses:
-  - Floor 1 boss: teaches interrupt or AOE mitigation.
-  - Floor 2 boss: tests aggro and healing pressure.
-  - Floor 3 boss: combines channel, adds, and enrage.
+- [x] Move content into JSON manifests for validation and balancing:
+  - [x] `assets/data/cards.json`
+  - [x] `assets/data/enemies.json`
+  - [x] `assets/data/encounters.json`
+  - [ ] later: `relics.json`, `events.json`
+- [x] Create a card effect resolver that supports effect chains instead of one-off card-ID checks.
+- [x] Add a simple content validation step:
+  - [x] No missing names/descriptions.
+  - [x] All effects are supported.
+  - [x] Costs and target types are valid.
+  - [x] Card effect metadata is checked for obvious mismatches.
+- [x] Build a balance report script:
+  - [x] Average damage per energy.
+  - [x] Average healing per energy.
+  - [x] Expected incoming damage per floor.
+  - [x] Boss time-to-kill estimates.
+- [x] Add real bosses:
+  - [x] Floor 1 boss: Ember Overseer teaches interrupt or AOE mitigation.
+  - [x] Floor 2 boss: Iron Bulwark tests aggro and healing pressure.
+  - [x] Floor 3 boss: Void Conductor combines channel, adds, and enrage.
 
 ### P5 - Run Depth Systems
 
@@ -275,6 +291,7 @@ Use this as a pass before calling any milestone "done."
 ```text
 src/main.c                 - Raylib setup, loop, screen update/draw, tween update
 src/game.c/.h              - Global game state and screen changes
+src/assets.c/.h            - Shared visual/audio asset loading, playback helpers, and unload path
 src/combat/combat.c/.h     - Combat state, card resolution, turns, enemies
 src/combat/status.c/.h     - Status apply/tick/clear
 src/systems/deck.c/.h      - Shared deck and card instances
@@ -284,15 +301,19 @@ src/systems/map.c/.h       - Fixed map layouts and node unlocks
 src/data/card_defs.c/.h    - Current hardcoded cards
 src/data/enemy_defs.c/.h   - Current hardcoded enemies
 src/data/encounter_defs.c/.h - Current hardcoded encounter pools
+assets/data/*.json         - Content manifests for validation and balance reporting
+scripts/validate_content.py - JSON content validation
+scripts/balance_report.py  - Lightweight balance report
 src/ui/*                   - Buttons, cards, party frames, enemies, cast bars, floating text
+src/ui/layout.c/.h         - Shared 640x360 UI geometry and hitbox helpers
 src/screens/*              - Title, draft, map, run, rest, shop, reward
 ```
 
 ### Important Design Decision
 
-The original plan targeted 4 party members. The current implementation and UI target 3 selected party members. Pick one direction before doing major balance or layout work.
+The original plan targeted 4 party members. The current implementation and UI target 3 selected party members, with layout support for future 4th/5th slots.
 
-Recommendation: keep 3 party members through the polished vertical slice because it lowers UI density and balance complexity. Revisit 4 members only after the core combat loop feels excellent.
+Decision: keep 3 party members through the polished vertical slice because it lowers UI density and balance complexity. Revisit 4-5 member runs only after the core combat loop feels excellent.
 
 ## MVP Scope Update
 
@@ -318,4 +339,4 @@ MVP v0.2 excludes:
 - Save/load.
 - Large card pool expansion.
 - Procedural maps.
-- Full JSON pipeline, unless hardcoded data starts slowing iteration.
+- Runtime JSON loader/codegen, unless hardcoded data starts slowing iteration.

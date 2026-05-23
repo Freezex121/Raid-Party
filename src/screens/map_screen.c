@@ -69,7 +69,7 @@ void map_screen_update(void)
     {
         MapNode *n = &g_state.map.nodes[i];
         if (!n->available || n->completed) continue;
-        if (CheckCollisionPointRec(mouse, (Rectangle){ (float)(n->x - 14), (float)(n->y - 14), 28, 28 }))
+        if (CheckCollisionPointRec(mouse, (Rectangle){ (float)(n->x - 20), (float)(n->y - 20), 40, 40 }))
         {
             hovered_node = i;
             if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
@@ -96,8 +96,8 @@ void map_screen_draw(void)
 
     char title[64];
     snprintf(title, sizeof(title), "Floor %d", g_state.map.floor + 1);
-    DrawText(title, (VIRT_W / 2) - MeasureText(title, 12) / 2, 8, 12, RAYWHITE);
-    DrawText("Choose your route", (VIRT_W / 2) - MeasureText("Choose your route", 6) / 2, 24, 6, (Color){ 150, 155, 180, 210 });
+    DrawText(title, (VIRT_W / 2) - MeasureText(title, 16) / 2, 14, 16, RAYWHITE);
+    DrawText("Choose your route", (VIRT_W / 2) - MeasureText("Choose your route", 8) / 2, 36, 8, (Color){ 150, 155, 180, 210 });
 
     MapState *map = &g_state.map;
 
@@ -120,7 +120,7 @@ void map_screen_draw(void)
     for (int i = 0; i < map->node_count; i++)
     {
         MapNode *n = &map->nodes[i];
-        int r = (n->type == NODE_BOSS) ? 13 : 10;
+        int r = (n->type == NODE_BOSS) ? 18 : 14;
         Color c = theme_node_color(n->type);
         const char *icon = theme_node_icon(n->type);
         const char *name = theme_node_name(n->type);
@@ -129,6 +129,11 @@ void map_screen_draw(void)
         {
             DrawCircle(n->x, n->y, (float)r, (Color){ 28, 29, 42, 255 });
             DrawCircleLines(n->x, n->y, (float)r, (Color){ 58, 58, 78, 120 });
+            int locked_size = n->type == NODE_BOSS ? 11 : 9;
+            Color dim = c;
+            dim.a = 128;
+            DrawText(icon, n->x - MeasureText(icon, locked_size) / 2, n->y - locked_size / 2, locked_size, dim);
+            DrawText(name, n->x - MeasureText(name, 6) / 2, n->y + r + 5, 6, dim);
             continue;
         }
 
@@ -152,19 +157,19 @@ void map_screen_draw(void)
             DrawCircle(n->x, n->y, r - 3, (Color){ 0, 0, 0, 60 });
         }
 
-        int icon_size = n->type == NODE_BOSS ? 8 : 7;
+        int icon_size = n->type == NODE_BOSS ? 11 : 9;
         DrawText(icon, n->x - MeasureText(icon, icon_size) / 2, n->y - icon_size / 2, icon_size, RAYWHITE);
-        DrawText(name, n->x - MeasureText(name, 5) / 2, n->y + r + 3, 5, c);
+        DrawText(name, n->x - MeasureText(name, 6) / 2, n->y + r + 5, 6, c);
     }
 
     if (hovered_node >= 0 && map->nodes[hovered_node].available && !map->nodes[hovered_node].completed)
     {
         MapNode *n = &map->nodes[hovered_node];
-        Rectangle tip = { (float)((VIRT_W / 2) - 50), (float)(VIRT_H - 24), 100.0f, 18.0f };
+        Rectangle tip = { (float)((VIRT_W / 2) - 70), (float)(VIRT_H - 38), 140.0f, 26.0f };
         DrawRectangleRec(tip, (Color){ 20, 21, 32, 230 });
         DrawRectangleLinesEx(tip, 1.0f, (Color){ 95, 100, 130, 220 });
-        DrawText(theme_node_name(n->type), (VIRT_W / 2) - MeasureText(theme_node_name(n->type), 6) / 2, (int)tip.y + 3, 6, theme_node_color(n->type));
-        DrawText("Click to travel", (VIRT_W / 2) - MeasureText("Click to travel", 5) / 2, (int)tip.y + 11, 5, (Color){ 175, 178, 205, 220 });
+        DrawText(theme_node_name(n->type), (VIRT_W / 2) - MeasureText(theme_node_name(n->type), 8) / 2, (int)tip.y + 4, 8, theme_node_color(n->type));
+        DrawText("Click to travel", (VIRT_W / 2) - MeasureText("Click to travel", 6) / 2, (int)tip.y + 16, 6, (Color){ 175, 178, 205, 220 });
     }
 }
 
