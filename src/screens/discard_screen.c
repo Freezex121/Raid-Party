@@ -9,12 +9,21 @@
 static int hovered_card = -1;
 static int scroll_offset = 0;
 
+static void finish_discard_screen(void)
+{
+    scroll_offset = 0;
+    if (g_state.relic_reward_pending)
+        game_change_screen(SCREEN_RELIC_REWARD);
+    else
+        game_change_screen(SCREEN_MAP);
+}
+
 void discard_screen_update(void)
 {
     if (g_state.discard_count <= 0)
     {
         g_state.discard_selected = 0;
-        game_change_screen(SCREEN_MAP);
+        finish_discard_screen();
         return;
     }
 
@@ -81,7 +90,7 @@ void discard_screen_update(void)
         LOG_I(CAT_SCREEN, "Skipped card discard");
         g_state.discard_count = 0;
         g_state.discard_selected = 0;
-        game_change_screen(SCREEN_MAP);
+        finish_discard_screen();
     }
 
     // Confirm button (only when enough selected)
@@ -96,7 +105,7 @@ void discard_screen_update(void)
             LOG_I(CAT_SCREEN, "Discarded %d card(s)", g_state.discard_selected);
             g_state.discard_count = 0;
             g_state.discard_selected = 0;
-            game_change_screen(SCREEN_MAP);
+            finish_discard_screen();
         }
     }
 }

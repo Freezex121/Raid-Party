@@ -3,6 +3,7 @@
 #include "systems/map.h"
 #include "data/encounter_defs.h"
 #include "util/log.h"
+#include "ui/relic_tray.h"
 #include "ui/theme.h"
 #include "raylib.h"
 #include <math.h>
@@ -58,6 +59,7 @@ void map_screen_update(void)
 
         game_change_screen(t == NODE_REST ? SCREEN_REST :
                            t == NODE_SHOP ? SCREEN_SHOP :
+                           t == NODE_EVENT ? SCREEN_EVENT :
                            SCREEN_RUN);
         return;
     }
@@ -98,6 +100,7 @@ void map_screen_draw(void)
     snprintf(title, sizeof(title), "Floor %d", g_state.map.floor + 1);
     DrawText(title, (VIRT_W / 2) - MeasureText(title, 16) / 2, 14, 16, RAYWHITE);
     DrawText("Choose your route", (VIRT_W / 2) - MeasureText("Choose your route", 8) / 2, 36, 8, (Color){ 150, 155, 180, 210 });
+    relic_tray_draw(g_state.relics, g_state.relic_count, (Rectangle){ 482.0f, 10.0f, 146.0f, 42.0f });
 
     MapState *map = &g_state.map;
 

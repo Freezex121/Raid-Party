@@ -18,58 +18,59 @@ static void init_layouts(void)
     static bool initialized = false;
     if (initialized) return;
 
-    // Floor 1 — 7 nodes, 5 rows
     NodeDef f1[] = {
-        { NODE_START,  0, 0, {1, 2}, 2 },    // 0: Start → 1, 2
-        { NODE_COMBAT, 1, 0, {3},    1 },    // 1: Combat A → 3
-        { NODE_COMBAT, 1, 1, {4},    1 },    // 2: Combat B → 4
-        { NODE_COMBAT, 2, 0, {5},    1 },    // 3: Combat → Rest
-        { NODE_REST,   2, 1, {5},    1 },    // 4: Rest → Rest
-        { NODE_ELITE,  3, 0, {6},    1 },    // 5: Elite → Boss
-        { NODE_BOSS,   4, 0, {},     0 },    // 6: Boss
-    };
-    memcpy(floor_layouts[0], f1, sizeof(f1));
-    floor_node_counts[0] = 7;
-
-    // Floor 2 — 10 nodes, 6 rows
-    NodeDef f2[] = {
         { NODE_START,  0, 0, {1, 2}, 2 },
         { NODE_COMBAT, 1, 0, {3, 4}, 2 },
         { NODE_COMBAT, 1, 1, {4},    1 },
-        { NODE_ELITE,  2, 0, {5},    1 },
-        { NODE_REST,   2, 1, {6},    1 },
-        { NODE_COMBAT, 3, 0, {7},    1 },
-        { NODE_SHOP,   3, 1, {7},    1 },
-        { NODE_ELITE,  4, 0, {9},    1 },
-        { NODE_COMBAT, 4, 1, {9},    1 },
+        { NODE_COMBAT, 2, 0, {5},    1 },
+        { NODE_EVENT,  2, 1, {5},    1 },
+        { NODE_REST,   3, 0, {6},    1 },
+        { NODE_ELITE,  4, 0, {7},    1 },
+        { NODE_BOSS,   5, 0, {},     0 },
+    };
+    memcpy(floor_layouts[0], f1, sizeof(f1));
+    floor_node_counts[0] = 8;
+
+    NodeDef f2[] = {
+        { NODE_START,  0, 0, {1, 2}, 2 },
+        { NODE_COMBAT, 1, 0, {3, 4}, 2 },
+        { NODE_COMBAT, 1, 1, {4, 5}, 2 },
+        { NODE_ELITE,  2, 0, {6},    1 },
+        { NODE_REST,   2, 1, {6, 7}, 2 },
+        { NODE_EVENT,  2, 2, {7},    1 },
+        { NODE_COMBAT, 3, 0, {8},    1 },
+        { NODE_SHOP,   3, 1, {9},    1 },
+        { NODE_ELITE,  4, 0, {10},   1 },
+        { NODE_COMBAT, 4, 1, {10},   1 },
         { NODE_BOSS,   5, 0, {},     0 },
     };
     memcpy(floor_layouts[1], f2, sizeof(f2));
-    floor_node_counts[1] = 10;
+    floor_node_counts[1] = 11;
 
-    // Floor 3 — 12 nodes, 7 rows
     NodeDef f3[] = {
         { NODE_START,  0, 0, {1, 2}, 2 },
         { NODE_COMBAT, 1, 0, {3},    1 },
         { NODE_ELITE,  1, 1, {3, 4}, 2 },
         { NODE_REST,   2, 0, {5, 6}, 2 },
-        { NODE_SHOP,   2, 1, {6},    1 },
-        { NODE_COMBAT, 3, 0, {7},    1 },
+        { NODE_SHOP,   2, 1, {6, 7}, 2 },
+        { NODE_COMBAT, 3, 0, {8},    1 },
         { NODE_ELITE,  3, 1, {8},    1 },
-        { NODE_COMBAT, 4, 0, {9},    1 },
+        { NODE_EVENT,  3, 2, {9},    1 },
+        { NODE_COMBAT, 4, 0, {10},   1 },
         { NODE_REST,   4, 1, {10},   1 },
-        { NODE_ELITE,  5, 0, {11},   1 },
-        { NODE_COMBAT, 5, 1, {11},   1 },
+        { NODE_ELITE,  5, 0, {12},   1 },
+        { NODE_COMBAT, 5, 1, {12},   1 },
         { NODE_BOSS,   6, 0, {},     0 },
     };
     memcpy(floor_layouts[2], f3, sizeof(f3));
-    floor_node_counts[2] = 12;
+    floor_node_counts[2] = 13;
 
     initialized = true;
 }
 
 static void calc_positions(MapNode *nodes, int count, int floor)
 {
+    (void)floor;
     int rows = 0;
     for (int i = 0; i < count; i++)
         if (nodes[i].row > rows) rows = nodes[i].row;
@@ -83,7 +84,6 @@ static void calc_positions(MapNode *nodes, int count, int floor)
     {
         MapNode *n = &nodes[i];
 
-        // Count nodes in same row
         int same_row = 0;
         for (int j = 0; j < count; j++)
             if (nodes[j].row == n->row) same_row++;
@@ -109,6 +109,8 @@ void map_generate(MapState *map, int floor)
     init_layouts();
     memset(map, 0, sizeof(MapState));
 
+    if (floor < 0) floor = 0;
+    if (floor >= MAX_FLOORS) floor = MAX_FLOORS - 1;
     map->floor = floor;
     int count = floor_node_counts[floor];
     map->node_count = count;
@@ -160,5 +162,3 @@ int map_find_start(MapState *map)
         if (map->nodes[i].type == NODE_START) return i;
     return 0;
 }
-
-

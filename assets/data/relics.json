@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "relics": [
+    {
+      "id": "ward_stone",
+      "name": "Ward Stone",
+      "icon": "WD",
+      "description": "At combat start, all allies gain 4 Shield.",
+      "trigger": "combat_start"
+    },
+    {
+      "id": "mending_bead",
+      "name": "Mending Bead",
+      "icon": "MB",
+      "description": "At combat start, heal all allies for 4.",
+      "trigger": "combat_start"
+    },
+    {
+      "id": "battle_drum",
+      "name": "Battle Drum",
+      "icon": "DR",
+      "description": "Start each combat with +1 energy.",
+      "trigger": "combat_start"
+    },
+    {
+      "id": "scouting_map",
+      "name": "Scouting Map",
+      "icon": "MP",
+      "description": "Draw 1 extra card at combat start.",
+      "trigger": "combat_start"
+    },
+    {
+      "id": "gilded_charm",
+      "name": "Gilded Charm",
+      "icon": "GC",
+      "description": "Gain +8 gold after each combat.",
+      "trigger": "combat_reward"
+    },
+    {
+      "id": "veteran_sigil",
+      "name": "Veteran Sigil",
+      "icon": "VS",
+      "description": "Boss rewards always include an upgraded card.",
+      "trigger": "card_reward"
+    }
+  ]
+}

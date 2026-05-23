@@ -19,8 +19,14 @@ void rest_screen_draw(void);
 void shop_screen_update(void);
 void shop_screen_draw(void);
 
+void event_screen_update(void);
+void event_screen_draw(void);
+
 void reward_screen_update(void);
 void reward_screen_draw(void);
+
+void relic_reward_screen_update(void);
+void relic_reward_screen_draw(void);
 
 void discard_screen_update(void);
 void discard_screen_draw(void);

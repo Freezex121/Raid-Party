@@ -5,6 +5,8 @@
 #include "systems/party.h"
 #include "systems/deck.h"
 #include "systems/map.h"
+#include "systems/meta.h"
+#include "systems/relic.h"
 #include "combat/combat.h"
 #include "data/encounter_defs.h"
 
@@ -17,7 +19,9 @@ typedef enum {
     SCREEN_RUN,
     SCREEN_REST,
     SCREEN_SHOP,
+    SCREEN_EVENT,
     SCREEN_REWARD,
+    SCREEN_RELIC_REWARD,
     SCREEN_DISCARD,
     SCREEN_GAME_OVER
 } GameScreen;
@@ -32,14 +36,20 @@ typedef struct {
     int selected_classes[MAX_PARTY_SIZE];
     int selected_count;
     int max_party_size;
+    MetaProgress meta;
     Party run_party;
     bool run_party_active;
     Deck run_deck;
+    RelicId relics[MAX_RUN_RELICS];
+    int relic_count;
     CombatState combat;
     MapState map;
     const EncounterDef *encounter;
     bool encounter_is_elite;
     bool encounter_is_boss;
+    bool relic_reward_pending;
+    RelicId relic_reward_choices[RELIC_REWARD_CHOICES];
+    int relic_reward_count;
     const CardDef *reward_cards[MAX_REWARD_CARDS];
     bool reward_upgraded[MAX_REWARD_CARDS];
     int reward_count;
@@ -52,6 +62,8 @@ typedef struct {
     bool run_won;
     int result_floor;
     int result_bosses_defeated;
+    bool result_recorded;
+    int result_unlocked_party_size;
     char result_reason[128];
 } GameState;
 

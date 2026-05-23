@@ -26,6 +26,17 @@ EFFECTS = {
 }
 STATUS_EFFECTS = {"burning", "renew", "trap", "totem_heal"}
 ABILITY_INTENTS = {"attack", "tank_buster", "aoe", "wipe", "buff", "heal", "shield"}
+RELIC_TRIGGERS = {"combat_start", "combat_reward", "card_reward"}
+EVENT_EFFECTS = {
+    "heal_party",
+    "gain_gold_add_curse",
+    "remove_card",
+    "upgrade_random_card_hurt_party",
+    "pay_gold_gain_relic",
+    "none",
+    "pay_gold_add_card",
+    "gain_gold",
+}
 
 
 def load_json(name: str, errors: list[str]) -> dict:
@@ -223,15 +234,81 @@ def validate_encounters(data: dict, enemy_ids: set[str], errors: list[str]) -> i
     return encounter_count
 
 
+def validate_relics(data: dict, errors: list[str]) -> set[str]:
+    relics = data.get("relics", [])
+    if not isinstance(relics, list):
+        errors.append("relics.json: relics must be a list")
+        return set()
+
+    seen: set[str] = set()
+    for relic in relics:
+        if not isinstance(relic, dict):
+            errors.append("relics.json: every relic must be an object")
+            continue
+        label = relic.get("id", "<missing relic id>")
+        require_text(relic, "id", label, errors)
+        require_text(relic, "name", label, errors)
+        require_text(relic, "icon", label, errors)
+        require_text(relic, "description", label, errors)
+        relic_id = relic.get("id")
+        if relic_id in seen:
+            errors.append(f"{label}: duplicate relic id")
+        if isinstance(relic_id, str):
+            seen.add(relic_id)
+        if relic.get("trigger") not in RELIC_TRIGGERS:
+            errors.append(f"{label}: unsupported relic trigger {relic.get('trigger')!r}")
+    return seen
+
+
+def validate_events(data: dict, errors: list[str]) -> set[str]:
+    events = data.get("events", [])
+    if not isinstance(events, list):
+        errors.append("events.json: events must be a list")
+        return set()
+
+    seen: set[str] = set()
+    for event in events:
+        if not isinstance(event, dict):
+            errors.append("events.json: every event must be an object")
+            continue
+        label = event.get("id", "<missing event id>")
+        require_text(event, "id", label, errors)
+        require_text(event, "name", label, errors)
+        require_text(event, "body", label, errors)
+        event_id = event.get("id")
+        if event_id in seen:
+            errors.append(f"{label}: duplicate event id")
+        if isinstance(event_id, str):
+            seen.add(event_id)
+
+        choices = event.get("choices", [])
+        if not isinstance(choices, list) or len(choices) != 3:
+            errors.append(f"{label}: events must have exactly 3 choices")
+            continue
+        for choice in choices:
+            if not isinstance(choice, dict):
+                errors.append(f"{label}: every choice must be an object")
+                continue
+            choice_label = f"{label}.{choice.get('label', '<missing choice>')}"
+            require_text(choice, "label", choice_label, errors)
+            if choice.get("effect") not in EVENT_EFFECTS:
+                errors.append(f"{choice_label}: unsupported event effect {choice.get('effect')!r}")
+    return seen
+
+
 def main() -> int:
     errors: list[str] = []
     cards = load_json("cards.json", errors)
     enemies = load_json("enemies.json", errors)
     encounters = load_json("encounters.json", errors)
+    relics = load_json("relics.json", errors)
+    events = load_json("events.json", errors)
 
     card_ids = validate_cards(cards, errors)
     enemy_ids = validate_enemies(enemies, errors)
     encounter_count = validate_encounters(encounters, enemy_ids, errors)
+    relic_ids = validate_relics(relics, errors)
+    event_ids = validate_events(events, errors)
 
     if errors:
         for error in errors:
@@ -240,7 +317,8 @@ def main() -> int:
 
     print(
         "Content validation passed: "
-        f"{len(card_ids)} cards, {len(enemy_ids)} enemies, {encounter_count} encounters"
+        f"{len(card_ids)} cards, {len(enemy_ids)} enemies, {encounter_count} encounters, "
+        f"{len(relic_ids)} relics, {len(event_ids)} events"
     )
     return 0
 

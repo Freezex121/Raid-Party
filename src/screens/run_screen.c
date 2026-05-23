@@ -8,8 +8,10 @@
 #include "ui/floating_text.h"
 #include "ui/theme.h"
 #include "ui/layout.h"
+#include "ui/relic_tray.h"
 #include "data/enemy_defs.h"
 #include "data/encounter_defs.h"
+#include "systems/relic.h"
 #include "util/log.h"
 #include "constants.h"
 #include "raylib.h"
@@ -211,8 +213,12 @@ void run_screen_update(void)
         }
 
         int gold_gain = g_state.encounter_is_boss ? 50 : (g_state.encounter_is_elite ? 25 : 10);
+        if (relic_has(g_state.relics, g_state.relic_count, RELIC_GILDED_CHARM))
+            gold_gain += 8;
         g_state.gold += gold_gain;
         ft_spawn_gold(gold_gain);
+        g_state.relic_reward_pending = g_state.encounter_is_elite || g_state.encounter_is_boss;
+        g_state.relic_reward_count = 0;
 
         int ci = g_state.map.current_index;
         if (ci >= 0)
@@ -230,6 +236,7 @@ void run_screen_update(void)
             {
                 g_state.run_won = true;
                 g_state.result_floor = MAX_FLOORS;
+                g_state.relic_reward_pending = false;
                 snprintf(g_state.result_reason, sizeof(g_state.result_reason), "Final boss defeated.");
                 game_change_screen(SCREEN_GAME_OVER);
                 return;
@@ -292,6 +299,7 @@ void run_screen_draw(void)
     }
 
     draw_target_preview(cs);
+    relic_tray_draw(g_state.relics, g_state.relic_count, (Rectangle){ 12.0f, 184.0f, 76.0f, 66.0f });
 
     if (cs->combo_count > 0)
     {

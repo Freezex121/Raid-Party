@@ -1,6 +1,7 @@
 #include "screens.h"
 #include "game.h"
 #include "data/card_defs.h"
+#include "systems/relic.h"
 #include "util/text.h"
 #include "util/log.h"
 #include "ui/floating_text.h"
@@ -37,7 +38,7 @@ static void generate_rewards(void)
         pool[pool_count++] = &utility_cards[c];
 
     // Pick random cards, no duplicates
-    int used_indices[36] = {0};
+    int used_indices[48] = {0};
 
     for (int i = 0; i < count; i++)
     {
@@ -54,6 +55,8 @@ static void generate_rewards(void)
 
         // Boss: 50% chance this card is upgraded
         if (g_state.encounter_is_boss && (rand() % 2) == 0)
+            g_state.reward_upgraded[i] = true;
+        if (g_state.encounter_is_boss && i == 0 && relic_has(g_state.relics, g_state.relic_count, RELIC_VETERAN_SIGIL))
             g_state.reward_upgraded[i] = true;
 
         LOG_I(CAT_CARD, "Reward[%d]: %s (%s)%s", i, pool[idx]->name,

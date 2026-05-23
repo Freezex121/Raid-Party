@@ -5,6 +5,7 @@
 #include "util/tween.h"
 #include "constants.h"
 #include "raylib.h"
+#include <stdio.h>
 
 static Button start_btn;
 static float title_y = -24.0f;
@@ -58,6 +59,13 @@ void title_screen_draw(void)
 
     Color subtitle_color = { 180, 180, 200, (unsigned char)(subtitle_alpha * 180) };
     DrawText("A deck-building roguelite MMO", VIRT_W/2 - MeasureText("A deck-building roguelite MMO", 9) / 2, (int)(title_y + 38), 9, subtitle_color);
+
+    char meta[96];
+    snprintf(meta, sizeof(meta), "Runs %d  Wins %d  Party slots %d/5",
+        g_state.meta.runs_completed,
+        g_state.meta.wins,
+        g_state.max_party_size);
+    DrawText(meta, VIRT_W / 2 - MeasureText(meta, 7) / 2, 226, 7, (Color){ 150, 155, 180, 200 });
 
     button_draw(&start_btn);
 

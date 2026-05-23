@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "events": [
+    {
+      "id": "abandoned_camp",
+      "name": "Abandoned Camp",
+      "body": "A cold campfire and three untouched packs wait beside the road.",
+      "choices": [
+        { "label": "Share Supplies", "effect": "heal_party", "amount": 12 },
+        { "label": "Search Packs", "effect": "gain_gold_add_curse", "gold": 35, "curse": "curse_doubt" },
+        { "label": "Travel Light", "effect": "remove_card" }
+      ]
+    },
+    {
+      "id": "ancient_shrine",
+      "name": "Ancient Shrine",
+      "body": "A stone shrine hums softly. The air tastes like lightning.",
+      "choices": [
+        { "label": "Take Blessing", "effect": "upgrade_random_card_hurt_party", "hp_loss": 6 },
+        { "label": "Donate Gold", "effect": "pay_gold_gain_relic", "gold": 20 },
+        { "label": "Leave It", "effect": "none" }
+      ]
+    },
+    {
+      "id": "strange_merchant",
+      "name": "Strange Merchant",
+      "body": "A masked merchant offers useful things at suspicious prices.",
+      "choices": [
+        { "label": "Buy Scroll", "effect": "pay_gold_add_card", "gold": 25 },
+        { "label": "Sell Trinkets", "effect": "gain_gold", "gold": 20 },
+        { "label": "Patch Wounds", "effect": "heal_party", "amount": 8 }
+      ]
+    }
+  ]
+}

@@ -12,6 +12,7 @@ typedef enum {
     NODE_ELITE,
     NODE_REST,
     NODE_SHOP,
+    NODE_EVENT,
     NODE_BOSS,
 } NodeType;
 

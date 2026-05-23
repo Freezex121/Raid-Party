@@ -355,6 +355,7 @@ Color theme_node_color(NodeType type)
         case NODE_ELITE:  return (Color){ 185, 86, 205, 255 };
         case NODE_REST:   return (Color){ 78, 190, 120, 255 };
         case NODE_SHOP:   return (Color){ 225, 185, 70, 255 };
+        case NODE_EVENT:  return (Color){ 85, 185, 205, 255 };
         case NODE_BOSS:   return (Color){ 230, 65, 70, 255 };
     }
     return (Color){ 125, 130, 155, 255 };
@@ -383,6 +384,7 @@ const char *theme_node_icon(NodeType type)
         case NODE_ELITE:  return "!";
         case NODE_REST:   return "+";
         case NODE_SHOP:   return "$";
+        case NODE_EVENT:  return "?";
         case NODE_BOSS:   return "B";
     }
     return "?";
@@ -397,6 +399,7 @@ const char *theme_node_name(NodeType type)
         case NODE_ELITE:  return "Elite";
         case NODE_REST:   return "Rest";
         case NODE_SHOP:   return "Shop";
+        case NODE_EVENT:  return "Event";
         case NODE_BOSS:   return "Boss";
     }
     return "Unknown";

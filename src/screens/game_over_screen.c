@@ -7,12 +7,23 @@
 
 void game_over_screen_update(void)
 {
+    if (!g_state.result_recorded)
+    {
+        int before_slots = meta_party_slots(&g_state.meta);
+        meta_record_run(&g_state.meta, g_state.run_won, g_state.result_floor, g_state.result_bosses_defeated);
+        meta_save(&g_state.meta);
+        g_state.max_party_size = meta_party_slots(&g_state.meta);
+        g_state.result_unlocked_party_size = g_state.max_party_size > before_slots ? g_state.max_party_size : 0;
+        g_state.result_recorded = true;
+    }
+
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE))
     {
         g_state.run_party_active = false;
         g_state.encounter = NULL;
         g_state.encounter_is_elite = false;
         g_state.encounter_is_boss = false;
+        g_state.relic_reward_pending = false;
         game_change_screen(SCREEN_TITLE);
     }
 }
@@ -47,6 +58,15 @@ void game_over_screen_draw(void)
             valid_cards++;
     snprintf(line, sizeof(line), "Deck size: %d", valid_cards);
     DrawText(line, stats_x, 180, 9, RAYWHITE);
+
+    snprintf(line, sizeof(line), "Meta: %d runs  %d wins  slots %d/5", g_state.meta.runs_completed, g_state.meta.wins, g_state.max_party_size);
+    DrawText(line, stats_x, 196, 8, (Color){ 170, 175, 205, 230 });
+
+    if (g_state.result_unlocked_party_size > 0)
+    {
+        snprintf(line, sizeof(line), "Unlocked %d-party drafts!", g_state.result_unlocked_party_size);
+        DrawText(line, stats_x, 210, 8, (Color){ 230, 205, 95, 255 });
+    }
 
     int y = 220;
     DrawText("Final party", stats_x, y, 8, (Color){ 160, 160, 190, 220 });

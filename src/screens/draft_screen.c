@@ -149,11 +149,16 @@ void draft_screen_update(void)
             memset(&g_state.map, 0, sizeof(g_state.map));
             g_state.map.floor = 0;
             g_state.gold = 0;
+            g_state.relic_count = 0;
+            g_state.relic_reward_pending = false;
+            g_state.relic_reward_count = 0;
             g_state.encounter = NULL;
             g_state.encounter_is_elite = false;
             g_state.encounter_is_boss = false;
             g_state.result_floor = 1;
             g_state.result_bosses_defeated = 0;
+            g_state.result_recorded = false;
+            g_state.result_unlocked_party_size = 0;
             g_state.run_won = false;
             g_state.result_reason[0] = '\0';
             party_create(&g_state.run_party, g_state.selected_classes, g_state.selected_count);

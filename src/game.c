@@ -9,9 +9,10 @@ GameState g_state;
 void game_init(void)
 {
     memset(&g_state, 0, sizeof(GameState));
+    meta_load(&g_state.meta);
     g_state.screen = SCREEN_TITLE;
     g_state.pending_screen = SCREEN_TITLE;
-    g_state.max_party_size = 3;
+    g_state.max_party_size = meta_party_slots(&g_state.meta);
     g_state.result_floor = 1;
 }
 

@@ -65,6 +65,8 @@ def main() -> int:
     cards = load("cards.json")["cards"]
     enemies = load("enemies.json")["enemies"]
     floors = load("encounters.json")["floors"]
+    relics = load("relics.json")["relics"]
+    events = load("events.json")["events"]
     enemy_by_id = {enemy["id"]: enemy for enemy in enemies}
 
     damage_dpe = per_energy(cards, "damage")
@@ -97,6 +99,8 @@ def main() -> int:
     print()
     print(f"Enemies: {len(enemies)}")
     print(f"Average enemy HP: {mean([enemy['max_hp'] for enemy in enemies]):.1f}")
+    print(f"Relics: {len(relics)}")
+    print(f"Events: {len(events)}")
 
     expected_damage_per_turn = mean(damage_dpe) * ENERGY_PER_TURN if damage_dpe else 1.0
     print()

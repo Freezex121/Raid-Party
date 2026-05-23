@@ -1,6 +1,7 @@
 #include "combat.h"
 #include "game.h"
 #include "data/card_defs.h"
+#include "systems/relic.h"
 #include "ui/floating_text.h"
 #include "ui/layout.h"
 #include "util/tween.h"
@@ -424,6 +425,44 @@ static void apply_card_effect_chain(CombatState *cs, const CardDef *card, int ta
         apply_card_effect(cs, card, &card->effects[i], target_enemy, target_ally);
 }
 
+static void apply_relic_combat_start(CombatState *cs)
+{
+    if (!cs) return;
+
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_BATTLE_DRUM))
+    {
+        cs->energy.current += 1;
+        if (cs->energy.current > cs->energy.max) cs->energy.current = cs->energy.max;
+        combat_feed_add(cs, "Battle Drum: +1 energy");
+    }
+
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_SCOUTING_MAP))
+    {
+        deck_draw(&cs->deck);
+        combat_feed_add(cs, "Scouting Map: drew 1");
+    }
+
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_WARD_STONE))
+    {
+        for (int i = 0; i < cs->party.count; i++)
+            if (cs->party.members[i].alive)
+                cs->party.members[i].shield += 4;
+        combat_feed_add(cs, "Ward Stone: +4 Shield");
+    }
+
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_MENDING_BEAD))
+    {
+        for (int i = 0; i < cs->party.count; i++)
+        {
+            PartyMember *pm = &cs->party.members[i];
+            if (!pm->alive) continue;
+            pm->hp += 4;
+            if (pm->hp > pm->max_hp) pm->hp = pm->max_hp;
+        }
+        combat_feed_add(cs, "Mending Bead: +4 HP");
+    }
+}
+
 // ── Card resolver ───────────────────────────────────────────
 
 static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_enemy, int target_ally)
@@ -601,6 +640,8 @@ static void check_victory(CombatState *cs)
     if (!cs->gold_spawned)
     {
         int gold_gain = g_state.encounter_is_boss ? 50 : (g_state.encounter_is_elite ? 25 : 10);
+        if (relic_has(g_state.relics, g_state.relic_count, RELIC_GILDED_CHARM))
+            gold_gain += 8;
         ft_spawn_gold(gold_gain);
         cs->gold_spawned = true;
     }
@@ -897,6 +938,8 @@ void combat_start(CombatState *cs, const Party *party, const EncounterDef *encou
         cs->action_feed[i][0] = '\0';
         cs->action_feed_timer[i] = 0.0f;
     }
+
+    apply_relic_combat_start(cs);
 
     LOG_T("  setting up enemies");
 

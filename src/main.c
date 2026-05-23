@@ -44,7 +44,9 @@ int main(void)
                 case SCREEN_RUN:   run_screen_update();   break;
                 case SCREEN_REST:  rest_screen_update();  break;
                 case SCREEN_SHOP:  shop_screen_update();  break;
+                case SCREEN_EVENT: event_screen_update(); break;
                 case SCREEN_REWARD: reward_screen_update(); break;
+                case SCREEN_RELIC_REWARD: relic_reward_screen_update(); break;
                 case SCREEN_DISCARD: discard_screen_update(); break;
                 case SCREEN_GAME_OVER: game_over_screen_update(); break;
                 default: break;
@@ -68,7 +70,9 @@ int main(void)
             case SCREEN_RUN:   run_screen_draw();   break;
             case SCREEN_REST:  rest_screen_draw();  break;
             case SCREEN_SHOP:  shop_screen_draw();  break;
+            case SCREEN_EVENT: event_screen_draw(); break;
             case SCREEN_REWARD: reward_screen_draw(); break;
+            case SCREEN_RELIC_REWARD: relic_reward_screen_draw(); break;
             case SCREEN_DISCARD: discard_screen_draw(); break;
             case SCREEN_GAME_OVER: game_over_screen_draw(); break;
             default: break;
