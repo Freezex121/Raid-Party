@@ -10,6 +10,22 @@ static Color color_fade_alpha(Color c, unsigned char a)
     return c;
 }
 
+static int snap_i(float value)
+{
+    return value >= 0.0f ? (int)(value + 0.5f) : (int)(value - 0.5f);
+}
+
+static Rectangle snap_rect(Rectangle r)
+{
+    int x = snap_i(r.x);
+    int y = snap_i(r.y);
+    int w = snap_i(r.width);
+    int h = snap_i(r.height);
+    if (w < 1) w = 1;
+    if (h < 1) h = 1;
+    return (Rectangle){ (float)x, (float)y, (float)w, (float)h };
+}
+
 static Rectangle fit_card_art_rect(Rectangle bounds)
 {
     float sx = bounds.width / (float)CARD_ART_SOURCE_W;
@@ -18,12 +34,12 @@ static Rectangle fit_card_art_rect(Rectangle bounds)
 
     float w = CARD_ART_SOURCE_W * scale;
     float h = CARD_ART_SOURCE_H * scale;
-    return (Rectangle){
+    return snap_rect((Rectangle){
         bounds.x + (bounds.width - w) * 0.5f,
         bounds.y + (bounds.height - h) * 0.5f,
         w,
         h
-    };
+    });
 }
 
 static int scaled_x(Rectangle r, float sx)
@@ -39,8 +55,14 @@ static int scaled_y(Rectangle r, float sy)
 static int scaled_font(Rectangle r, int source_px)
 {
     float s = r.width / (float)CARD_ART_SOURCE_W;
-    int f = (int)(source_px * s);
+    int f = snap_i(source_px * s);
     return f < 3 ? 3 : f;
+}
+
+static int scaled_len(Rectangle r, float source_px)
+{
+    int len = snap_i(source_px * (r.width / (float)CARD_ART_SOURCE_W));
+    return len < 1 ? 1 : len;
 }
 
 static void draw_text_fit(const char *text, int x, int y, int max_w, int size, Color color)
@@ -214,9 +236,9 @@ static void draw_card_tokens(Rectangle dest, const CardDef *card, bool upgraded,
     int x = x0;
     int max_x = scaled_x(dest, 56);
     int y = scaled_y(dest, 47);
-    int line_h = (int)(7.0f * (dest.width / (float)CARD_ART_SOURCE_W));
+    int line_h = scaled_len(dest, 7);
     if (line_h < size + 2) line_h = size + 2;
-    int gap = (int)(3.0f * (dest.width / (float)CARD_ART_SOURCE_W));
+    int gap = scaled_len(dest, 3);
     if (gap < 2) gap = 2;
 
     int row = 0;
@@ -546,23 +568,23 @@ void theme_draw_card_art(Rectangle bounds, const CardDef *card, bool upgraded)
     Color c = theme_class_color(card ? card->class : CLASS_NONE);
     Color type = card ? theme_card_type_color(card->type) : (Color){ 130, 135, 160, 255 };
 
+    bounds = snap_rect(bounds);
     DrawRectangleRec(bounds, (Color){ 9, 10, 16, 245 });
 
     Rectangle dest = fit_card_art_rect(bounds);
-    if (g_assets.loaded)
-    {
-        DrawTexturePro(g_assets.card_template,
-            (Rectangle){ 0.0f, 0.0f, (float)CARD_ART_SOURCE_W, (float)CARD_ART_SOURCE_H },
-            dest,
-            (Vector2){ 0.0f, 0.0f },
-            0.0f,
-            WHITE);
-    }
-    else
-    {
-        DrawRectangleRec(dest, (Color){ 8, 8, 10, 255 });
-        DrawRectangleLinesEx(dest, 1.0f, c);
-    }
+    DrawRectangleRec(dest, (Color){ 8, 9, 14, 255 });
+    DrawRectangleRec((Rectangle){
+        dest.x + (float)scaled_len(dest, 2),
+        dest.y + (float)scaled_len(dest, 2),
+        dest.width - (float)scaled_len(dest, 4),
+        (float)scaled_len(dest, 10)
+    }, color_fade_alpha(theme_class_dark(card ? card->class : CLASS_NONE), 215));
+    DrawRectangleRec((Rectangle){
+        dest.x + (float)scaled_len(dest, 2),
+        dest.y + dest.height - (float)scaled_len(dest, 26),
+        dest.width - (float)scaled_len(dest, 4),
+        (float)scaled_len(dest, 24)
+    }, (Color){ 13, 15, 24, 255 });
 
     float s = dest.width / (float)CARD_ART_SOURCE_W;
     DrawRectangleLinesEx(dest, s >= 3.0f ? 3.0f : 1.0f, color_fade_alpha(c, upgraded ? 245 : 185));
@@ -585,38 +607,51 @@ void theme_draw_card_art(Rectangle bounds, const CardDef *card, bool upgraded)
     char cost[4];
     snprintf(cost, sizeof(cost), "%d", card->cost);
     int cost_size = scaled_font(dest, 6);
+    Rectangle cost_box = {
+        (float)scaled_x(dest, 47),
+        (float)scaled_y(dest, 1),
+        (float)scaled_len(dest, 10),
+        (float)scaled_len(dest, 10)
+    };
+    DrawRectangleRec(cost_box, (Color){ 245, 225, 90, 255 });
+    DrawRectangleLinesEx(cost_box, 1.0f, (Color){ 80, 65, 20, 230 });
     DrawText(cost,
         scaled_x(dest, 50) - MeasureText(cost, cost_size) / 2,
         scaled_y(dest, 2),
         cost_size,
         (Color){ 25, 25, 20, 255 });
 
-    Rectangle art_box = {
+    Rectangle art_box = snap_rect((Rectangle){
         (float)scaled_x(dest, 5),
         (float)scaled_y(dest, 14),
-        50.0f * s,
-        22.0f * s
-    };
+        (float)scaled_len(dest, 50),
+        (float)scaled_len(dest, 30)
+    });
     DrawRectangleRec(art_box, color_fade_alpha(theme_class_dark(card->class), 185));
-    DrawCircleGradient((int)(art_box.x + art_box.width * 0.5f), (int)(art_box.y + art_box.height * 0.48f),
-        art_box.height * 0.55f, color_fade_alpha(c, 170), color_fade_alpha(c, 0));
+    DrawRectangleLinesEx(art_box, 1.0f, color_fade_alpha(c, 150));
     Texture2D class_icon = class_icon_texture(card->class);
     if (class_icon.id != 0)
     {
-        float icon_size = art_box.height < art_box.width ? art_box.height : art_box.width;
-        icon_size *= 0.86f;
-        Rectangle icon_dest = {
-            art_box.x + (art_box.width - icon_size) * 0.5f,
-            art_box.y + (art_box.height - icon_size) * 0.5f,
-            icon_size,
-            icon_size
-        };
-        DrawTexturePro(class_icon,
-            (Rectangle){ 0.0f, 0.0f, (float)class_icon.width, (float)class_icon.height },
-            icon_dest,
-            (Vector2){ 0.0f, 0.0f },
-            0.0f,
-            WHITE);
+        int icon_size = 32;
+        if (art_box.width < 32.0f || art_box.height < 32.0f)
+            icon_size = 16;
+        if (icon_size > (int)art_box.width || icon_size > (int)art_box.height)
+            icon_size = 0;
+        if (icon_size > 0)
+        {
+            Rectangle icon_dest = {
+                (float)snap_i(art_box.x + (art_box.width - (float)icon_size) * 0.5f),
+                (float)snap_i(art_box.y + (art_box.height - (float)icon_size) * 0.5f),
+                (float)icon_size,
+                (float)icon_size
+            };
+            DrawTexturePro(class_icon,
+                (Rectangle){ 0.0f, 0.0f, (float)class_icon.width, (float)class_icon.height },
+                icon_dest,
+                (Vector2){ 0.0f, 0.0f },
+                0.0f,
+                WHITE);
+        }
     }
 
     int info_size = scaled_font(dest, 4);

@@ -2,6 +2,7 @@
 #define PARTY_FRAMES_H
 
 #include "raylib.h"
+#include "game_text.h"
 #include "systems/party.h"
 
 void party_frames_draw(Party *party);

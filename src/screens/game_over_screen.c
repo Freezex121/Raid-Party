@@ -57,6 +57,9 @@ void game_over_screen_draw(void)
     char line[96];
     const AreaDef *area = area_def(g_state.result_area);
     int area_floors = area_floor_count(g_state.result_area);
+    int loaded_floors = map_loaded_floor_count_for_area(area ? area->id : NULL);
+    if (loaded_floors > 0 && area_floors > loaded_floors)
+        area_floors = loaded_floors;
     snprintf(line, sizeof(line), "Area: %s", area ? area->name : "Unknown Area");
     int stats_x = (VIRT_W / 2) - 86;
     DrawText(line, stats_x, 132, 9, RAYWHITE);

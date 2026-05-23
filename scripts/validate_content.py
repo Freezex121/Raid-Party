@@ -337,9 +337,6 @@ def validate_areas(data: dict, errors: list[str]) -> tuple[int, int]:
     if not isinstance(areas, list) or not areas:
         errors.append("areas.json: areas must be a non-empty list")
         return 0, 0
-    if len(areas) > 5:
-        errors.append("areas.json: at most 5 areas are supported")
-
     seen: set[str] = set()
     max_floor_count = 0
     for index, area in enumerate(areas):
@@ -355,17 +352,15 @@ def validate_areas(data: dict, errors: list[str]) -> tuple[int, int]:
             errors.append(f"{label}: duplicate area id")
         if isinstance(area_id, str):
             seen.add(area_id)
-        require_int(area, "floor_count", label, errors, minimum=3)
+        require_int(area, "floor_count", label, errors, minimum=1)
         require_int(area, "difficulty_percent", label, errors, minimum=100)
         floor_count = area.get("floor_count", 0)
         if isinstance(floor_count, int) and not isinstance(floor_count, bool):
-            if floor_count > 5:
-                errors.append(f"{label}: floor_count must be 3..5")
             max_floor_count = max(max_floor_count, floor_count)
     return len(seen), max_floor_count
 
 
-def validate_maps(data: dict, errors: list[str]) -> int:
+def validate_maps(data: dict, area_ids: set[str], errors: list[str]) -> int:
     floors = data.get("floors", [])
     if not isinstance(floors, list):
         errors.append("maps.json: floors must be a list")
@@ -378,6 +373,12 @@ def validate_maps(data: dict, errors: list[str]) -> int:
             continue
         label = f"map floor {floor.get('floor', '?')}"
         require_int(floor, "floor", label, errors, minimum=1)
+        area_id = floor.get("area") or floor.get("area_id")
+        if area_id is not None:
+            if not isinstance(area_id, str) or not area_id.strip():
+                errors.append(f"{label}: area must be a non-empty string")
+            elif area_id not in area_ids:
+                errors.append(f"{label}: unknown area id {area_id!r}")
         nodes = floor.get("nodes", [])
         if not isinstance(nodes, list) or not nodes:
             errors.append(f"{label}: nodes must be a non-empty list")
@@ -395,13 +396,22 @@ def validate_maps(data: dict, errors: list[str]) -> int:
             has_boss = has_boss or node.get("type") == "boss"
             require_int(node, "row", node_label, errors)
             require_int(node, "col", node_label, errors)
+            if "x" in node:
+                require_int(node, "x", node_label, errors)
+            if "y" in node:
+                require_int(node, "y", node_label, errors)
             conns = node.get("connections", [])
-            if not isinstance(conns, list) or len(conns) > 3:
-                errors.append(f"{node_label}: connections must be a list of at most 3 indices")
+            if not isinstance(conns, list):
+                errors.append(f"{node_label}: connections must be a list")
                 continue
             for conn in conns:
                 if not isinstance(conn, int) or isinstance(conn, bool) or conn < 0 or conn >= len(nodes):
                     errors.append(f"{node_label}: invalid connection index {conn!r}")
+                    continue
+                src_y = node.get("y", node.get("row", 0))
+                dst_y = nodes[conn].get("y", nodes[conn].get("row", 0))
+                if isinstance(src_y, int) and isinstance(dst_y, int) and dst_y < src_y:
+                    errors.append(f"{node_label}: connection to node {conn} moves upward")
         if not has_start:
             errors.append(f"{label}: missing start node")
         if not has_boss:
@@ -422,13 +432,18 @@ def main() -> int:
     maps = load_json("maps.json", errors)
 
     area_count, max_area_floors = validate_areas(areas, errors)
+    area_ids = {
+        area["id"]
+        for area in areas.get("areas", [])
+        if isinstance(area, dict) and isinstance(area.get("id"), str)
+    } if isinstance(areas.get("areas", []), list) else set()
     class_ids = validate_classes(classes, errors)
     card_ids = validate_cards(cards, errors)
     enemy_ids = validate_enemies(enemies, errors)
     encounter_count = validate_encounters(encounters, enemy_ids, errors)
     relic_ids = validate_relics(relics, errors)
     event_ids = validate_events(events, card_ids, errors)
-    map_floor_count = validate_maps(maps, errors)
+    map_floor_count = validate_maps(maps, area_ids, errors)
 
     encounter_floor_count = len(encounters.get("floors", [])) if isinstance(encounters.get("floors"), list) else 0
     if max_area_floors > 0 and map_floor_count < max_area_floors:

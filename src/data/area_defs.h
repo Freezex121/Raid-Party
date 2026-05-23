@@ -3,8 +3,6 @@
 
 #include <stdbool.h>
 
-#define MAX_AREAS 5
-
 typedef struct {
     const char *id;
     const char *name;

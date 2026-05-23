@@ -6,6 +6,7 @@
 #include "systems/relic.h"
 #include "ui/floating_text.h"
 #include "ui/layout.h"
+#include "ui/theme.h"
 #include "util/tween.h"
 #include "util/log.h"
 #include "constants.h"
@@ -316,6 +317,149 @@ static void find_caster(CombatState *cs, ClassType ct, int *out_idx)
             { *out_idx = i; return; }
 }
 
+static Vector2 rect_center(Rectangle r)
+{
+    return (Vector2){ r.x + r.width * 0.5f, r.y + r.height * 0.5f };
+}
+
+static Rectangle combat_hand_card_rect(CombatState *cs, int hand_idx)
+{
+    HandLayout hand_layout = layout_hand(cs->deck.hand_count);
+    Rectangle r = layout_hand_card_rect(hand_layout, hand_idx);
+    if (hand_idx == cs->target_hand_idx)
+        r.y += cs->target_offset;
+    else if (hand_idx == cs->hovered_card)
+        r.y -= 28.0f;
+    return r;
+}
+
+static Vector2 combat_discard_target(void)
+{
+    return rect_center(layout_discard_pile_rect());
+}
+
+static Vector2 combat_card_throw_target(CombatState *cs, const CardDef *card, int target_enemy, int target_ally)
+{
+    if (target_enemy >= 0 && target_enemy < cs->enemy_count)
+        return (Vector2){ (float)cs->enemies[target_enemy].pos_x, (float)cs->enemies[target_enemy].pos_y };
+
+    if (target_ally >= 0 && target_ally < cs->party.count)
+        return rect_center(layout_party_frame_rect(cs->party.count, target_ally));
+
+    if (card && card->target == TARGET_SELF)
+    {
+        int caster = -1;
+        find_caster(cs, card->class, &caster);
+        if (caster >= 0)
+            return rect_center(layout_party_frame_rect(cs->party.count, caster));
+    }
+
+    if (card && card->target == TARGET_ALL_ENEMIES)
+    {
+        int count = 0;
+        Vector2 total = { 0.0f, 0.0f };
+        for (int i = 0; i < cs->enemy_count; i++)
+        {
+            if (!cs->enemies[i].def || cs->enemies[i].hp <= 0) continue;
+            total.x += (float)cs->enemies[i].pos_x;
+            total.y += (float)cs->enemies[i].pos_y;
+            count++;
+        }
+        if (count > 0)
+            return (Vector2){ total.x / (float)count, total.y / (float)count };
+    }
+
+    if (card && card->target == TARGET_ALL_ALLIES && cs->party.count > 0)
+    {
+        Rectangle first = layout_party_frame_rect(cs->party.count, 0);
+        Rectangle last = layout_party_frame_rect(cs->party.count, cs->party.count - 1);
+        return (Vector2){ (first.x + last.x + last.width) * 0.5f, first.y + first.height * 0.5f };
+    }
+
+    return combat_discard_target();
+}
+
+static void combat_spawn_card_throw(CombatState *cs, int hand_idx, const CardDef *card, bool upgraded, int target_enemy, int target_ally)
+{
+    if (!cs || !card || hand_idx < 0 || hand_idx >= cs->deck.hand_count) return;
+
+    int slot = -1;
+    float oldest = -1.0f;
+    for (int i = 0; i < MAX_CARD_THROW_ANIMS; i++)
+    {
+        if (!cs->card_throws[i].active)
+        {
+            slot = i;
+            break;
+        }
+        if (cs->card_throws[i].t > oldest)
+        {
+            oldest = cs->card_throws[i].t;
+            slot = i;
+        }
+    }
+    if (slot < 0) return;
+
+    Rectangle source = combat_hand_card_rect(cs, hand_idx);
+    Vector2 start = rect_center(source);
+    Vector2 end = combat_card_throw_target(cs, card, target_enemy, target_ally);
+    Vector2 mid = { (start.x + end.x) * 0.5f, (start.y + end.y) * 0.5f - 52.0f };
+
+    CardThrowAnim *anim = &cs->card_throws[slot];
+    anim->active = true;
+    anim->card = card;
+    anim->upgraded = upgraded;
+    anim->t = 0.0f;
+    anim->duration = 0.32f;
+    anim->start = start;
+    anim->control = mid;
+    anim->end = end;
+    anim->width = (int)source.width;
+    anim->height = (int)source.height;
+}
+
+static void combat_update_card_throws(CombatState *cs, float dt)
+{
+    for (int i = 0; i < MAX_CARD_THROW_ANIMS; i++)
+    {
+        CardThrowAnim *anim = &cs->card_throws[i];
+        if (!anim->active) continue;
+        anim->t += dt / anim->duration;
+        if (anim->t >= 1.0f)
+            anim->active = false;
+    }
+}
+
+void combat_draw_card_throws(CombatState *cs)
+{
+    if (!cs) return;
+
+    for (int i = 0; i < MAX_CARD_THROW_ANIMS; i++)
+    {
+        CardThrowAnim *anim = &cs->card_throws[i];
+        if (!anim->active || !anim->card) continue;
+
+        float t = anim->t;
+        if (t < 0.0f) t = 0.0f;
+        if (t > 1.0f) t = 1.0f;
+        t = 1.0f - (1.0f - t) * (1.0f - t) * (1.0f - t);
+        float u = 1.0f - t;
+        Vector2 p = {
+            u * u * anim->start.x + 2.0f * u * t * anim->control.x + t * t * anim->end.x,
+            u * u * anim->start.y + 2.0f * u * t * anim->control.y + t * t * anim->end.y
+        };
+
+        Rectangle r = {
+            (float)((int)(p.x - anim->width * 0.5f + 0.5f)),
+            (float)((int)(p.y - anim->height * 0.5f + 0.5f)),
+            (float)anim->width,
+            (float)anim->height
+        };
+        theme_draw_card_art(r, anim->card, anim->upgraded);
+        DrawRectangleLinesEx(r, 1.0f, (Color){ 255, 245, 190, 220 });
+    }
+}
+
 static int find_guardian(CombatState *cs)
 {
     for (int i = 0; i < cs->party.count; i++)
@@ -515,6 +659,7 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
     int sh  = card_shield(card, ug);
 
     LOG_I(CAT_CARD, "Playing %s (enemy=%d, ally=%d) upgraded=%d channel=%d", card->name, target_enemy, target_ally, ug, card->channel);
+    combat_spawn_card_throw(cs, hand_idx, card, ug, target_enemy, target_ally);
     combat_flash_played_card(cs, card, target_enemy, target_ally);
     combat_feed_add(cs, "Played %s", card->name);
 
@@ -1248,6 +1393,7 @@ void combat_update(CombatState *cs)
     for (int i = 0; i < 5; i++)
         if (cs->action_feed_timer[i] > 0.0f)
             cs->action_feed_timer[i] -= dt;
+    combat_update_card_throws(cs, dt);
 
     if (cs->phase == COMBAT_VICTORY || cs->phase == COMBAT_DEFEAT)
     {

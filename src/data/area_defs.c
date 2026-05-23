@@ -4,8 +4,21 @@
 #include <stdlib.h>
 #include <string.h>
 
-static AreaDef areas[MAX_AREAS];
+static AreaDef *areas = NULL;
 static int area_count = 0;
+
+static void free_areas(void)
+{
+    for (int i = 0; i < area_count; i++)
+    {
+        free((void *)areas[i].id);
+        free((void *)areas[i].name);
+        free((void *)areas[i].description);
+    }
+    free(areas);
+    areas = NULL;
+    area_count = 0;
+}
 
 static char *copy_text(const char *text)
 {
@@ -40,11 +53,20 @@ bool area_defs_load_json(const char *path)
         return false;
     }
 
-    memset(areas, 0, sizeof(areas));
-    area_count = 0;
+    free_areas();
 
     int count = json_array_count(items);
-    if (count > MAX_AREAS) count = MAX_AREAS;
+    if (count <= 0)
+    {
+        json_free(root);
+        return false;
+    }
+    areas = (AreaDef *)calloc((size_t)count, sizeof(AreaDef));
+    if (!areas)
+    {
+        json_free(root);
+        return false;
+    }
 
     for (int i = 0; i < count; i++)
     {
@@ -58,8 +80,7 @@ bool area_defs_load_json(const char *path)
         out->floor_count = json_int(field(item, "floor_count"), 3);
         out->difficulty_percent = json_int(field(item, "difficulty_percent"), 100);
 
-        if (out->floor_count < 3) out->floor_count = 3;
-        if (out->floor_count > 5) out->floor_count = 5;
+        if (out->floor_count < 1) out->floor_count = 1;
         if (out->difficulty_percent < 50) out->difficulty_percent = 50;
 
         area_count++;

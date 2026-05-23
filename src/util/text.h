@@ -2,6 +2,7 @@
 #define TEXT_H
 
 #include "raylib.h"
+#include "ui/game_text.h"
 
 typedef struct {
     const char *text;

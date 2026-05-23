@@ -53,12 +53,14 @@ The current codebase is a playable prototype slice, not yet a production-quality
 - P4 data/content/balance pass is implemented: runtime content loads from JSON manifests under `assets/data`, card special behavior resolves through effect chains, content validation and balance-report scripts exist, and each floor has a named boss encounter.
 - P5 run-depth pass is implemented: relics, event nodes, boss/event relic rewards, meta party-slot unlocks, and meta-progress persistence now exist.
 - Area-based meta progression is being expanded: areas are JSON-defined, unlock sequentially, can run 3-5 floors, and feed a Renown-based meta shop.
+- Map editing is now intended to be data-only: `tools/map_editor.html` can edit areas, area-specific floors, arbitrary node counts, and arbitrary connection counts for runtime JSON loading.
 
 ### Partially Done Or Risky
 
 - Party growth starts at 3 slots, with 4th and 5th slots now intended as Renown shop purchases instead of automatic boss-count unlocks.
 - Players can begin a run with any party size from 1 up to their current max; the draft UI warns when the party is not full.
 - Runtime data now uses JSON as the source of truth for classes, cards, enemies, encounters, relic definitions, events, and map layouts. C still owns behavior enums and effect/relic hooks.
+- Map layouts and encounter floor pools are dynamically allocated at runtime instead of capped to the old 5 floors / 14 nodes / 3 connections assumptions.
 - Named boss identities and mechanics exist for all 3 floors. True multi-phase boss scripting remains future scope.
 - Upgrade support affects damage/heal/shield numbers, but future special-effect upgrades still need a content/balance audit.
 - Card text/effect audits should continue whenever new cards or effect types are added.
@@ -242,10 +244,15 @@ Exit criteria:
   - [x] Keep event UI stylish but compact.
 - [x] Add meta-progression:
   - [x] Unlock party slot 4 and party slot 5 through meta shop purchases.
-  - [x] Add sequential area unlocks with area difficulty scaling.
-  - [x] Add Renown rewards from runs.
-  - [x] Add a meta shop for party slots and starting-run support.
-  - [x] Allow under-full party drafts, including solo attempts.
+- [x] Add sequential area unlocks with area difficulty scaling.
+- [x] Add Renown rewards from runs.
+- [x] Add a meta shop for party slots and starting-run support.
+- [x] Allow under-full party drafts, including solo attempts.
+- [x] Add data-driven map editing support:
+  - [x] Runtime maps support arbitrary node counts and connection counts.
+  - [x] Runtime maps support optional area-specific floors with shared floor fallbacks.
+  - [x] The map screen scrolls/pans for large map layouts.
+  - [x] `tools/map_editor.html` edits areas, floors, nodes, positions, and connections without code changes.
   - [x] Avoid raw stat inflation until balance is proven.
   - [ ] Future: class unlocks, alternate starting cards, cosmetics, and difficulty modifiers.
 - [x] Add persistence:

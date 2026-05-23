@@ -12,14 +12,75 @@
 
 static int hovered_node = -1;
 static int last_floor = -1;
+static float map_scroll_x = 0.0f;
+static float map_scroll_y = 0.0f;
+
+static float clampf_local(float value, float min, float max)
+{
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
+}
+
+static Rectangle map_content_bounds(MapState *map)
+{
+    if (!map || !map->nodes || map->node_count <= 0)
+        return (Rectangle){ 0.0f, 52.0f, (float)VIRT_W, (float)(VIRT_H - 52) };
+
+    int min_x = map->nodes[0].x;
+    int min_y = map->nodes[0].y;
+    int max_x = map->nodes[0].x;
+    int max_y = map->nodes[0].y;
+    for (int i = 1; i < map->node_count; i++)
+    {
+        MapNode *n = &map->nodes[i];
+        if (n->x < min_x) min_x = n->x;
+        if (n->y < min_y) min_y = n->y;
+        if (n->x > max_x) max_x = n->x;
+        if (n->y > max_y) max_y = n->y;
+    }
+
+    return (Rectangle){
+        (float)(min_x - 54),
+        (float)(min_y - 54),
+        (float)(max_x - min_x + 108),
+        (float)(max_y - min_y + 112)
+    };
+}
+
+static void clamp_map_scroll(void)
+{
+    Rectangle bounds = map_content_bounds(&g_state.map);
+    float max_x = bounds.width > VIRT_W ? bounds.width - VIRT_W : 0.0f;
+    float max_y = bounds.height > (VIRT_H - 52) ? bounds.height - (VIRT_H - 52) : 0.0f;
+    map_scroll_x = clampf_local(map_scroll_x, 0.0f, max_x);
+    map_scroll_y = clampf_local(map_scroll_y, 0.0f, max_y);
+}
+
+static float map_center_offset_x(Rectangle bounds)
+{
+    return bounds.width < VIRT_W ? ((float)VIRT_W - bounds.width) * 0.5f : 0.0f;
+}
+
+static Vector2 node_screen_pos(MapNode *node)
+{
+    Rectangle bounds = map_content_bounds(&g_state.map);
+    return (Vector2){
+        (float)node->x - bounds.x - map_scroll_x + map_center_offset_x(bounds),
+        (float)node->y - bounds.y - map_scroll_y + 52.0f
+    };
+}
 
 void map_screen_update(void)
 {
     if (g_state.map.floor != last_floor || g_state.map.node_count == 0)
     {
-        map_generate(&g_state.map, g_state.map.floor);
+        const AreaDef *area = area_def(g_state.current_area);
+        map_generate(&g_state.map, g_state.map.floor, area ? area->id : NULL);
         g_state.map.current_index = -1;
         last_floor = g_state.map.floor;
+        map_scroll_x = 0.0f;
+        map_scroll_y = 0.0f;
         LOG_I(CAT_SCREEN, "Map screen: floor %d, %d nodes", g_state.map.floor, g_state.map.node_count);
     }
 
@@ -68,11 +129,26 @@ void map_screen_update(void)
     Vector2 mouse = GetMousePosition();
     hovered_node = -1;
 
+    float wheel = GetMouseWheelMove();
+    if (wheel != 0.0f)
+    {
+        if (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT))
+            map_scroll_x -= wheel * 32.0f;
+        else
+            map_scroll_y -= wheel * 32.0f;
+    }
+    if (IsKeyDown(KEY_DOWN)) map_scroll_y += 3.0f;
+    if (IsKeyDown(KEY_UP)) map_scroll_y -= 3.0f;
+    if (IsKeyDown(KEY_RIGHT)) map_scroll_x += 3.0f;
+    if (IsKeyDown(KEY_LEFT)) map_scroll_x -= 3.0f;
+    clamp_map_scroll();
+
     for (int i = g_state.map.node_count - 1; i >= 0; i--)
     {
         MapNode *n = &g_state.map.nodes[i];
         if (!n->available || n->completed) continue;
-        if (CheckCollisionPointRec(mouse, (Rectangle){ (float)(n->x - 20), (float)(n->y - 20), 40, 40 }))
+        Vector2 pos = node_screen_pos(n);
+        if (CheckCollisionPointRec(mouse, (Rectangle){ pos.x - 20.0f, pos.y - 20.0f, 40.0f, 40.0f }))
         {
             hovered_node = i;
             if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
@@ -99,6 +175,9 @@ void map_screen_draw(void)
 
     const AreaDef *area = area_def(g_state.current_area);
     int floor_count = area_floor_count(g_state.current_area);
+    int loaded_floors = map_loaded_floor_count_for_area(area ? area->id : NULL);
+    if (loaded_floors > 0 && floor_count > loaded_floors)
+        floor_count = loaded_floors;
 
     char title[96];
     snprintf(title, sizeof(title), "%s", area ? area->name : "Area");
@@ -112,18 +191,23 @@ void map_screen_draw(void)
     relic_tray_draw(g_state.relics, g_state.relic_count, (Rectangle){ 482.0f, 10.0f, 146.0f, 42.0f });
 
     MapState *map = &g_state.map;
+    clamp_map_scroll();
+
+    BeginScissorMode(0, 52, VIRT_W, VIRT_H - 52);
 
     for (int i = 0; i < map->node_count; i++)
     {
         MapNode *n = &map->nodes[i];
+        Vector2 from = node_screen_pos(n);
         Color conn_col = n->completed ? (Color){ 125, 140, 165, 170 } : (Color){ 60, 64, 86, 90 };
         for (int c = 0; c < n->conn_count; c++)
         {
             int ni = n->conns[c];
             if (ni < 0 || ni >= map->node_count) continue;
             MapNode *next = &map->nodes[ni];
-            DrawLineEx((Vector2){ (float)n->x, (float)n->y },
-                       (Vector2){ (float)next->x, (float)next->y },
+            Vector2 to = node_screen_pos(next);
+            DrawLineEx(from,
+                       to,
                        n->completed ? 2.0f : 1.0f,
                        conn_col);
         }
@@ -132,6 +216,9 @@ void map_screen_draw(void)
     for (int i = 0; i < map->node_count; i++)
     {
         MapNode *n = &map->nodes[i];
+        Vector2 pos = node_screen_pos(n);
+        int sx = (int)pos.x;
+        int sy = (int)pos.y;
         int r = (n->type == NODE_BOSS) ? 18 : 14;
         Color c = theme_node_color(n->type);
         const char *icon = theme_node_icon(n->type);
@@ -139,39 +226,48 @@ void map_screen_draw(void)
 
         if (!n->available && !n->completed)
         {
-            DrawCircle(n->x, n->y, (float)r, (Color){ 28, 29, 42, 255 });
-            DrawCircleLines(n->x, n->y, (float)r, (Color){ 58, 58, 78, 120 });
+            DrawCircle(sx, sy, (float)r, (Color){ 28, 29, 42, 255 });
+            DrawCircleLines(sx, sy, (float)r, (Color){ 58, 58, 78, 120 });
             int locked_size = n->type == NODE_BOSS ? 11 : 9;
             Color dim = c;
             dim.a = 128;
-            DrawText(icon, n->x - MeasureText(icon, locked_size) / 2, n->y - locked_size / 2, locked_size, dim);
-            DrawText(name, n->x - MeasureText(name, 6) / 2, n->y + r + 5, 6, dim);
+            DrawText(icon, sx - MeasureText(icon, locked_size) / 2, sy - locked_size / 2, locked_size, dim);
+            DrawText(name, sx - MeasureText(name, 6) / 2, sy + r + 5, 6, dim);
             continue;
         }
 
         if (n->completed)
         {
-            DrawCircle(n->x, n->y, (float)r, (Color){ 48, 52, 68, 255 });
-            DrawCircle(n->x, n->y, r - 3, (Color){ 70, 200, 115, 150 });
-            DrawText("OK", n->x - MeasureText("OK", 5) / 2, n->y - 3, 5, (Color){ 190, 255, 205, 230 });
+            DrawCircle(sx, sy, (float)r, (Color){ 48, 52, 68, 255 });
+            DrawCircle(sx, sy, r - 3, (Color){ 70, 200, 115, 150 });
+            DrawText("OK", sx - MeasureText("OK", 5) / 2, sy - 3, 5, (Color){ 190, 255, 205, 230 });
         }
         else if (i == hovered_node)
         {
             float pulse = 1.0f + 0.07f * sinf((float)GetTime() * 5.5f);
-            DrawCircle(n->x, n->y, (float)(r + 4) * pulse, (Color){ c.r, c.g, c.b, 55 });
-            DrawCircle(n->x, n->y, r + 2, RAYWHITE);
-            DrawCircle(n->x, n->y, (float)r, c);
+            DrawCircle(sx, sy, (float)(r + 4) * pulse, (Color){ c.r, c.g, c.b, 55 });
+            DrawCircle(sx, sy, r + 2, RAYWHITE);
+            DrawCircle(sx, sy, (float)r, c);
         }
         else
         {
-            DrawCircle(n->x, n->y, r + 3, (Color){ c.r, c.g, c.b, 35 });
-            DrawCircle(n->x, n->y, (float)r, c);
-            DrawCircle(n->x, n->y, r - 3, (Color){ 0, 0, 0, 60 });
+            DrawCircle(sx, sy, r + 3, (Color){ c.r, c.g, c.b, 35 });
+            DrawCircle(sx, sy, (float)r, c);
+            DrawCircle(sx, sy, r - 3, (Color){ 0, 0, 0, 60 });
         }
 
         int icon_size = n->type == NODE_BOSS ? 11 : 9;
-        DrawText(icon, n->x - MeasureText(icon, icon_size) / 2, n->y - icon_size / 2, icon_size, RAYWHITE);
-        DrawText(name, n->x - MeasureText(name, 6) / 2, n->y + r + 5, 6, c);
+        DrawText(icon, sx - MeasureText(icon, icon_size) / 2, sy - icon_size / 2, icon_size, RAYWHITE);
+        DrawText(name, sx - MeasureText(name, 6) / 2, sy + r + 5, 6, c);
+    }
+
+    EndScissorMode();
+
+    Rectangle bounds = map_content_bounds(map);
+    if (bounds.height > VIRT_H - 52 || bounds.width > VIRT_W)
+    {
+        const char *hint = "Wheel scrolls map  |  Shift+wheel pans";
+        DrawText(hint, VIRT_W / 2 - MeasureText(hint, 6) / 2, VIRT_H - 12, 6, (Color){ 150, 155, 180, 185 });
     }
 
     if (hovered_node >= 0 && map->nodes[hovered_node].available && !map->nodes[hovered_node].completed)

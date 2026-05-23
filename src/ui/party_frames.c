@@ -123,11 +123,11 @@ void party_frames_draw(Party *party)
         }
 
         Color bar_bg = (Color){ 20, 20, 30, 255 };
-        int portrait_x = x + 14;
+        int portrait_x = x + 17;
         int portrait_y = y + 17;
-        int bar_x = x + 30;
+        int bar_x = x + 36;
         int bar_y = y + 7;
-        int bar_w = frame_w - 38;
+        int bar_w = frame_w - 44;
         int bar_h = 7;
         DrawRectangleRec((Rectangle){ (float)bar_x, (float)bar_y, (float)bar_w, (float)bar_h }, bar_bg);
 
@@ -155,12 +155,12 @@ void party_frames_draw(Party *party)
 
         char hp_text[32];
         snprintf(hp_text, sizeof(hp_text), "%d / %d", m->hp, m->max_hp);
-        DrawText(hp_text, x + 30, y + 17, 6, (Color){ 200, 200, 220, 210 });
+        DrawText(hp_text, x + 36, y + 17, 6, (Color){ 200, 200, 220, 210 });
 
         Color aggro_col = (Color){ 220, 160, 60, 200 };
         char agg_text[16];
         snprintf(agg_text, sizeof(agg_text), "A:%d", m->aggro);
-        DrawText(agg_text, x + 30, y + 25, 5, aggro_col);
+        DrawText(agg_text, x + 36, y + 25, 5, aggro_col);
 
         if (!m->alive)
         {

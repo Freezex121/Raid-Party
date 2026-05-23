@@ -18,7 +18,6 @@ static void sanitize_meta(MetaProgress *meta)
     if (meta->best_floor < 1) meta->best_floor = 1;
     if (meta->renown < 0) meta->renown = 0;
     if (meta->highest_area_unlocked < 0) meta->highest_area_unlocked = 0;
-    if (meta->highest_area_unlocked >= META_MAX_AREAS) meta->highest_area_unlocked = META_MAX_AREAS - 1;
     if (meta->starting_gold_rank < 0) meta->starting_gold_rank = 0;
     if (meta->starting_gold_rank > META_TRAVEL_FUND_MAX_RANK)
         meta->starting_gold_rank = META_TRAVEL_FUND_MAX_RANK;
@@ -128,7 +127,7 @@ int meta_record_run(MetaProgress *meta, bool won, int area_index, int floor_reac
 
     meta->renown += renown_gained;
 
-    if (won && area_index >= meta->highest_area_unlocked && meta->highest_area_unlocked < META_MAX_AREAS - 1)
+    if (won && area_index >= meta->highest_area_unlocked)
         meta->highest_area_unlocked = area_index + 1;
 
     sanitize_meta(meta);

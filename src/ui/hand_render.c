@@ -46,7 +46,7 @@ static void draw_hand_card(Rectangle card_rect, const CardDef *card, bool upgrad
     int ch = (int)card_rect.height;
 
     theme_draw_card_art(card_rect, card, upgraded);
-    DrawRectangleLinesEx(card_rect, hovered ? 2.5f : 1.0f,
+    DrawRectangleLinesEx(card_rect, hovered ? 2.0f : 1.0f,
         low_energy ? (Color){ 95, 90, 105, 210 } : (hovered ? RAYWHITE : accent));
     if (upgraded)
         DrawRectangleLinesEx((Rectangle){ card_rect.x + 1.0f, card_rect.y + 1.0f, card_rect.width - 2.0f, card_rect.height - 2.0f },
@@ -131,11 +131,10 @@ void hand_render_draw(Deck *deck, Energy *energy, int hovered_card, ClassType ch
         float draw_y = base_rect.y + hover_offset + select_offset + deal_offset;
 
         bool low_energy = !energy_has(energy, card->cost);
-        float scale = 1.0f + 0.08f * visual_hover[i];
-        int cw = (int)(hand_layout.card_w * scale);
-        int ch = (int)(hand_layout.card_h * scale);
-        int cx = x - (cw - hand_layout.card_w) / 2;
-        int cy = (int)(draw_y - (ch - hand_layout.card_h) / 2);
+        int cw = hand_layout.card_w;
+        int ch = hand_layout.card_h;
+        int cx = x;
+        int cy = (int)draw_y;
 
         bool locked = (channel_class != CLASS_NONE && card->class == channel_class);
         draw_rects[i] = (Rectangle){ (float)cx, (float)cy, (float)cw, (float)ch };

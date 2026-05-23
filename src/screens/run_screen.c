@@ -123,6 +123,25 @@ static void draw_panel(Rectangle panel, const char *title, Color accent)
         DrawText(title, (int)panel.x + 6, (int)panel.y + 5, 6, accent);
 }
 
+static void draw_discard_pile(CombatState *cs)
+{
+    Rectangle pile = layout_discard_pile_rect();
+    DrawRectangleRec(pile, (Color){ 12, 13, 20, 215 });
+    DrawRectangleLinesEx(pile, 1.0f, (Color){ 135, 125, 165, 175 });
+
+    Rectangle c1 = { pile.x + 28.0f, pile.y + 12.0f, 22.0f, 28.0f };
+    Rectangle c2 = { pile.x + 23.0f, pile.y + 9.0f, 22.0f, 28.0f };
+    DrawRectangleRec(c1, (Color){ 34, 34, 50, 255 });
+    DrawRectangleLinesEx(c1, 1.0f, (Color){ 75, 76, 100, 230 });
+    DrawRectangleRec(c2, (Color){ 42, 42, 62, 255 });
+    DrawRectangleLinesEx(c2, 1.0f, (Color){ 110, 105, 145, 230 });
+
+    DrawText("DISCARD", (int)pile.x + 6, (int)pile.y + 5, 5, (Color){ 170, 165, 205, 220 });
+    char count[8];
+    snprintf(count, sizeof(count), "%d", cs ? cs->deck.discard_count : 0);
+    DrawText(count, (int)(pile.x + pile.width - MeasureText(count, 7) - 7), (int)pile.y + 35, 7, (Color){ 205, 200, 230, 235 });
+}
+
 static void draw_combat_feedback(CombatState *cs)
 {
     bool danger = false;
@@ -252,6 +271,10 @@ void run_screen_update(void)
             g_state.map.floor++;
             g_state.frugal_used_this_floor = false;
             int area_floors = area_floor_count(g_state.current_area);
+            const AreaDef *current_area = area_def(g_state.current_area);
+            int loaded_floors = map_loaded_floor_count_for_area(current_area ? current_area->id : NULL);
+            if (loaded_floors > 0 && area_floors > loaded_floors)
+                area_floors = loaded_floors;
             if (g_state.map.floor >= area_floors)
             {
                 g_state.run_won = true;
@@ -370,7 +393,9 @@ void run_screen_draw(void)
         }
     }
 
+    draw_discard_pile(cs);
     hand_render_draw(&cs->deck, &cs->energy, cs->hovered_card, cs->channel_class, cs->target_hand_idx, cs->target_offset);
+    combat_draw_card_throws(cs);
     draw_combat_feedback(cs);
 
     int inspector_idx = targeting ? cs->target_hand_idx : cs->hovered_card;

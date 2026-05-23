@@ -31,6 +31,7 @@ Rectangle layout_action_feed_panel(void);
 Rectangle layout_card_inspector_panel(void);
 Rectangle layout_energy_panel(void);
 Rectangle layout_end_turn_button(void);
+Rectangle layout_discard_pile_rect(void);
 
 Rectangle layout_deck_browser_viewport(void);
 Rectangle layout_deck_inspector_panel(void);

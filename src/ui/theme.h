@@ -2,6 +2,7 @@
 #define THEME_H
 
 #include "raylib.h"
+#include "game_text.h"
 #include "systems/deck.h"
 #include "systems/map.h"
 #include "data/enemy_defs.h"

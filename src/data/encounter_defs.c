@@ -1,20 +1,33 @@
 #include "encounter_defs.h"
 #include "util/json.h"
 #include "util/log.h"
-#include "systems/map.h"
+#include <stdlib.h>
 #include <string.h>
 
-#define MAX_NORMAL_ENCOUNTERS 8
+typedef struct {
+    EncounterDef *normal;
+    int normal_count;
+    EncounterDef elite;
+    EncounterDef boss;
+} EncounterFloor;
 
-static EncounterDef normal_storage[MAX_FLOORS][MAX_NORMAL_ENCOUNTERS];
-static int normal_counts[MAX_FLOORS];
-static EncounterDef elite_storage[MAX_FLOORS];
-static EncounterDef boss_storage[MAX_FLOORS];
+static EncounterFloor *floors_storage = NULL;
+static int floors_count = 0;
 static int loaded = 0;
 
 static const JsonValue *field(const JsonValue *object, const char *key)
 {
     return json_object_get(object, key);
+}
+
+static void free_encounters(void)
+{
+    for (int i = 0; i < floors_count; i++)
+        free(floors_storage[i].normal);
+    free(floors_storage);
+    floors_storage = NULL;
+    floors_count = 0;
+    loaded = 0;
 }
 
 static bool load_encounter(const JsonValue *object, EncounterDef *out, const char *label)
@@ -58,73 +71,109 @@ bool encounter_defs_load_json(const char *path)
         return false;
     }
 
-    memset(normal_storage, 0, sizeof(normal_storage));
-    memset(normal_counts, 0, sizeof(normal_counts));
-    memset(elite_storage, 0, sizeof(elite_storage));
-    memset(boss_storage, 0, sizeof(boss_storage));
+    free_encounters();
 
-    int floor_count = json_array_count(floors);
-    for (int i = 0; i < floor_count; i++)
+    int json_floor_count = json_array_count(floors);
+    int max_floor_index = -1;
+    for (int i = 0; i < json_floor_count; i++)
+    {
+        const JsonValue *floor_obj = json_array_get(floors, i);
+        if (!floor_obj || floor_obj->type != JSON_OBJECT) continue;
+        int floor_index = json_int(field(floor_obj, "floor"), i + 1) - 1;
+        if (floor_index > max_floor_index)
+            max_floor_index = floor_index;
+    }
+
+    if (max_floor_index < 0)
+    {
+        json_free(root);
+        return false;
+    }
+
+    floors_count = max_floor_index + 1;
+    floors_storage = (EncounterFloor *)calloc((size_t)floors_count, sizeof(EncounterFloor));
+    if (!floors_storage)
+    {
+        floors_count = 0;
+        json_free(root);
+        return false;
+    }
+
+    for (int i = 0; i < json_floor_count; i++)
     {
         const JsonValue *floor_obj = json_array_get(floors, i);
         if (!floor_obj || floor_obj->type != JSON_OBJECT) continue;
 
         int floor_index = json_int(field(floor_obj, "floor"), i + 1) - 1;
-        if (floor_index < 0 || floor_index >= MAX_FLOORS)
+        if (floor_index < 0 || floor_index >= floors_count)
             continue;
 
+        EncounterFloor *out = &floors_storage[floor_index];
         const JsonValue *normal = field(floor_obj, "normal");
         int normal_count = json_array_count(normal);
-        if (normal_count > MAX_NORMAL_ENCOUNTERS)
-            normal_count = MAX_NORMAL_ENCOUNTERS;
-        for (int n = 0; n < normal_count; n++)
+        if (normal_count > 0)
         {
-            const JsonValue *encounter = json_array_get(normal, n);
-            if (load_encounter(encounter, &normal_storage[floor_index][normal_counts[floor_index]], "normal"))
-                normal_counts[floor_index]++;
+            out->normal = (EncounterDef *)calloc((size_t)normal_count, sizeof(EncounterDef));
+            if (out->normal)
+            {
+                for (int n = 0; n < normal_count; n++)
+                {
+                    const JsonValue *encounter = json_array_get(normal, n);
+                    if (load_encounter(encounter, &out->normal[out->normal_count], "normal"))
+                        out->normal_count++;
+                }
+            }
         }
 
-        load_encounter(field(floor_obj, "elite"), &elite_storage[floor_index], "elite");
-        load_encounter(field(floor_obj, "boss"), &boss_storage[floor_index], "boss");
+        load_encounter(field(floor_obj, "elite"), &out->elite, "elite");
+        load_encounter(field(floor_obj, "boss"), &out->boss, "boss");
     }
 
     json_free(root);
     loaded = 1;
-    LOG_I(CAT_SCREEN, "Loaded encounters from %s", path);
-    return true;
+    LOG_I(CAT_SCREEN, "Loaded %d encounter floors from %s", floors_count, path);
+    return floors_count > 0;
+}
+
+static int clamp_floor(int floor)
+{
+    if (floor < 0) floor = 0;
+    if (floors_count <= 0) return -1;
+    if (floor >= floors_count) floor = floors_count - 1;
+    return floor;
 }
 
 const EncounterDef *encounter_for_floor(int floor, int index)
 {
     if (!loaded) return NULL;
-    if (floor < 0) floor = 0;
-    if (floor >= MAX_FLOORS) floor = MAX_FLOORS - 1;
-    int count = normal_counts[floor];
-    if (count <= 0) return NULL;
+    floor = clamp_floor(floor);
+    if (floor < 0) return NULL;
+    EncounterFloor *data = &floors_storage[floor];
+    if (data->normal_count <= 0 || !data->normal) return NULL;
     if (index < 0) index = 0;
-    if (index >= count) index %= count;
-    return &normal_storage[floor][index];
+    if (index >= data->normal_count) index %= data->normal_count;
+    return &data->normal[index];
 }
 
 int encounter_count_for_floor(int floor)
 {
-    if (floor < 0) floor = 0;
-    if (floor >= MAX_FLOORS) floor = MAX_FLOORS - 1;
-    return normal_counts[floor];
+    floor = clamp_floor(floor);
+    if (floor < 0) return 0;
+    return floors_storage[floor].normal_count;
 }
 
 const EncounterDef *elite_for_floor(int floor)
 {
     if (!loaded) return NULL;
-    if (floor < 0) floor = 0;
-    if (floor >= MAX_FLOORS) floor = MAX_FLOORS - 1;
-    return &elite_storage[floor];
+    floor = clamp_floor(floor);
+    if (floor < 0 || floors_storage[floor].elite.count <= 0) return NULL;
+    return &floors_storage[floor].elite;
 }
 
 const EncounterDef *boss_for_floor(int floor)
 {
     if (!loaded) return NULL;
-    if (floor < 0) floor = 0;
-    if (floor >= MAX_FLOORS) floor = MAX_FLOORS - 1;
-    return &boss_storage[floor];
+    floor = clamp_floor(floor);
+    if (floor < 0 || floors_storage[floor].boss.count <= 0) return NULL;
+    return &floors_storage[floor].boss;
 }

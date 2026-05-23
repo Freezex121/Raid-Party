@@ -3,9 +3,6 @@
 
 #include <stdbool.h>
 
-#define MAX_NODES_PER_FLOOR 14
-#define MAX_FLOORS 5
-
 typedef enum {
     NODE_START,
     NODE_COMBAT,
@@ -20,14 +17,14 @@ typedef struct {
     NodeType type;
     int row, col;
     int x, y;
-    int conns[3];
+    int *conns;
     int conn_count;
     bool completed;
     bool available;
 } MapNode;
 
 typedef struct {
-    MapNode nodes[MAX_NODES_PER_FLOOR];
+    MapNode *nodes;
     int node_count;
     int floor;
     int current_index;
@@ -35,8 +32,11 @@ typedef struct {
 } MapState;
 
 bool map_load_json(const char *path);
-void map_generate(MapState *map, int floor);
+void map_clear(MapState *map);
+void map_generate(MapState *map, int floor, const char *area_id);
 void map_unlock_next(MapState *map);
 int  map_find_start(MapState *map);
+int  map_loaded_floor_count(void);
+int  map_loaded_floor_count_for_area(const char *area_id);
 
 #endif

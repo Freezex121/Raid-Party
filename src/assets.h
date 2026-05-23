@@ -8,6 +8,8 @@
 
 #define CARD_ART_SOURCE_W CARD_SOURCE_W
 #define CARD_ART_SOURCE_H CARD_SOURCE_H
+#define UI_FONT_MIN_SIZE 3
+#define UI_FONT_MAX_SIZE 32
 
 typedef enum {
     SFX_BUTTON_HOVER,
@@ -40,6 +42,8 @@ typedef enum {
 typedef struct {
     Font ui_font;
     bool ui_font_loaded;
+    Font ui_fonts[UI_FONT_MAX_SIZE + 1];
+    bool ui_font_sizes_loaded[UI_FONT_MAX_SIZE + 1];
     Texture2D paper_texture;
     Texture2D card_template;
     Texture2D class_icons[CLASS_COUNT];

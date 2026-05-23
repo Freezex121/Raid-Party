@@ -3,7 +3,6 @@
 
 #include <stdbool.h>
 
-#define META_MAX_AREAS 5
 #define META_SLOT4_COST 4
 #define META_SLOT5_COST 8
 #define META_TRAVEL_FUND_MAX_RANK 3

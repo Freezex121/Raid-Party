@@ -127,6 +127,11 @@ void assets_load(void)
 {
     g_assets.ui_font = GetFontDefault();
     g_assets.ui_font_loaded = false;
+    for (int i = 0; i <= UI_FONT_MAX_SIZE; i++)
+    {
+        g_assets.ui_fonts[i] = (Font){0};
+        g_assets.ui_font_sizes_loaded[i] = false;
+    }
 
     const char *font_paths[] = {
         "assets/fonts/5x5_pixel.ttf",
@@ -134,17 +139,34 @@ void assets_load(void)
         "../../assets/fonts/5x5_pixel.ttf",
     };
 
+    const char *font_path = NULL;
     for (int i = 0; i < 3; i++)
     {
         if (FileExists(font_paths[i]))
         {
-            g_assets.ui_font = LoadFontEx(font_paths[i], 16, NULL, 0);
-            g_assets.ui_font_loaded = g_assets.ui_font.texture.id != 0;
+            font_path = font_paths[i];
             break;
         }
     }
 
-    if (g_assets.ui_font.texture.id != 0)
+    if (font_path)
+    {
+        for (int size = UI_FONT_MIN_SIZE; size <= UI_FONT_MAX_SIZE; size++)
+        {
+            Font font = LoadFontEx(font_path, size, NULL, 0);
+            if (font.texture.id != 0)
+            {
+                SetTextureFilter(font.texture, TEXTURE_FILTER_POINT);
+                g_assets.ui_fonts[size] = font;
+                g_assets.ui_font_sizes_loaded[size] = true;
+                if (size == 16)
+                    g_assets.ui_font = font;
+                g_assets.ui_font_loaded = true;
+            }
+        }
+    }
+
+    if (!g_assets.ui_font_loaded && g_assets.ui_font.texture.id != 0)
         SetTextureFilter(g_assets.ui_font.texture, TEXTURE_FILTER_POINT);
 
     Image paper = GenImageChecked(128, 128, 16, 16,
@@ -209,7 +231,16 @@ void assets_unload(void)
     }
 
     if (g_assets.ui_font_loaded)
-        UnloadFont(g_assets.ui_font);
+    {
+        for (int size = UI_FONT_MIN_SIZE; size <= UI_FONT_MAX_SIZE; size++)
+        {
+            if (g_assets.ui_font_sizes_loaded[size])
+                UnloadFont(g_assets.ui_fonts[size]);
+            g_assets.ui_fonts[size] = (Font){0};
+            g_assets.ui_font_sizes_loaded[size] = false;
+        }
+        g_assets.ui_font_loaded = false;
+    }
     UnloadTexture(g_assets.paper_texture);
     UnloadTexture(g_assets.card_template);
     for (int i = 0; i < CLASS_COUNT; i++)

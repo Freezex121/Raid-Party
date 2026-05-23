@@ -148,7 +148,7 @@ void draft_screen_update(void)
             LOG_I(CAT_DRAFT, "BEGIN RUN pressed. selected_count=%d, max_selected=%d", g_state.selected_count, max_selected);
             for (int i = 0; i < g_state.selected_count; i++)
                 LOG_I(CAT_DRAFT, "  selected_classes[%d] = %d", i, g_state.selected_classes[i]);
-            memset(&g_state.map, 0, sizeof(g_state.map));
+            map_clear(&g_state.map);
             g_state.map.floor = 0;
             g_state.current_area = area_clamp_index(g_state.current_area);
             g_state.gold = meta_starting_gold(&g_state.meta);

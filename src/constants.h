@@ -46,7 +46,7 @@
 #define CARD_SOURCE_H 75
 
 // Class portrait icon size
-#define CLASS_PORTRAIT_SIZE 24
+#define CLASS_PORTRAIT_SIZE 32
 #define PORTRAIT_SIZE CLASS_PORTRAIT_SIZE
 
 // Buttons

@@ -2,441 +2,893 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Map Editor — Raid Paper Legends</title>
+<title>Map Editor - Raid Paper Legends</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{background:#12131f;color:#cdd0e6;font-family:system-ui,sans-serif;display:flex;flex-direction:column;height:100vh;overflow:hidden}
-header{background:#1a1c2e;padding:8px 16px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #2a2d44;flex-shrink:0}
-header h1{font-size:16px;color:#e8cb70}
-header label{font-size:13px;display:flex;align-items:center;gap:6px}
-header select{background:#252841;color:#cdd0e6;border:1px solid #3d4162;padding:3px 8px;border-radius:4px}
-header button{background:#3d4162;color:#cdd0e6;border:1px solid #5a5f82;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px}
-header button:hover{background:#525780}
-header .spacer{flex:1}
-#canvas-wrap{flex:1;position:relative;overflow:hidden;background:#0e0f19;display:flex;align-items:center;justify-content:center}
-#canvas-wrap canvas{image-rendering:pixelated;image-rendering:-webkit-optimize-contrast;image-rendering:crisp-edges;-ms-interpolation-mode:nearest-neighbor;cursor:default}
-#toolbar{background:#1a1c2e;padding:6px 16px;display:flex;align-items:center;gap:10px;border-top:1px solid #2a2d44;flex-shrink:0;font-size:12px;flex-wrap:wrap}
-#toolbar .group{display:flex;align-items:center;gap:4px}
-#toolbar button{background:#252841;color:#cdd0e6;border:1px solid #3d4162;padding:3px 10px;border-radius:3px;cursor:pointer;font-size:11px}
-#toolbar button:hover{background:#3d4162}
-#toolbar button.active{background:#4a5078;border-color:#e8cb70;color:#e8cb70}
-#toolbar .legend{display:flex;gap:8px;margin-left:8px;align-items:center}
-#toolbar .legend span{display:flex;align-items:center;gap:3px}
-.swatch{width:10px;height:10px;border-radius:2px;display:inline-block}
-textarea#output{display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:#0a0b14;color:#b0b5d0;font-family:monospace;font-size:11px;border:none;padding:12px;resize:none;tab-size:2;z-index:10}
+*{box-sizing:border-box;margin:0;padding:0}
+body{height:100vh;overflow:hidden;background:#10121c;color:#d7dbef;font-family:system-ui,-apple-system,Segoe UI,sans-serif;display:flex;flex-direction:column}
+header{height:42px;background:#191c2d;border-bottom:1px solid #2c3049;display:flex;align-items:center;gap:10px;padding:0 12px;flex-shrink:0}
+header h1{font-size:15px;color:#efd079}
+button,select,input,textarea{font:inherit}
+button{background:#303550;color:#d7dbef;border:1px solid #4d5478;border-radius:4px;padding:4px 9px;cursor:pointer;font-size:12px}
+button:hover{background:#424968}
+button.primary{background:#3f6f4d;border-color:#66a774;color:#e2ffe8}
+button.danger{border-color:#87464d;color:#ffb8bf}
+button.sm{padding:2px 7px;font-size:11px}
+.spacer{flex:1}
+#status{font-size:11px;color:#aeb5d2}
+#main{display:flex;min-height:0;flex:1}
+#sidebar{width:312px;background:#151827;border-right:1px solid #2c3049;overflow:auto;flex-shrink:0;padding-bottom:12px}
+.section{border-bottom:1px solid #242842;padding:8px 10px}
+.section h2{font-size:10px;color:#8990ad;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.row{display:flex;align-items:center;gap:6px;margin:5px 0}
+.row label{width:72px;color:#9da4c1;font-size:11px;flex-shrink:0}
+input,select,textarea{background:#20243a;color:#d7dbef;border:1px solid #3a4062;border-radius:3px;padding:3px 6px;font-size:12px;min-width:0}
+input[type=number]{width:72px}
+input[type=text],textarea,select{width:100%}
+textarea{height:54px;resize:vertical}
+.list{display:flex;flex-direction:column;gap:3px}
+.item{display:flex;align-items:center;gap:6px;padding:5px 7px;border-left:3px solid transparent;background:#181b2b;cursor:pointer;font-size:12px}
+.item:hover{background:#20243a}
+.item.active{border-left-color:#efd079;background:#262b43;color:#fff0ac}
+.item .tag{font-size:10px;color:#9aa2c0;background:#2b304a;padding:1px 5px;border-radius:3px}
+.item .muted{color:#7f86a2}
+.item .del{margin-left:auto;color:#ac6570;font-size:12px}
+.chips{display:flex;gap:4px;flex-wrap:wrap}
+.chip{background:#252b43;border:1px solid #404866;border-radius:10px;padding:2px 7px;font-size:11px}
+.chip button{border:0;background:transparent;color:#ff9aa5;padding:0 0 0 4px}
+#canvasWrap{position:relative;overflow:auto;flex:1;background:#090b12;padding:18px 18px 52px}
+#c{display:block;background:#10121c;image-rendering:pixelated;cursor:default}
+#toolbar{position:absolute;left:312px;right:0;bottom:0;background:#191c2d;border-top:1px solid #2c3049;padding:7px 10px;display:flex;align-items:center;gap:9px;font-size:12px}
+.type-btn.active{background:#715f2a;border-color:#efd079;color:#fff4bd}
+#output{display:none;position:absolute;inset:42px 0 0 312px;z-index:20;background:#090b12;color:#c7cdec;border:0;padding:12px;font:11px/1.45 Consolas,monospace;resize:none}
+.badge{display:inline-block;border-radius:3px;padding:1px 5px;margin:2px 2px 0 0;font-size:10px}
+.ok{background:#1c4d2b;color:#8df0a8}.warn{background:#57420e;color:#ffd273}.fail{background:#54222b;color:#ff9aa5}
+.hint{color:#8790ad;font-size:11px;line-height:1.35}
 </style>
 </head>
 <body>
-
 <header>
   <h1>Map Editor</h1>
-  <label>Floor: <select id=floorSel></select></label>
-  <label>Tool: <select id=toolSel>
-    <option value=select>Select</option>
-    <option value=add>Add Node</option>
-    <option value=connect>Connect</option>
-    <option value=delete>Delete</option>
-  </select></label>
-  <label id=infoLabel style="font-size:11px;color:#888"></label>
-  <span class=spacer></span>
-  <button id=exportBtn>Export JSON</button>
-  <button id=saveBtn>Save maps.json</button>
+  <span id="status">Open assets/data to load every JSON file, or use JSON files as a fallback.</span>
+  <span class="spacer"></span>
+  <button id="openFolderBtn">Open Data Folder</button>
+  <button id="openBtn">Open JSON Files</button>
+  <button id="exportBtn">Export</button>
+  <button id="saveBtn" class="primary">Save All</button>
 </header>
 
-<div id=canvas-wrap>
-  <canvas id=c width=1280 height=720></canvas>
-  <textarea id=output></textarea>
+<div id="main">
+  <aside id="sidebar">
+    <div class="section">
+      <h2>Loaded Data</h2>
+      <div id="dataFilesList" class="chips"></div>
+      <p class="hint">The editor caches every JSON file here. Map tools currently edit areas.json and maps.json.</p>
+    </div>
+
+    <div class="section">
+      <h2>Areas</h2>
+      <div id="areaList" class="list"></div>
+      <div class="row"><button id="addAreaBtn" class="sm">Add Area</button></div>
+    </div>
+
+    <div class="section">
+      <h2>Floors</h2>
+      <div id="floorList" class="list"></div>
+      <div class="row">
+        <button id="addFloorBtn" class="sm">Add Floor</button>
+        <button id="deleteFloorBtn" class="sm danger">Remove Floor</button>
+      </div>
+      <div class="row"><label>Scope</label><select id="floorScope">
+        <option value="area">Area-specific</option>
+        <option value="shared">Shared fallback</option>
+      </select></div>
+      <div class="row">
+        <button id="copyAreaBtn" class="sm">Make Area Copy</button>
+        <button id="makeSharedBtn" class="sm">Make Shared</button>
+      </div>
+      <div class="row">
+        <button id="deleteOverrideBtn" class="sm danger">Delete Area Override</button>
+      </div>
+      <p class="hint">Area-specific floors override shared fallback floors. The game uses the area floor first, then shared.</p>
+    </div>
+
+    <div class="section">
+      <h2>Area Settings</h2>
+      <div class="row"><label>Id</label><input id="areaId" type="text"></div>
+      <div class="row"><label>Name</label><input id="areaName" type="text"></div>
+      <div class="row"><label>Desc</label><textarea id="areaDesc"></textarea></div>
+      <div class="row"><label>Floors</label><input id="areaFloors" type="number" min="1"></div>
+      <div class="row"><label>Diff %</label><input id="areaDiff" type="number" min="50"></div>
+    </div>
+
+    <div class="section">
+      <h2>Selected Node</h2>
+      <div id="nodeNone" class="hint">Select a node to edit type, position, and connections.</div>
+      <div id="nodePanel" style="display:none">
+        <div class="row"><label>Type</label><select id="nodeType"></select></div>
+        <div class="row"><label>Row</label><input id="nodeRow" type="number" min="0"><label style="width:28px">Col</label><input id="nodeCol" type="number" min="0"></div>
+        <div class="row"><label>X</label><input id="nodeX" type="number"><label style="width:28px">Y</label><input id="nodeY" type="number"></div>
+        <div class="row"><label>Connect</label><select id="connTarget"></select></div>
+        <div class="row">
+          <button id="addConnBtn" class="sm">Add</button>
+          <button id="removeConnBtn" class="sm danger">Remove</button>
+          <button id="clearConnBtn" class="sm danger">Clear All</button>
+        </div>
+        <div id="connList" class="chips"></div>
+        <div class="row"><button id="deleteNodeBtn" class="sm danger">Delete Node</button></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Validation</h2>
+      <div id="validationBox"></div>
+    </div>
+  </aside>
+
+  <div id="canvasWrap"><canvas id="c"></canvas></div>
 </div>
 
-<div id=toolbar>
-  <div class=group>
-    <button data-type=start>S Start</button>
-    <button data-type=combat>X Combat</button>
-    <button data-type=elite>! Elite</button>
-    <button data-type=rest>+ Rest</button>
-    <button data-type=shop>$ Shop</button>
-    <button data-type=event>? Event</button>
-    <button data-type=boss>B Boss</button>
-  </div>
-  <div class=legend>
-    <span><span class=swatch style=background:#7d829b></span>Start</span>
-    <span><span class=swatch style=background:#cd5c4a></span>Combat</span>
-    <span><span class=swatch style=background:#b956cd></span>Elite</span>
-    <span><span class=swatch style=background:#4ebe78></span>Rest</span>
-    <span><span class=swatch style=background:#e1b946></span>Shop</span>
-    <span><span class=swatch style=background:#55b9cd></span>Event</span>
-    <span><span class=swatch style=background:#e64146></span>Boss</span>
-  </div>
+<div id="toolbar">
+  <span>Tool</span>
+  <select id="toolSel">
+    <option value="select">Select/Move</option>
+    <option value="add">Add Node</option>
+    <option value="connect">Connect</option>
+    <option value="delete">Delete</option>
+  </select>
+  <span>Node</span>
+  <span id="typeButtons"></span>
+  <label class="hint"><input id="snapToggle" type="checkbox" checked> Snap</label>
+  <button id="snapAllBtn" class="sm">Snap All</button>
+  <span class="spacer"></span>
+  <span id="infoLabel" class="hint"></span>
 </div>
+
+<textarea id="output" spellcheck="false"></textarea>
+<input id="fileInput" type="file" accept=".json,application/json" multiple style="display:none">
 
 <script>
-// All coordinates are in game-space (640x360), rendered at 2x on the 1280x720 canvas.
-const S = 2; // scale factor
-const VW = 640, VH = 360;
+const SCALE = 2;
+const BASE_W = 640;
+const BASE_H = 360;
+const GRID_X = 92;
+const GRID_Y = 74;
+const COL_W = 112;
+const ROW_H = 58;
+const NODE_TYPES = ['start','combat','elite','rest','shop','event','boss'];
+const NODE_COLORS = {start:'#8d93ad',combat:'#cd5c4a',elite:'#b956cd',rest:'#4ebe78',shop:'#e1b946',event:'#55b9cd',boss:'#e64146'};
+const NODE_ICONS = {start:'S',combat:'X',elite:'!',rest:'+',shop:'$',event:'?',boss:'B'};
+const NODE_NAMES = {start:'Start',combat:'Combat',elite:'Elite',rest:'Rest',shop:'Shop',event:'Event',boss:'Boss'};
 
-const NODE_COLORS = {
-  start:'#7d829b', combat:'#cd5c4a', elite:'#b956cd',
-  rest:'#4ebe78',  shop:'#e1b946',  event:'#55b9cd',
-  boss:'#e64146',
-};
-const NODE_ICONS = { start:'S', combat:'X', elite:'!', rest:'+', shop:'$', event:'?', boss:'B' };
-const NODE_NAMES = { start:'Start', combat:'Combat', elite:'Elite', rest:'Rest', shop:'Shop', event:'Event', boss:'Boss' };
-
-let data = { schema: 1, floors: [] };
-let currentFloor = 0;
+let areasDoc = {schema:1, areas:[]};
+let mapsData = {schema:1, floors:[]};
+let selectedArea = 0;
+let selectedFloor = 1;
+let selectedNode = -1;
 let tool = 'select';
-let dragNode = -1, dragOffX = 0, dragOffY = 0;
-let connStart = -1;
-const nodeRadius = 14, bossRadius = 18;
+let addType = 'combat';
+let dragNode = -1;
+let dragOffset = {x:0,y:0};
+let connectStart = -1;
+let mapHandle = null;
+let areaHandle = null;
+let dataDirHandle = null;
+let dataDocs = {};
+let dataHandles = {};
+let selectedScope = 'shared';
+let snapEnabled = true;
 
 const canvas = document.getElementById('c');
+const wrap = document.getElementById('canvasWrap');
 const ctx = canvas.getContext('2d');
 
-// ── Layout (mirrors calc_positions in map.c, game-space coords) ──
-function layoutNodes(nodes) {
-  if (!nodes || !nodes.length) return;
-  let rows = 0;
-  for (const n of nodes) if (n.row > rows) rows = n.row;
-  rows++;
-  const topY = 72, bottomY = 300;
-  const rowHeight = rows > 1 ? (bottomY - topY) / (rows - 1) : 0;
-  for (const n of nodes) {
-    const sameRow = nodes.filter(o => o.row === n.row).length;
-    const colIndex = nodes.filter(o => o.row === n.row && nodes.indexOf(o) < nodes.indexOf(n)).length;
-    const spacing = VW / (sameRow + 1);
-    n._x = spacing * (colIndex + 1);
-    n._y = topY + n.row * rowHeight;
+function area(){ return areasDoc.areas[selectedArea] || null; }
+function areaId(){ const a = area(); return a ? a.id : ''; }
+function slug(text){ return String(text||'area').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'') || 'area'; }
+function clone(obj){ return JSON.parse(JSON.stringify(obj)); }
+function defaultFloor(id, floor){
+  return {area:id, floor, nodes:[
+    {type:'start',row:0,col:0,x:320,y:82,connections:[1]},
+    {type:'combat',row:1,col:0,x:320,y:156,connections:[2]},
+    {type:'boss',row:2,col:0,x:320,y:240,connections:[]}
+  ]};
+}
+function normalizeNode(n, i){
+  n.type = NODE_TYPES.includes(n.type) ? n.type : 'combat';
+  n.row = Number.isFinite(+n.row) ? Math.max(0, Math.round(+n.row)) : i;
+  n.col = Number.isFinite(+n.col) ? Math.max(0, Math.round(+n.col)) : 0;
+  if (!Array.isArray(n.connections)) n.connections = [];
+  n.connections = n.connections.map(Number).filter(Number.isInteger);
+  if (!Number.isFinite(+n.x)) n.x = GRID_X + n.col * COL_W;
+  if (!Number.isFinite(+n.y)) n.y = GRID_Y + n.row * ROW_H;
+  n.x = Math.round(+n.x);
+  n.y = Math.round(+n.y);
+}
+function normalizeFloor(f){
+  if (!Array.isArray(f.nodes)) f.nodes = [];
+  f.nodes.forEach(normalizeNode);
+}
+function floorArea(f){ return f ? (f.area || f.area_id || '') : ''; }
+function findAreaFloor(id, floor){ return mapsData.floors.find(f => floorArea(f) === id && +f.floor === floor); }
+function findSharedFloor(floor){ return mapsData.floors.find(f => !floorArea(f) && +f.floor === floor); }
+function findFloor(id, floor, exact){
+  return findAreaFloor(id, floor) || (!exact ? findSharedFloor(floor) : null);
+}
+function ensureFloor(copyFallback){
+  const id = areaId();
+  if (selectedScope === 'shared') {
+    let shared = findSharedFloor(selectedFloor);
+    if (!shared) {
+      shared = defaultFloor('', selectedFloor);
+      delete shared.area;
+      mapsData.floors.push(shared);
+    }
+    normalizeFloor(shared);
+    return shared;
   }
-}
 
-// ── Load / switch floors ────────────────────────────────────────
-function loadFloor(index) {
-  currentFloor = index;
-  const floor = data.floors[index];
-  if (!floor) return;
-  layoutNodes(floor.nodes);
-  document.getElementById('floorSel').value = index;
-  render();
-}
-
-function rebuildFloorSelect() {
-  const sel = document.getElementById('floorSel');
-  sel.innerHTML = '';
-  for (let i = 0; i < data.floors.length; i++) {
-    const opt = document.createElement('option');
-    opt.value = i;
-    opt.textContent = 'Floor ' + data.floors[i].floor;
-    sel.appendChild(opt);
+  let f = findAreaFloor(id, selectedFloor);
+  if (f) { normalizeFloor(f); return f; }
+  const fallback = findSharedFloor(selectedFloor);
+  if (fallback && copyFallback) {
+    f = clone(fallback);
+    f.area = id;
+    f.floor = selectedFloor;
+    mapsData.floors.push(f);
+    normalizeFloor(f);
+    return f;
   }
-  sel.value = currentFloor;
+  if (fallback) { normalizeFloor(fallback); return fallback; }
+  f = defaultFloor(id, selectedFloor);
+  mapsData.floors.push(f);
+  normalizeFloor(f);
+  return f;
+}
+function mutateFloor(){
+  const f = ensureFloor(true);
+  normalizeFloor(f);
+  return f;
+}
+function nodes(){ return ensureFloor(false).nodes; }
+function markChanged(){ document.getElementById('status').textContent = 'Unsaved changes'; }
+function setStatus(text){ document.getElementById('status').textContent = text; }
+function fileKey(name){ return String(name || '').split(/[\\/]/).pop().toLowerCase(); }
+function syncScopeToCurrentFloor(){
+  const exact = !!findAreaFloor(areaId(), selectedFloor);
+  selectedScope = exact ? 'area' : 'shared';
+}
+function gridFor(x, y){
+  const col = Math.max(0, Math.round((x - GRID_X) / COL_W));
+  const row = Math.max(0, Math.round((y - GRID_Y) / ROW_H));
+  return {x: GRID_X + col * COL_W, y: GRID_Y + row * ROW_H, row, col};
+}
+function placeNode(n, x, y, useSnap){
+  const p = useSnap ? gridFor(x, y) : {x: Math.round(x), y: Math.round(y), row: Math.max(0, Math.round((y - GRID_Y) / ROW_H)), col: Math.max(0, Math.round((x - GRID_X) / COL_W))};
+  n.x = p.x;
+  n.y = p.y;
+  n.row = p.row;
+  n.col = p.col;
+}
+function connectionAllowed(ns, from, to){
+  if (!ns || from < 0 || from >= ns.length || to < 0 || to >= ns.length) return false;
+  return ns[to].y >= ns[from].y;
+}
+function pruneBackwardConnections(ns){
+  let removed = 0;
+  ns.forEach((n, from) => {
+    const before = n.connections.length;
+    n.connections = n.connections.filter(to => connectionAllowed(ns, from, to));
+    removed += before - n.connections.length;
+  });
+  if (removed > 0) setStatus(`Removed ${removed} upward connection${removed === 1 ? '' : 's'}`);
+  return removed;
+}
+function tryToggleConnection(ns, from, to){
+  if (!connectionAllowed(ns, from, to)) {
+    setStatus('Cannot connect upward. Routes may move down or across only.');
+    return false;
+  }
+  const n = ns[from];
+  const existing = n.connections.indexOf(to);
+  if (existing >= 0) n.connections.splice(existing, 1);
+  else n.connections.push(to);
+  return true;
+}
+function syncAreaFields(){
+  const a = area();
+  if (!a) return;
+  document.getElementById('areaId').value = a.id || '';
+  document.getElementById('areaName').value = a.name || '';
+  document.getElementById('areaDesc').value = a.description || '';
+  document.getElementById('areaFloors').value = a.floor_count || 1;
+  document.getElementById('areaDiff').value = a.difficulty_percent || 100;
+}
+function pullAreaFields(){
+  const a = area();
+  if (!a) return;
+  const oldId = a.id;
+  a.id = slug(document.getElementById('areaId').value);
+  a.name = document.getElementById('areaName').value || 'New Area';
+  a.description = document.getElementById('areaDesc').value || '';
+  a.floor_count = Math.max(1, Math.round(+document.getElementById('areaFloors').value || 1));
+  a.difficulty_percent = Math.max(50, Math.round(+document.getElementById('areaDiff').value || 100));
+  if (oldId && oldId !== a.id) {
+    for (const f of mapsData.floors) if (floorArea(f) === oldId) { f.area = a.id; delete f.area_id; }
+  }
+  if (selectedFloor > a.floor_count) selectedFloor = a.floor_count;
+  markChanged();
+  refresh();
 }
 
-function getNodes() { const f = data.floors[currentFloor]; return f ? f.nodes : []; }
-
-// ── Hit test (game-space coords) ────────────────────────────────
-function hitTest(mx, my) {
-  const nodes = getNodes();
-  for (let i = nodes.length - 1; i >= 0; i--) {
-    const n = nodes[i];
-    const r = n.type === 'boss' ? bossRadius : nodeRadius;
-    if (mx >= n._x - r - 4 && mx <= n._x + r + 4 &&
-        my >= n._y - r - 4 && my <= n._y + r + 4) return i;
+function canvasPos(e){
+  const r = canvas.getBoundingClientRect();
+  return {x:Math.round((e.clientX-r.left)/SCALE), y:Math.round((e.clientY-r.top)/SCALE)};
+}
+function hitTest(x,y){
+  const ns = nodes();
+  for (let i=ns.length-1;i>=0;i--){
+    const n = ns[i], r = n.type === 'boss' ? 18 : 14;
+    if (x >= n.x-r-6 && x <= n.x+r+6 && y >= n.y-r-6 && y <= n.y+r+6) return i;
   }
   return -1;
 }
+function updateCanvasSize(){
+  const ns = nodes();
+  let maxX = BASE_W, maxY = BASE_H;
+  for (const n of ns) { maxX = Math.max(maxX, n.x + 96); maxY = Math.max(maxY, n.y + 96); }
+  canvas.width = Math.ceil(maxX * SCALE);
+  canvas.height = Math.ceil(maxY * SCALE);
+  canvas.style.width = canvas.width + 'px';
+  canvas.style.height = canvas.height + 'px';
+}
 
-// ── Rendering (draw in game-space coords, ctx pre-scaled by S) ──
-function render() {
-  ctx.save();
-  ctx.scale(S, S);
-  ctx.clearRect(0, 0, VW, VH);
+function draw(){
+  updateCanvasSize();
+  ctx.setTransform(SCALE,0,0,SCALE,0,0);
+  const w = canvas.width / SCALE, h = canvas.height / SCALE;
+  ctx.clearRect(0,0,w,h);
+  const grad = ctx.createLinearGradient(0,0,0,h);
+  grad.addColorStop(0,'#151827'); grad.addColorStop(1,'#090b12');
+  ctx.fillStyle = grad; ctx.fillRect(0,0,w,h);
 
-  const grad = ctx.createLinearGradient(0, 0, 0, VH);
-  grad.addColorStop(0, '#12131f');
-  grad.addColorStop(1, '#0a0b12');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, VW, VH);
+  ctx.strokeStyle = 'rgba(255,255,255,.05)';
+  ctx.lineWidth = 1;
+  for (let x=GRID_X; x<w; x+=COL_W){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+  for (let y=GRID_Y; y<h; y+=ROW_H){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
 
-  const nodes = getNodes();
-  if (!nodes) { ctx.restore(); return; }
-
-  // connections
-  for (let i = 0; i < nodes.length; i++) {
-    const n = nodes[i];
-    if (n._x === undefined) continue;
-    for (const ci of n.connections) {
-      if (ci < 0 || ci >= nodes.length) continue;
-      const t = nodes[ci];
-      if (t._x === undefined) continue;
+  const ns = nodes();
+  for (const n of ns){
+    for (const ci of n.connections){
+      if (ci < 0 || ci >= ns.length) continue;
+      const to = ns[ci];
       ctx.beginPath();
-      ctx.moveTo(n._x, n._y);
-      ctx.lineTo(t._x, t._y);
-      ctx.strokeStyle = '#3d4162';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
+      ctx.moveTo(n.x,n.y); ctx.lineTo(to.x,to.y);
+      ctx.strokeStyle = '#4a506f'; ctx.lineWidth = 2; ctx.stroke();
     }
   }
-
-  // nodes
-  for (let i = 0; i < nodes.length; i++) {
-    const n = nodes[i];
-    if (n._x === undefined) continue;
-    const r = n.type === 'boss' ? bossRadius : nodeRadius;
-    const col = NODE_COLORS[n.type] || '#7d829b';
-    const icon = NODE_ICONS[n.type] || '?';
-    const name = NODE_NAMES[n.type] || '?';
-
-    if (i === dragNode || i === connStart) {
-      ctx.beginPath();
-      ctx.arc(n._x, n._y, r + 5, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(232,203,112,0.25)';
-      ctx.fill();
-    }
-
-    ctx.beginPath();
-    ctx.arc(n._x, n._y, r, 0, Math.PI * 2);
-    ctx.fillStyle = col;
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.arc(n._x, n._y, r - 3, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0,0,0,0.2)';
-    ctx.fill();
-
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold ' + (n.type === 'boss' ? 11 : 9) + 'px monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(icon, n._x, n._y);
-
-    ctx.fillStyle = col;
-    ctx.font = '6px sans-serif';
-    ctx.fillText(name, n._x, n._y + r + 7);
-
-    ctx.fillStyle = 'rgba(255,255,255,0.25)';
-    ctx.font = '5px sans-serif';
-    ctx.fillText('#' + i, n._x, n._y + r + 14);
+  if (connectStart >= 0 && ns[connectStart]){
+    ctx.beginPath(); ctx.arc(ns[connectStart].x, ns[connectStart].y, 24, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(239,208,121,.18)'; ctx.fill();
   }
-
-  ctx.fillStyle = 'rgba(200,200,220,0.4)';
-  ctx.font = '8px sans-serif';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'top';
-  ctx.fillText('Nodes: ' + nodes.length + '  |  Tool: ' + tool, 8, 6);
-
-  ctx.restore();
+  for (let i=0;i<ns.length;i++){
+    const n = ns[i], r = n.type === 'boss' ? 18 : 14;
+    const col = NODE_COLORS[n.type] || '#8d93ad';
+    ctx.beginPath(); ctx.arc(n.x,n.y,r+5,0,Math.PI*2);
+    ctx.fillStyle = i === selectedNode ? 'rgba(239,208,121,.28)' : 'rgba(255,255,255,.05)';
+    ctx.fill();
+    ctx.beginPath(); ctx.arc(n.x,n.y,r,0,Math.PI*2); ctx.fillStyle = col; ctx.fill();
+    ctx.beginPath(); ctx.arc(n.x,n.y,r-4,0,Math.PI*2); ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = 'bold '+(n.type === 'boss' ? 12 : 10)+'px monospace'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(NODE_ICONS[n.type] || '?', n.x, n.y);
+    ctx.fillStyle = col; ctx.font = '7px sans-serif'; ctx.fillText(NODE_NAMES[n.type] || n.type, n.x, n.y + r + 9);
+    ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.font = '6px sans-serif'; ctx.fillText('#'+i, n.x, n.y + r + 18);
+  }
+  const a = area();
+  ctx.fillStyle = 'rgba(220,225,250,.7)'; ctx.font='11px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText((a ? a.name : 'Area') + ' / Floor ' + selectedFloor + ' / ' + ns.length + ' nodes', 10, 10);
 }
 
-// ── JSON helpers ────────────────────────────────────────────────
-// Deep-copy the current floor's nodes, preserving _x/_y so render never breaks.
-function saveFloor() {
-  const nodes = getNodes().map(n => ({
-    type: n.type, row: n.row, col: n.col,
-    connections: n.connections.slice(),
-    _x: n._x, _y: n._y
-  }));
-  data.floors[currentFloor] = { floor: currentFloor + 1, nodes };
+function renderAreas(){
+  const el = document.getElementById('areaList'); el.innerHTML = '';
+  areasDoc.areas.forEach((a,i)=>{
+    const d = document.createElement('div');
+    d.className = 'item' + (i===selectedArea ? ' active' : '');
+    d.innerHTML = `<span>${a.name || a.id}</span><span class="tag">${a.floor_count || 1}F</span><span class="del">x</span>`;
+    d.onclick = () => { selectedArea=i; selectedFloor=Math.min(selectedFloor, area().floor_count || 1); selectedNode=-1; syncScopeToCurrentFloor(); refresh(); };
+    d.querySelector('.del').onclick = e => { e.stopPropagation(); deleteArea(i); };
+    el.appendChild(d);
+  });
+}
+function renderLoadedFiles(){
+  const el = document.getElementById('dataFilesList');
+  el.innerHTML = '';
+  const names = Object.keys(dataDocs).sort();
+  if (!names.length) {
+    el.innerHTML = '<span class="hint">No folder loaded</span>';
+    return;
+  }
+  names.forEach(name => {
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.textContent = name;
+    el.appendChild(chip);
+  });
+}
+function renderFloors(){
+  const el = document.getElementById('floorList'); el.innerHTML = '';
+  const a = area(); if (!a) return;
+  for (let f=1; f<=a.floor_count; f++){
+    const exact = !!findAreaFloor(a.id, f);
+    const fl = findFloor(a.id, f, false);
+    const d = document.createElement('div');
+    d.className = 'item' + (f===selectedFloor ? ' active' : '');
+    d.innerHTML = `<span>Floor ${f}</span><span class="tag">${fl ? fl.nodes.length : 0} nodes</span><span class="tag ${exact ? '' : 'muted'}">${exact ? 'area' : 'shared'}</span>`;
+    d.onclick = () => { selectedFloor=f; selectedNode=-1; syncScopeToCurrentFloor(); refresh(); };
+    el.appendChild(d);
+  }
+  document.getElementById('floorScope').value = selectedScope;
+}
+function renderNodePanel(){
+  const ns = nodes();
+  const n = selectedNode >= 0 ? ns[selectedNode] : null;
+  document.getElementById('nodeNone').style.display = n ? 'none' : 'block';
+  document.getElementById('nodePanel').style.display = n ? 'block' : 'none';
+  if (!n) return;
+  document.getElementById('nodeType').value = n.type;
+  document.getElementById('nodeRow').value = n.row;
+  document.getElementById('nodeCol').value = n.col;
+  document.getElementById('nodeX').value = n.x;
+  document.getElementById('nodeY').value = n.y;
+  const target = document.getElementById('connTarget');
+  target.innerHTML = '';
+  ns.forEach((node, i) => {
+    if (i === selectedNode) return;
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = `#${i} ${NODE_NAMES[node.type] || node.type}`;
+    target.appendChild(opt);
+  });
+  const list = document.getElementById('connList'); list.innerHTML = '';
+  n.connections.forEach((ci,idx)=>{
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    const label = ns[ci] ? `${ci} ${NODE_NAMES[ns[ci].type]}` : `${ci} missing`;
+    chip.innerHTML = `${label}<button title="Remove">x</button>`;
+    chip.querySelector('button').onclick = () => { mutateFloor().nodes[selectedNode].connections.splice(idx,1); markChanged(); refresh(); };
+    list.appendChild(chip);
+  });
+  if (!n.connections.length)
+    list.innerHTML = '<span class="hint">No outgoing connections</span>';
+}
+function renderValidation(){
+  const ns = nodes();
+  const box = document.getElementById('validationBox');
+  if (!ns.length){ box.innerHTML = '<span class="badge fail">no nodes</span>'; return; }
+  const starts = ns.filter(n=>n.type==='start').length;
+  const bosses = ns.filter(n=>n.type==='boss').length;
+  let badConns = 0;
+  let upwardConns = 0;
+  ns.forEach(n => n.connections.forEach(c => { if (c < 0 || c >= ns.length) badConns++; }));
+  ns.forEach((n, from) => n.connections.forEach(to => { if (to >= 0 && to < ns.length && !connectionAllowed(ns, from, to)) upwardConns++; }));
+  const incoming = new Set();
+  ns.forEach(n => n.connections.forEach(c => { if (c >= 0 && c < ns.length) incoming.add(c); }));
+  const unreachable = ns.filter((n,i)=>n.type!=='start' && !incoming.has(i)).length;
+  box.innerHTML =
+    `<span class="badge ${starts===1?'ok':'fail'}">start ${starts}</span>`+
+    `<span class="badge ${bosses===1?'ok':'fail'}">boss ${bosses}</span>`+
+    `<span class="badge ${badConns?'fail':'ok'}">bad conn ${badConns}</span>`+
+    `<span class="badge ${upwardConns?'fail':'ok'}">upward ${upwardConns}</span>`+
+    `<span class="badge ${unreachable?'warn':'ok'}">unreached ${unreachable}</span>`+
+    `<span class="badge ok">${ns.length} nodes</span>`;
+}
+function refresh(){
+  if (selectedScope === 'area' && !findAreaFloor(areaId(), selectedFloor))
+    selectedScope = 'shared';
+  syncAreaFields();
+  renderLoadedFiles();
+  renderAreas();
+  renderFloors();
+  renderNodePanel();
+  renderValidation();
+  draw();
 }
 
-// Final export — strips editor-internal fields.
-function toJSON() {
-  return {
-    schema: 1,
-    floors: data.floors.map(fl => ({
-      floor: fl.floor,
-      nodes: fl.nodes.map(n => ({
-        type: n.type, row: n.row, col: n.col,
-        connections: n.connections.slice()
-      }))
-    }))
-  };
+function deleteArea(idx){
+  if (areasDoc.areas.length <= 1) return;
+  if (!confirm('Delete area and its area-specific floors?')) return;
+  const id = areasDoc.areas[idx].id;
+  areasDoc.areas.splice(idx,1);
+  mapsData.floors = mapsData.floors.filter(f => (f.area || '') !== id);
+  selectedArea = Math.min(selectedArea, areasDoc.areas.length-1);
+  selectedFloor = Math.min(selectedFloor, area().floor_count || 1);
+  selectedNode = -1;
+  syncScopeToCurrentFloor();
+  markChanged(); refresh();
 }
-
-// ── Canvas interaction (all positions in game-space) ────────────
-function canvasPos(e) {
-  const rect = canvas.getBoundingClientRect();
-  return {
-    x: (e.clientX - rect.left) / rect.width * VW,
-    y: (e.clientY - rect.top) / rect.height * VH
-  };
+function deleteSelectedFloor(){
+  const a = area(); if (!a || a.floor_count <= 1) return;
+  if (!confirm('Remove floor '+selectedFloor+' from '+a.name+'?')) return;
+  mapsData.floors = mapsData.floors.filter(f => !((f.area || '') === a.id && +f.floor === selectedFloor));
+  for (const f of mapsData.floors) if ((f.area || '') === a.id && +f.floor > selectedFloor) f.floor--;
+  a.floor_count--;
+  selectedFloor = Math.min(selectedFloor, a.floor_count);
+  selectedNode = -1;
+  syncScopeToCurrentFloor();
+  markChanged(); refresh();
+}
+function deleteSelectedNode(){
+  const f = mutateFloor(), ns = f.nodes;
+  if (selectedNode < 0 || selectedNode >= ns.length) return;
+  ns.splice(selectedNode,1);
+  ns.forEach(n => n.connections = n.connections.filter(c => c !== selectedNode).map(c => c > selectedNode ? c-1 : c).filter(c => c >= 0 && c < ns.length));
+  selectedNode = -1;
+  markChanged(); refresh();
+}
+function makeAreaCopy(){
+  selectedScope = 'area';
+  mutateFloor();
+  markChanged();
+  refresh();
+}
+function makeSharedFloor(){
+  const id = areaId();
+  const f = ensureFloor(false);
+  const shared = clone(f);
+  delete shared.area;
+  delete shared.area_id;
+  shared.floor = selectedFloor;
+  mapsData.floors = mapsData.floors.filter(existing => !(
+    +existing.floor === selectedFloor && (floorArea(existing) === '' || floorArea(existing) === id)
+  ));
+  mapsData.floors.push(shared);
+  selectedScope = 'shared';
+  markChanged();
+  refresh();
+}
+function deleteAreaOverride(){
+  const id = areaId();
+  mapsData.floors = mapsData.floors.filter(f => !(floorArea(f) === id && +f.floor === selectedFloor));
+  selectedScope = 'shared';
+  selectedNode = -1;
+  markChanged();
+  refresh();
+}
+function snapAllNodes(){
+  const ns = mutateFloor().nodes;
+  for (const n of ns)
+    placeNode(n, n.x, n.y, true);
+  pruneBackwardConnections(ns);
+  markChanged();
+  refresh();
 }
 
 canvas.addEventListener('mousedown', e => {
-  const pos = canvasPos(e);
-  const idx = hitTest(pos.x, pos.y);
-  const nodes = getNodes();
-
-  if (tool === 'select' && idx >= 0) {
-    dragNode = idx;
-    dragOffX = pos.x - nodes[idx]._x;
-    dragOffY = pos.y - nodes[idx]._y;
-  } else if (tool === 'add') {
-    const active = document.querySelector('#toolbar .group button.active');
-    const type = active ? active.dataset.type : 'combat';
-    const maxRow = nodes.length ? Math.max(...nodes.map(n => n.row)) : 0;
-    nodes.push({ type, row: maxRow + 1, col: 0, connections: [], _x: pos.x, _y: pos.y });
-    layoutNodes(nodes);
-    saveFloor();
-    render();
-  } else if (tool === 'connect' && idx >= 0) {
-    if (connStart < 0) { connStart = idx; render(); return; }
-    if (connStart !== idx) {
-      const a = nodes[connStart];
-      if (!a.connections.includes(idx)) {
-        a.connections.push(idx);
-        if (a.connections.length > 3) a.connections = a.connections.slice(0, 3);
-      }
+  const p = canvasPos(e), idx = hitTest(p.x,p.y);
+  if (tool === 'select'){
+    selectedNode = idx;
+    if (idx >= 0){ dragNode = idx; const n = nodes()[idx]; dragOffset = {x:p.x-n.x,y:p.y-n.y}; }
+    refresh();
+  } else if (tool === 'add'){
+    const f = mutateFloor();
+    selectedNode = f.nodes.length;
+    const n = {type:addType,row:0,col:0,x:p.x,y:p.y,connections:[]};
+    placeNode(n, p.x, p.y, snapEnabled);
+    f.nodes.push(n);
+    markChanged(); refresh();
+  } else if (tool === 'connect' && idx >= 0){
+    if (connectStart < 0){ connectStart = idx; selectedNode = idx; refresh(); return; }
+    if (connectStart !== idx){
+      const ns = mutateFloor().nodes;
+      if (tryToggleConnection(ns, connectStart, idx))
+        markChanged();
     }
-    connStart = -1;
-    saveFloor();
-    render();
-  } else if (tool === 'delete' && idx >= 0) {
-    if (!confirm('Delete #' + idx + ' (' + NODE_NAMES[nodes[idx].type] + ')?')) return;
-    nodes.splice(idx, 1);
-    for (const n of nodes) {
-      n.connections = n.connections.map(c => c === idx ? -1 : (c > idx ? c - 1 : c)).filter(c => c >= 0);
-    }
-    layoutNodes(nodes);
-    saveFloor();
-    render();
+    connectStart = -1; refresh();
+  } else if (tool === 'delete' && idx >= 0){
+    selectedNode = idx; deleteSelectedNode();
   }
 });
-
 canvas.addEventListener('mousemove', e => {
-  const pos = canvasPos(e);
-
-  const hoverIdx = hitTest(pos.x, pos.y);
-  canvas.style.cursor = hoverIdx >= 0 ? 'pointer' : 'default';
-
-  const el = document.getElementById('infoLabel');
-  if (hoverIdx >= 0) {
-    const n = getNodes()[hoverIdx];
-    el.textContent = '#' + hoverIdx + ': ' + NODE_NAMES[n.type] + '  row=' + n.row + ' col=' + n.col + ' conns=[' + n.connections.join(',') + ']';
-  } else {
-    el.textContent = '(' + Math.round(pos.x) + ', ' + Math.round(pos.y) + ')';
-  }
-
+  const p = canvasPos(e), idx = hitTest(p.x,p.y);
+  canvas.style.cursor = idx >= 0 ? 'pointer' : (tool === 'add' ? 'crosshair' : 'default');
+  document.getElementById('infoLabel').textContent = idx >= 0 ? `#${idx} ${NODE_NAMES[nodes()[idx].type]} (${nodes()[idx].connections.join(', ')})` : `${p.x}, ${p.y}`;
   if (dragNode < 0) return;
-  const nodes = getNodes();
-  if (dragNode >= nodes.length) { dragNode = -1; return; }
-  nodes[dragNode]._x = pos.x - dragOffX;
-  nodes[dragNode]._y = pos.y - dragOffY;
-  render();
+  const n = mutateFloor().nodes[dragNode];
+  placeNode(n, p.x - dragOffset.x, p.y - dragOffset.y, snapEnabled);
+  pruneBackwardConnections(mutateFloor().nodes);
+  markChanged(); refresh();
 });
+canvas.addEventListener('mouseup', () => { dragNode = -1; });
+canvas.addEventListener('mouseleave', () => { dragNode = -1; });
 
-canvas.addEventListener('mouseup', () => {
-  if (dragNode < 0) return;
-  const nodes = getNodes();
-  if (dragNode >= nodes.length) { dragNode = -1; return; }
-  const n = nodes[dragNode];
-  const maxRow = nodes.length ? Math.max(...nodes.map(x => x.row)) : 0;
-  const rowHeight = maxRow > 0 ? (300 - 72) / maxRow : 50;
-  let bestRow = 0, bestDist = Infinity;
-  for (let r = 0; r <= maxRow + 2; r++) {
-    const ry = 72 + r * rowHeight;
-    const d = Math.abs(n._y - ry);
-    if (d < bestDist) { bestDist = d; bestRow = r; }
-  }
-  n.row = Math.max(0, bestRow);
-  layoutNodes(nodes);
-  saveFloor();
-  dragNode = -1;
-  render();
-});
-
-canvas.addEventListener('mouseleave', () => {
-  dragNode = -1;
-  document.getElementById('infoLabel').textContent = '';
-});
-
-// ── Toolbar ─────────────────────────────────────────────────────
-document.querySelectorAll('#toolbar .group button').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('#toolbar .group button').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('toolSel').value = 'add';
-    tool = 'add';
+function buildExport(){
+  const cleanAreas = areasDoc.areas.map(a => ({
+    id: slug(a.id), name: a.name || a.id, description: a.description || '',
+    floor_count: Math.max(1, Math.round(+a.floor_count || 1)),
+    difficulty_percent: Math.max(50, Math.round(+a.difficulty_percent || 100))
+  }));
+  const cleanFloors = mapsData.floors.map(f => {
+    normalizeFloor(f);
+    const ns = f.nodes;
+    const out = {floor: Math.max(1, Math.round(+f.floor || 1)), nodes: f.nodes.map((n, from) => ({
+      type:n.type,row:n.row,col:n.col,x:Math.round(n.x),y:Math.round(n.y),connections:n.connections.filter(to => connectionAllowed(ns, from, to))
+    }))};
+    const id = floorArea(f);
+    if (id) out.area = id;
+    return out;
+  }).sort((a,b)=>(a.area||'').localeCompare(b.area||'') || a.floor-b.floor);
+  return {areas:{schema:1,areas:cleanAreas}, maps:{schema:1,floors:cleanFloors}};
+}
+function formatNodeJson(n){
+  const conns = `[${n.connections.join(', ')}]`;
+  return `{ "type": ${JSON.stringify(n.type)}, "row": ${n.row}, "col": ${n.col}, "x": ${n.x}, "y": ${n.y}, "connections": ${conns} }`;
+}
+function formatMapsJson(doc){
+  const lines = ['{', `  "schema": ${doc.schema || 1},`, '  "floors": ['];
+  doc.floors.forEach((floor, floorIndex) => {
+    lines.push('    {');
+    if (floor.area) lines.push(`      "area": ${JSON.stringify(floor.area)},`);
+    lines.push(`      "floor": ${floor.floor},`);
+    lines.push('      "nodes": [');
+    floor.nodes.forEach((node, nodeIndex) => {
+      const comma = nodeIndex < floor.nodes.length - 1 ? ',' : '';
+      lines.push(`        ${formatNodeJson(node)}${comma}`);
+    });
+    lines.push('      ]');
+    lines.push(`    }${floorIndex < doc.floors.length - 1 ? ',' : ''}`);
   });
-});
-document.getElementById('toolSel').addEventListener('change', e => {
-  tool = e.target.value;
-  connStart = -1;
-  render();
-});
-
-// ── Floor selector ──────────────────────────────────────────────
-document.getElementById('floorSel').addEventListener('change', e => {
-  saveFloor();
-  loadFloor(parseInt(e.target.value));
-});
-
-// ── Export / Save ───────────────────────────────────────────────
-document.getElementById('exportBtn').addEventListener('click', () => {
-  saveFloor();
-  document.getElementById('output').value = JSON.stringify(toJSON(), null, 2);
-  document.getElementById('output').style.display = 'block';
-});
-document.getElementById('saveBtn').addEventListener('click', () => {
-  saveFloor();
-  const blob = new Blob([JSON.stringify(toJSON(), null, 2)], { type: 'application/json' });
+  lines.push('  ]', '}');
+  return lines.join('\n') + '\n';
+}
+function formatJsonDocument(name, doc){
+  return fileKey(name) === 'maps.json'
+    ? formatMapsJson(doc)
+    : JSON.stringify(doc, null, 2) + '\n';
+}
+function showExport(){
+  const out = document.getElementById('output');
+  const data = buildExport();
+  out.value = 'areas.json\n' + formatJsonDocument('areas.json', data.areas) + '\nmaps.json\n' + formatJsonDocument('maps.json', data.maps);
+  out.style.display = 'block';
+}
+async function writeHandle(handle, text){
+  const writable = await handle.createWritable();
+  await writable.write(text);
+  await writable.close();
+}
+async function writeJsonDocument(name, doc){
+  const text = formatJsonDocument(name, doc);
+  const key = fileKey(name);
+  if (dataDirHandle) {
+    const handle = await dataDirHandle.getFileHandle(name, {create:true});
+    await writeHandle(handle, text);
+    dataHandles[key] = handle;
+    dataDocs[key] = doc;
+    if (key === 'areas.json') areaHandle = handle;
+    if (key === 'maps.json') mapHandle = handle;
+    return true;
+  }
+  if (dataHandles[key]) {
+    await writeHandle(dataHandles[key], text);
+    dataDocs[key] = doc;
+    return true;
+  }
+  return false;
+}
+function download(name, text){
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'maps.json';
-  a.click();
-  URL.revokeObjectURL(a.href);
-});
+  a.href = URL.createObjectURL(new Blob([text], {type:'application/json'}));
+  a.download = name; a.click(); URL.revokeObjectURL(a.href);
+}
+async function saveAll(){
+  const data = buildExport();
+  const areasText = formatJsonDocument('areas.json', data.areas);
+  const mapsText = formatJsonDocument('maps.json', data.maps);
+  try {
+    if (dataDirHandle) {
+      await writeJsonDocument('areas.json', data.areas);
+      await writeJsonDocument('maps.json', data.maps);
+      setStatus('Saved areas.json and maps.json to data folder');
+      return;
+    }
+    if (areaHandle && mapHandle){
+      await writeHandle(areaHandle, areasText);
+      await writeHandle(mapHandle, mapsText);
+      dataDocs['areas.json'] = data.areas;
+      dataDocs['maps.json'] = data.maps;
+      setStatus('Saved areas.json and maps.json');
+      return;
+    }
+  } catch(err){ console.warn(err); }
+  download('areas.json', areasText);
+  download('maps.json', mapsText);
+  setStatus('Downloaded JSON files');
+}
+async function readFile(file){
+  const text = await file.text();
+  return JSON.parse(text);
+}
+function applyLoaded(name, data, handle){
+  const key = fileKey(name);
+  if (key) dataDocs[key] = data;
+  if (handle && key) dataHandles[key] = handle;
+
+  if (key === 'areas.json' || data.areas || Array.isArray(data)) {
+    areasDoc = Array.isArray(data) ? {schema:1, areas:data} : {schema:data.schema || 1, areas:data.areas || []};
+    if (handle) areaHandle = handle;
+    dataDocs['areas.json'] = areasDoc;
+  }
+  if (key === 'maps.json' || data.floors) {
+    mapsData = {schema:data.schema || 1, floors:data.floors || []};
+    if (handle) mapHandle = handle;
+    dataDocs['maps.json'] = mapsData;
+  }
+}
+async function openDataFolder(){
+  if (!window.showDirectoryPicker) {
+    setStatus('Folder picker unavailable in this browser. Use Open JSON Files.');
+    document.getElementById('fileInput').click();
+    return;
+  }
+
+  dataDirHandle = await showDirectoryPicker({mode:'readwrite'});
+  dataDocs = {};
+  dataHandles = {};
+  areaHandle = null;
+  mapHandle = null;
+
+  let loaded = 0;
+  for await (const [name, handle] of dataDirHandle.entries()) {
+    if (handle.kind !== 'file' || !name.toLowerCase().endsWith('.json')) continue;
+    try {
+      const file = await handle.getFile();
+      applyLoaded(name, await readFile(file), handle);
+      loaded++;
+    } catch (err) {
+      console.warn('Failed to load', name, err);
+    }
+  }
+
+  if (!areasDoc.areas.length)
+    areasDoc.areas = [{id:'new_area',name:'New Area',description:'',floor_count:3,difficulty_percent:100}];
+  if (!mapsData.floors.length)
+    mapsData.floors.push(defaultFloor(areasDoc.areas[0].id, 1));
+
+  selectedArea = 0;
+  selectedFloor = 1;
+  selectedNode = -1;
+  syncScopeToCurrentFloor();
+  setStatus(`Loaded ${loaded} JSON files from data folder`);
+  refresh();
+}
+window.RaidDataWorkbench = {
+  get docs(){ return dataDocs; },
+  get handles(){ return dataHandles; },
+  get directory(){ return dataDirHandle; },
+  applyLoaded,
+  saveJsonDocument: writeJsonDocument,
+};
+async function openFiles(){
+  if (window.showOpenFilePicker){
+    const handles = await showOpenFilePicker({multiple:true, types:[{description:'JSON', accept:{'application/json':['.json']}}]});
+    let loaded = 0;
+    for (const h of handles){
+      const file = await h.getFile();
+      applyLoaded(file.name, await readFile(file), h);
+      loaded++;
+    }
+    selectedArea = 0; selectedFloor = 1; selectedNode = -1; syncScopeToCurrentFloor(); refresh();
+    setStatus(`Loaded ${loaded} JSON files`);
+  } else {
+    document.getElementById('fileInput').click();
+  }
+}
+async function fetchJson(path){
+  try { const r = await fetch(path); if (r.ok) return await r.json(); } catch(_) {}
+  return null;
+}
+async function init(){
+  const typeWrap = document.getElementById('typeButtons');
+  NODE_TYPES.forEach(t => {
+    const b = document.createElement('button');
+    b.className = 'type-btn sm' + (t === addType ? ' active' : '');
+    b.textContent = NODE_ICONS[t];
+    b.title = NODE_NAMES[t];
+    b.onclick = () => { addType = t; document.querySelectorAll('.type-btn').forEach(x=>x.classList.remove('active')); b.classList.add('active'); document.getElementById('toolSel').value='add'; tool='add'; };
+    typeWrap.appendChild(b);
+    const opt = document.createElement('option'); opt.value = t; opt.textContent = NODE_NAMES[t]; document.getElementById('nodeType').appendChild(opt);
+  });
+
+  const a = await fetchJson('../assets/data/areas.json') || await fetchJson('./areas.json');
+  const m = await fetchJson('../assets/data/maps.json') || await fetchJson('./maps.json');
+  if (a) applyLoaded('areas.json', a, null);
+  if (m) applyLoaded('maps.json', m, null);
+  if (!areasDoc.areas.length) areasDoc.areas = [{id:'new_area',name:'New Area',description:'',floor_count:3,difficulty_percent:100}];
+  if (!mapsData.floors.length) mapsData.floors.push(defaultFloor(areasDoc.areas[0].id, 1));
+  syncScopeToCurrentFloor();
+  refresh();
+}
+
+document.getElementById('openFolderBtn').onclick = openDataFolder;
+document.getElementById('openBtn').onclick = openFiles;
+document.getElementById('exportBtn').onclick = showExport;
+document.getElementById('saveBtn').onclick = saveAll;
+document.getElementById('addAreaBtn').onclick = () => {
+  const id = slug('area_' + (areasDoc.areas.length + 1));
+  areasDoc.areas.push({id,name:'New Area',description:'',floor_count:3,difficulty_percent:100});
+  for (let f=1; f<=3; f++) mapsData.floors.push(defaultFloor(id,f));
+  selectedArea = areasDoc.areas.length - 1; selectedFloor = 1; selectedScope = 'area'; selectedNode = -1; markChanged(); refresh();
+};
+document.getElementById('addFloorBtn').onclick = () => {
+  const a = area(); if (!a) return;
+  a.floor_count = Math.max(1, (a.floor_count || 1) + 1);
+  selectedFloor = a.floor_count;
+  mapsData.floors.push(defaultFloor(a.id, selectedFloor));
+  selectedScope = 'area'; selectedNode = -1; markChanged(); refresh();
+};
+document.getElementById('deleteFloorBtn').onclick = deleteSelectedFloor;
+document.getElementById('toolSel').onchange = e => { tool = e.target.value; connectStart = -1; draw(); };
+document.getElementById('floorScope').onchange = e => {
+  selectedScope = e.target.value;
+  if (selectedScope === 'area') makeAreaCopy();
+  else makeSharedFloor();
+};
+document.getElementById('copyAreaBtn').onclick = makeAreaCopy;
+document.getElementById('makeSharedBtn').onclick = makeSharedFloor;
+document.getElementById('deleteOverrideBtn').onclick = deleteAreaOverride;
+document.getElementById('snapToggle').onchange = e => { snapEnabled = e.target.checked; };
+document.getElementById('snapAllBtn').onclick = snapAllNodes;
+['areaId','areaName','areaDesc','areaFloors','areaDiff'].forEach(id => document.getElementById(id).addEventListener('change', pullAreaFields));
+['areaName','areaDesc'].forEach(id => document.getElementById(id).addEventListener('input', pullAreaFields));
+['nodeType','nodeRow','nodeCol','nodeX','nodeY'].forEach(id => document.getElementById(id).addEventListener('change', () => {
+  const f = mutateFloor();
+  const n = f.nodes[selectedNode]; if (!n) return;
+  n.type = document.getElementById('nodeType').value;
+  n.row = Math.max(0, Math.round(+document.getElementById('nodeRow').value || 0));
+  n.col = Math.max(0, Math.round(+document.getElementById('nodeCol').value || 0));
+  n.x = Math.round(+document.getElementById('nodeX').value || GRID_X + n.col * COL_W);
+  n.y = Math.round(+document.getElementById('nodeY').value || GRID_Y + n.row * ROW_H);
+  pruneBackwardConnections(f.nodes);
+  markChanged(); refresh();
+}));
+document.getElementById('addConnBtn').onclick = () => {
+  const target = Math.round(+document.getElementById('connTarget').value);
+  const f = mutateFloor();
+  if (target < 0 || target >= f.nodes.length || target === selectedNode) return;
+  if (!connectionAllowed(f.nodes, selectedNode, target)) {
+    setStatus('Cannot connect upward. Routes may move down or across only.');
+  } else if (!f.nodes[selectedNode].connections.includes(target)) {
+    f.nodes[selectedNode].connections.push(target);
+    markChanged();
+  }
+  refresh();
+};
+document.getElementById('removeConnBtn').onclick = () => {
+  const target = Math.round(+document.getElementById('connTarget').value);
+  const f = mutateFloor(), n = f.nodes[selectedNode];
+  if (!n) return;
+  n.connections = n.connections.filter(c => c !== target);
+  markChanged(); refresh();
+};
+document.getElementById('clearConnBtn').onclick = () => {
+  const f = mutateFloor(), n = f.nodes[selectedNode];
+  if (!n) return;
+  n.connections = [];
+  markChanged(); refresh();
+};
+document.getElementById('deleteNodeBtn').onclick = deleteSelectedNode;
+document.getElementById('fileInput').onchange = async e => {
+  let loaded = 0;
+  for (const file of e.target.files) {
+    applyLoaded(file.name, await readFile(file), null);
+    loaded++;
+  }
+  selectedArea = 0; selectedFloor = 1; selectedNode = -1; syncScopeToCurrentFloor(); refresh();
+  setStatus(`Loaded ${loaded} JSON files`);
+};
 document.addEventListener('click', e => {
   const out = document.getElementById('output');
-  if (e.target !== out && !e.target.closest('button')) out.style.display = 'none';
+  if (out.style.display === 'block' && e.target !== out && e.target.id !== 'exportBtn') out.style.display = 'none';
 });
-
-// ── Init ────────────────────────────────────────────────────────
-const fileInput = document.createElement('input');
-fileInput.type = 'file';
-fileInput.accept = '.json';
-fileInput.style.display = 'none';
-document.body.appendChild(fileInput);
-fileInput.addEventListener('change', e => {
-  const f = e.target.files[0];
-  if (!f) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    try { data = JSON.parse(ev.target.result); } catch(_) { alert('Invalid JSON'); return; }
-    rebuildFloorSelect();
-    loadFloor(0);
-  };
-  reader.readAsText(f);
-});
-
-async function init() {
-  let loaded = false;
-  try {
-    const r = await fetch('../assets/data/maps.json');
-    if (r.ok) { data = await r.json(); loaded = true; }
-  } catch(_) {}
-  if (!loaded) {
-    try {
-      const r = await fetch('./maps.json');
-      if (r.ok) { data = await r.json(); loaded = true; }
-    } catch(_) {}
-  }
-  if (!loaded) {
-    const btn = document.createElement('button');
-    btn.textContent = 'Load maps.json';
-    btn.onclick = () => fileInput.click();
-    document.querySelector('header .spacer').after(btn);
-  }
-  while (data.floors.length < 3) {
-    data.floors.push({ floor: data.floors.length + 1, nodes: [
-      { type:'start', row:0, col:0, connections:[1] },
-      { type:'combat', row:1, col:0, connections:[2] },
-      { type:'boss', row:2, col:0, connections:[] }
-    ]});
-  }
-  rebuildFloorSelect();
-  loadFloor(0);
-  document.querySelector('#toolbar .group button[data-type=combat]').classList.add('active');
-}
 init();
 </script>
 </body>

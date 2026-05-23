@@ -2,6 +2,7 @@
 #define COMBAT_H
 
 #include <stdbool.h>
+#include "raylib.h"
 #include "systems/party.h"
 #include "systems/deck.h"
 #include "systems/energy.h"
@@ -39,6 +40,21 @@ typedef struct {
     StatusEffect statuses[MAX_STATUSES];
     int status_count;
 } EnemyState;
+
+#define MAX_CARD_THROW_ANIMS 8
+
+typedef struct {
+    bool active;
+    const CardDef *card;
+    bool upgraded;
+    float t;
+    float duration;
+    Vector2 start;
+    Vector2 control;
+    Vector2 end;
+    int width;
+    int height;
+} CardThrowAnim;
 
 typedef struct {
     CombatPhase phase;
@@ -81,10 +97,12 @@ typedef struct {
     bool phoenix_used;
     bool echo_used;
     int mana_gem_bonus;
+    CardThrowAnim card_throws[MAX_CARD_THROW_ANIMS];
 } CombatState;
 
 void combat_start(CombatState *cs, const Party *party, const EncounterDef *encounter);
 void combat_update(CombatState *cs);
 void combat_end_turn(CombatState *cs);
+void combat_draw_card_throws(CombatState *cs);
 
 #endif

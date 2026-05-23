@@ -2,6 +2,7 @@
 #define FLOATING_TEXT_H
 
 #include "raylib.h"
+#include "game_text.h"
 #include <stdbool.h>
 
 #define MAX_FLOATING 32

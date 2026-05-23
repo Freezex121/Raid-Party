@@ -134,6 +134,11 @@ Rectangle layout_end_turn_button(void)
     return (Rectangle){ 552.0f, 297.0f, 76.0f, (float)BTN_H };
 }
 
+Rectangle layout_discard_pile_rect(void)
+{
+    return (Rectangle){ 552.0f, 238.0f, 76.0f, 48.0f };
+}
+
 Rectangle layout_deck_browser_viewport(void)
 {
     return (Rectangle){ 20.0f, 54.0f, 408.0f, 262.0f };
