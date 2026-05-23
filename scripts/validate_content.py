@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "assets" / "data"
 
 CARD_TYPES = {"attack", "skill", "power"}
-CLASSES = {"guardian", "cleric", "mage", "rogue", "shaman", "ranger", "utility"}
+CLASSES = {"guardian", "cleric", "mage", "rogue", "shaman", "ranger", "utility", "curse"}
 TARGETS = {"enemy", "all_enemies", "ally", "all_allies", "self"}
 EFFECTS = {
     "draw_cards",
@@ -26,7 +26,7 @@ EFFECTS = {
 }
 STATUS_EFFECTS = {"burning", "renew", "trap", "totem_heal"}
 ABILITY_INTENTS = {"attack", "tank_buster", "aoe", "wipe", "buff", "heal", "shield"}
-RELIC_TRIGGERS = {"combat_start", "combat_reward", "card_reward"}
+RELIC_TRIGGERS = {"combat_start", "combat_reward", "card_reward", "combat", "shop", "passive", "rest"}
 EVENT_EFFECTS = {
     "heal_party",
     "gain_gold_add_curse",
@@ -37,6 +37,7 @@ EVENT_EFFECTS = {
     "pay_gold_add_card",
     "gain_gold",
 }
+NODE_TYPES = {"start", "combat", "elite", "rest", "shop", "event", "boss"}
 
 
 def load_json(name: str, errors: list[str]) -> dict:
@@ -109,6 +110,8 @@ def validate_cards(data: dict, errors: list[str]) -> set[str]:
         for field in ("heal_self", "taunt", "interrupt", "exhaust", "channel"):
             if not isinstance(card.get(field), bool):
                 errors.append(f"{label}: {field} must be true or false")
+        if "consume" in card and not isinstance(card.get("consume"), bool):
+            errors.append(f"{label}: consume must be true or false")
 
         if card.get("channel") and card.get("channel_turns", 0) <= 0:
             errors.append(f"{label}: channel cards need channel_turns > 0")
@@ -260,7 +263,7 @@ def validate_relics(data: dict, errors: list[str]) -> set[str]:
     return seen
 
 
-def validate_events(data: dict, errors: list[str]) -> set[str]:
+def validate_events(data: dict, card_ids: set[str], errors: list[str]) -> set[str]:
     events = data.get("events", [])
     if not isinstance(events, list):
         errors.append("events.json: events must be a list")
@@ -291,24 +294,147 @@ def validate_events(data: dict, errors: list[str]) -> set[str]:
                 continue
             choice_label = f"{label}.{choice.get('label', '<missing choice>')}"
             require_text(choice, "label", choice_label, errors)
+            require_text(choice, "description", choice_label, errors)
             if choice.get("effect") not in EVENT_EFFECTS:
                 errors.append(f"{choice_label}: unsupported event effect {choice.get('effect')!r}")
+            if choice.get("effect") == "gain_gold_add_curse" and choice.get("curse") not in card_ids:
+                errors.append(f"{choice_label}: unknown curse card {choice.get('curse')!r}")
     return seen
+
+
+def validate_classes(data: dict, errors: list[str]) -> set[str]:
+    classes = data.get("classes", [])
+    if not isinstance(classes, list):
+        errors.append("classes.json: classes must be a list")
+        return set()
+
+    seen: set[str] = set()
+    playable = CLASSES - {"utility", "curse"}
+    for cls in classes:
+        if not isinstance(cls, dict):
+            errors.append("classes.json: every class must be an object")
+            continue
+        label = cls.get("id", "<missing class id>")
+        require_text(cls, "id", label, errors)
+        require_text(cls, "name", label, errors)
+        require_text(cls, "role", label, errors)
+        require_int(cls, "hp", label, errors, minimum=1)
+        class_id = cls.get("id")
+        if class_id in seen:
+            errors.append(f"{label}: duplicate class id")
+        if isinstance(class_id, str):
+            seen.add(class_id)
+        if class_id not in playable:
+            errors.append(f"{label}: unsupported playable class id {class_id!r}")
+    missing = playable - seen
+    for class_id in sorted(missing):
+        errors.append(f"classes.json: missing playable class {class_id!r}")
+    return seen
+
+
+def validate_areas(data: dict, errors: list[str]) -> tuple[int, int]:
+    areas = data.get("areas", [])
+    if not isinstance(areas, list) or not areas:
+        errors.append("areas.json: areas must be a non-empty list")
+        return 0, 0
+    if len(areas) > 5:
+        errors.append("areas.json: at most 5 areas are supported")
+
+    seen: set[str] = set()
+    max_floor_count = 0
+    for index, area in enumerate(areas):
+        if not isinstance(area, dict):
+            errors.append("areas.json: every area must be an object")
+            continue
+        label = area.get("id", f"area[{index}]")
+        require_text(area, "id", label, errors)
+        require_text(area, "name", label, errors)
+        require_text(area, "description", label, errors)
+        area_id = area.get("id")
+        if area_id in seen:
+            errors.append(f"{label}: duplicate area id")
+        if isinstance(area_id, str):
+            seen.add(area_id)
+        require_int(area, "floor_count", label, errors, minimum=3)
+        require_int(area, "difficulty_percent", label, errors, minimum=100)
+        floor_count = area.get("floor_count", 0)
+        if isinstance(floor_count, int) and not isinstance(floor_count, bool):
+            if floor_count > 5:
+                errors.append(f"{label}: floor_count must be 3..5")
+            max_floor_count = max(max_floor_count, floor_count)
+    return len(seen), max_floor_count
+
+
+def validate_maps(data: dict, errors: list[str]) -> int:
+    floors = data.get("floors", [])
+    if not isinstance(floors, list):
+        errors.append("maps.json: floors must be a list")
+        return 0
+
+    floor_count = 0
+    for floor in floors:
+        if not isinstance(floor, dict):
+            errors.append("maps.json: every floor must be an object")
+            continue
+        label = f"map floor {floor.get('floor', '?')}"
+        require_int(floor, "floor", label, errors, minimum=1)
+        nodes = floor.get("nodes", [])
+        if not isinstance(nodes, list) or not nodes:
+            errors.append(f"{label}: nodes must be a non-empty list")
+            continue
+        has_start = False
+        has_boss = False
+        for index, node in enumerate(nodes):
+            node_label = f"{label}.nodes[{index}]"
+            if not isinstance(node, dict):
+                errors.append(f"{node_label}: node must be an object")
+                continue
+            if node.get("type") not in NODE_TYPES:
+                errors.append(f"{node_label}: unsupported node type {node.get('type')!r}")
+            has_start = has_start or node.get("type") == "start"
+            has_boss = has_boss or node.get("type") == "boss"
+            require_int(node, "row", node_label, errors)
+            require_int(node, "col", node_label, errors)
+            conns = node.get("connections", [])
+            if not isinstance(conns, list) or len(conns) > 3:
+                errors.append(f"{node_label}: connections must be a list of at most 3 indices")
+                continue
+            for conn in conns:
+                if not isinstance(conn, int) or isinstance(conn, bool) or conn < 0 or conn >= len(nodes):
+                    errors.append(f"{node_label}: invalid connection index {conn!r}")
+        if not has_start:
+            errors.append(f"{label}: missing start node")
+        if not has_boss:
+            errors.append(f"{label}: missing boss node")
+        floor_count += 1
+    return floor_count
 
 
 def main() -> int:
     errors: list[str] = []
+    areas = load_json("areas.json", errors)
     cards = load_json("cards.json", errors)
+    classes = load_json("classes.json", errors)
     enemies = load_json("enemies.json", errors)
     encounters = load_json("encounters.json", errors)
     relics = load_json("relics.json", errors)
     events = load_json("events.json", errors)
+    maps = load_json("maps.json", errors)
 
+    area_count, max_area_floors = validate_areas(areas, errors)
+    class_ids = validate_classes(classes, errors)
     card_ids = validate_cards(cards, errors)
     enemy_ids = validate_enemies(enemies, errors)
     encounter_count = validate_encounters(encounters, enemy_ids, errors)
     relic_ids = validate_relics(relics, errors)
-    event_ids = validate_events(events, errors)
+    event_ids = validate_events(events, card_ids, errors)
+    map_floor_count = validate_maps(maps, errors)
+
+    encounter_floor_count = len(encounters.get("floors", [])) if isinstance(encounters.get("floors"), list) else 0
+    if max_area_floors > 0 and map_floor_count < max_area_floors:
+        errors.append(f"maps.json: needs at least {max_area_floors} floors for configured areas")
+    if max_area_floors > 0 and encounter_floor_count < max_area_floors:
+        errors.append(f"encounters.json: needs at least {max_area_floors} floors for configured areas")
 
     if errors:
         for error in errors:
@@ -317,8 +443,9 @@ def main() -> int:
 
     print(
         "Content validation passed: "
-        f"{len(card_ids)} cards, {len(enemy_ids)} enemies, {encounter_count} encounters, "
-        f"{len(relic_ids)} relics, {len(event_ids)} events"
+        f"{area_count} areas, {len(class_ids)} classes, {len(card_ids)} cards, {len(enemy_ids)} enemies, "
+        f"{encounter_count} encounters, {len(relic_ids)} relics, {len(event_ids)} events, "
+        f"{map_floor_count} map floors"
     )
     return 0
 

@@ -1,7 +1,35 @@
 #include "cast_bar.h"
 #include "constants.h"
+#include "util/text.h"
 #include "raylib.h"
 #include <stdio.h>
+
+static void draw_text_fit(const char *text, int x, int y, int max_w, int size, Color color)
+{
+    if (!text || max_w <= 0) return;
+    while (size > 3 && MeasureText(text, size) > max_w)
+        size--;
+
+    if (MeasureText(text, size) <= max_w)
+    {
+        DrawText(text, x, y, size, color);
+        return;
+    }
+
+    char clipped[64];
+    int len = 0;
+    while (text[len] && len < (int)sizeof(clipped) - 4)
+    {
+        clipped[len] = text[len];
+        clipped[len + 1] = '\0';
+        if (MeasureText(TextFormat("%s...", clipped), size) > max_w)
+            break;
+        len++;
+    }
+    if (len <= 0) return;
+    clipped[len] = '\0';
+    DrawText(TextFormat("%s...", clipped), x, y, size, color);
+}
 
 static Color intent_color(IntentType intent, bool is_wipe, int remaining_turns, int total_turns)
 {
@@ -35,28 +63,31 @@ static const char *intent_icon(IntentType intent, bool is_wipe)
     }
 }
 
-static void draw_tooltip(Rectangle bounds, const EnemyAbility *ability)
+void cast_bar_draw_ability_tooltip(const EnemyAbility *ability, Rectangle bounds)
 {
     if (!ability) return;
 
     Vector2 mouse = GetMousePosition();
     if (!CheckCollisionPointRec(mouse, bounds)) return;
 
-    int x = (int)bounds.x;
-    int y = (int)(bounds.y + bounds.height + 2);
-    int w = 160;
-    int h = 46;
+    int w = 176;
+    int h = 58;
+    int x = (int)(bounds.x + bounds.width / 2.0f - w / 2.0f);
+    int y = (int)(bounds.y - h - 5);
     if (x + w > VIRT_W - 2) x = VIRT_W - w - 2;
-    if (y + h > VIRT_H - 2) y = (int)bounds.y - h - 2;
+    if (x < 2) x = 2;
+    if (y < FRAME_Y + FRAME_H + 8) y = (int)(bounds.y + bounds.height + 4);
+    if (y + h > HAND_Y - 4) y = HAND_Y - h - 4;
     DrawRectangleRec((Rectangle){ (float)x, (float)y, (float)w, (float)h }, (Color){ 18, 18, 28, 245 });
     DrawRectangleLinesEx((Rectangle){ (float)x, (float)y, (float)w, (float)h }, 1.0f, (Color){ 100, 100, 130, 220 });
 
-    DrawText(ability->description, x + 5, y + 5, 6, (Color){ 220, 220, 235, 240 });
+    draw_text_fit(ability->name, x + 5, y + 5, w - 10, 7, RAYWHITE);
+    draw_text_wrapped(ability->description, x + 5, y + 17, w - 10, 5, 1, (Color){ 220, 220, 235, 240 });
 
     char details[96];
-    snprintf(details, sizeof(details), "Damage %d   Heal %d   Shield %d", ability->base_damage, ability->heal_amount, ability->shield_amount);
-    DrawText(details, x + 5, y + 20, 6, (Color){ 170, 170, 200, 230 });
-    DrawText((ability->is_wipe || ability->intent == INTENT_WIPE) ? "Uninterruptible" : "Interruptible", x + 5, y + 33, 6,
+    snprintf(details, sizeof(details), "Dmg %d   Heal %d   Shield %d", ability->base_damage, ability->heal_amount, ability->shield_amount);
+    DrawText(details, x + 5, y + 39, 6, (Color){ 170, 170, 200, 230 });
+    DrawText((ability->is_wipe || ability->intent == INTENT_WIPE) ? "Locked cast" : "Interruptible", x + 5, y + 50, 6,
         (ability->is_wipe || ability->intent == INTENT_WIPE) ? (Color){ 230, 110, 80, 240 } : (Color){ 140, 220, 160, 240 });
 }
 
@@ -108,11 +139,8 @@ void cast_bar_draw_ability(const EnemyAbility *ability, int remaining_turns, int
     DrawRectangleLinesEx(bounds, 1.0f, locked ? (Color){ 230, 90, 80, 230 } : (Color){ 80, 90, 125, 230 });
 
     const char *icon = intent_icon(ability->intent, ability->is_wipe);
-    DrawText(icon, bar_x + 4, bar_y + 4, 5, RAYWHITE);
-    int name_size = 6;
-    while (name_size > 5 && MeasureText(ability->name, name_size) > 54)
-        name_size--;
-    DrawText(ability->name, bar_x + 24, bar_y + 4, name_size, RAYWHITE);
+    DrawRectangleRec((Rectangle){ (float)(bar_x + 1), (float)(bar_y + 1), 21.0f, (float)(bar_h - 2) }, (Color){ bar_color.r, bar_color.g, bar_color.b, 120 });
+    draw_text_fit(icon, bar_x + 4, bar_y + 4, 16, 5, RAYWHITE);
 
     char amount[48];
     if (ability->heal_amount > 0)
@@ -121,16 +149,21 @@ void cast_bar_draw_ability(const EnemyAbility *ability, int remaining_turns, int
         snprintf(amount, sizeof(amount), "+%dS", ability->shield_amount);
     else
         snprintf(amount, sizeof(amount), "%dD", ability->base_damage);
-    DrawText(amount, bar_x + 84, bar_y + 4, 5, (Color){ 220, 220, 235, 230 });
 
     char turns_text[20];
     snprintf(turns_text, sizeof(turns_text), "%dT", remaining_turns);
-    DrawText(turns_text, bar_x + bar_w - 17, bar_y + 3, 6, (Color){ 230, 230, 245, 235 });
+    int turns_w = MeasureText(turns_text, 6);
+    DrawText(turns_text, bar_x + bar_w - turns_w - 4, bar_y + 3, 6, (Color){ 230, 230, 245, 235 });
 
-    DrawText(locked ? "LOCK" : "INT", bar_x + bar_w - 40, bar_y + 5, 4,
-        locked ? (Color){ 240, 120, 90, 230 } : (Color){ 130, 220, 160, 230 });
+    int amount_x = bar_x + bar_w - turns_w - 29;
+    draw_text_fit(amount, amount_x, bar_y + 4, 22, 5, (Color){ 220, 220, 235, 230 });
 
-    draw_tooltip(bounds, ability);
+    int name_x = bar_x + 25;
+    int name_w = amount_x - name_x - 3;
+    draw_text_fit(ability->name, name_x, bar_y + 4, name_w, 6, RAYWHITE);
+
+    if (locked)
+        DrawText("!", bar_x + bar_w - turns_w - 41, bar_y + 3, 6, (Color){ 250, 105, 80, 240 });
 }
 
 

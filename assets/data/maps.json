@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "floors": [
+    {
+      "floor": 1,
+      "nodes": [
+        { "type": "start", "row": 0, "col": 0, "connections": [1, 2] },
+        { "type": "combat", "row": 1, "col": 0, "connections": [3, 4] },
+        { "type": "combat", "row": 1, "col": 1, "connections": [4] },
+        { "type": "combat", "row": 2, "col": 0, "connections": [5] },
+        { "type": "event", "row": 2, "col": 1, "connections": [5] },
+        { "type": "rest", "row": 3, "col": 0, "connections": [6] },
+        { "type": "elite", "row": 4, "col": 0, "connections": [7] },
+        { "type": "boss", "row": 5, "col": 0, "connections": [] }
+      ]
+    },
+    {
+      "floor": 2,
+      "nodes": [
+        { "type": "start", "row": 0, "col": 0, "connections": [1, 2] },
+        { "type": "combat", "row": 1, "col": 0, "connections": [3, 4] },
+        { "type": "combat", "row": 1, "col": 1, "connections": [4, 5] },
+        { "type": "elite", "row": 2, "col": 0, "connections": [6] },
+        { "type": "rest", "row": 2, "col": 1, "connections": [6, 7] },
+        { "type": "event", "row": 2, "col": 2, "connections": [7] },
+        { "type": "combat", "row": 3, "col": 0, "connections": [8] },
+        { "type": "shop", "row": 3, "col": 1, "connections": [9] },
+        { "type": "elite", "row": 4, "col": 0, "connections": [10] },
+        { "type": "combat", "row": 4, "col": 1, "connections": [10] },
+        { "type": "boss", "row": 5, "col": 0, "connections": [] }
+      ]
+    },
+    {
+      "floor": 3,
+      "nodes": [
+        { "type": "start", "row": 0, "col": 0, "connections": [1, 2] },
+        { "type": "combat", "row": 1, "col": 0, "connections": [3] },
+        { "type": "elite", "row": 1, "col": 1, "connections": [3, 4] },
+        { "type": "rest", "row": 2, "col": 0, "connections": [5, 6] },
+        { "type": "shop", "row": 2, "col": 1, "connections": [6, 7] },
+        { "type": "combat", "row": 3, "col": 0, "connections": [8] },
+        { "type": "elite", "row": 3, "col": 1, "connections": [8] },
+        { "type": "event", "row": 3, "col": 2, "connections": [9] },
+        { "type": "combat", "row": 4, "col": 0, "connections": [10] },
+        { "type": "rest", "row": 4, "col": 1, "connections": [10] },
+        { "type": "elite", "row": 5, "col": 0, "connections": [12] },
+        { "type": "combat", "row": 5, "col": 1, "connections": [12] },
+        { "type": "boss", "row": 6, "col": 0, "connections": [] }
+      ]
+    },
+    {
+      "floor": 4,
+      "nodes": [
+        { "type": "start", "row": 0, "col": 0, "connections": [1, 2, 3] },
+        { "type": "combat", "row": 1, "col": 0, "connections": [4, 5] },
+        { "type": "event", "row": 1, "col": 1, "connections": [5, 6] },
+        { "type": "elite", "row": 1, "col": 2, "connections": [6] },
+        { "type": "shop", "row": 2, "col": 0, "connections": [7, 8] },
+        { "type": "combat", "row": 2, "col": 1, "connections": [8] },
+        { "type": "rest", "row": 2, "col": 2, "connections": [8, 9] },
+        { "type": "elite", "row": 3, "col": 0, "connections": [10] },
+        { "type": "combat", "row": 3, "col": 1, "connections": [10, 11] },
+        { "type": "shop", "row": 3, "col": 2, "connections": [11] },
+        { "type": "rest", "row": 4, "col": 0, "connections": [12] },
+        { "type": "elite", "row": 4, "col": 1, "connections": [12] },
+        { "type": "combat", "row": 5, "col": 0, "connections": [13] },
+        { "type": "boss", "row": 6, "col": 0, "connections": [] }
+      ]
+    },
+    {
+      "floor": 5,
+      "nodes": [
+        { "type": "start", "row": 0, "col": 0, "connections": [1, 2] },
+        { "type": "combat", "row": 1, "col": 0, "connections": [3, 4] },
+        { "type": "elite", "row": 1, "col": 1, "connections": [4, 5] },
+        { "type": "event", "row": 2, "col": 0, "connections": [6] },
+        { "type": "combat", "row": 2, "col": 1, "connections": [6, 7] },
+        { "type": "shop", "row": 2, "col": 2, "connections": [7] },
+        { "type": "elite", "row": 3, "col": 0, "connections": [8, 9] },
+        { "type": "rest", "row": 3, "col": 1, "connections": [9, 10] },
+        { "type": "combat", "row": 4, "col": 0, "connections": [11] },
+        { "type": "shop", "row": 4, "col": 1, "connections": [11, 12] },
+        { "type": "elite", "row": 4, "col": 2, "connections": [12] },
+        { "type": "rest", "row": 5, "col": 0, "connections": [13] },
+        { "type": "combat", "row": 5, "col": 1, "connections": [13] },
+        { "type": "boss", "row": 6, "col": 0, "connections": [] }
+      ]
+    }
+  ]
+}

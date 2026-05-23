@@ -1,5 +1,6 @@
 #include "screens.h"
 #include "game.h"
+#include "data/area_defs.h"
 #include "ui/theme.h"
 #include "constants.h"
 #include "raylib.h"
@@ -10,10 +11,22 @@ void game_over_screen_update(void)
     if (!g_state.result_recorded)
     {
         int before_slots = meta_party_slots(&g_state.meta);
-        meta_record_run(&g_state.meta, g_state.run_won, g_state.result_floor, g_state.result_bosses_defeated);
+        int before_area = g_state.meta.highest_area_unlocked;
+        g_state.result_renown_gained = meta_record_run(
+            &g_state.meta,
+            g_state.run_won,
+            g_state.result_area,
+            g_state.result_floor,
+            g_state.result_bosses_defeated);
+        int area_count = area_defs_count();
+        if (area_count > 0 && g_state.meta.highest_area_unlocked >= area_count)
+            g_state.meta.highest_area_unlocked = area_count - 1;
         meta_save(&g_state.meta);
         g_state.max_party_size = meta_party_slots(&g_state.meta);
         g_state.result_unlocked_party_size = g_state.max_party_size > before_slots ? g_state.max_party_size : 0;
+        g_state.result_unlocked_area = g_state.meta.highest_area_unlocked > before_area ? g_state.meta.highest_area_unlocked : -1;
+        if (g_state.result_unlocked_area >= 0)
+            g_state.selected_area = g_state.result_unlocked_area;
         g_state.result_recorded = true;
     }
 
@@ -42,33 +55,48 @@ void game_over_screen_draw(void)
     DrawText(reason, (VIRT_W / 2) - MeasureText(reason, 9) / 2, 92, 9, (Color){ 190, 190, 215, 230 });
 
     char line[96];
-    snprintf(line, sizeof(line), "Floor reached: %d", g_state.result_floor);
+    const AreaDef *area = area_def(g_state.result_area);
+    int area_floors = area_floor_count(g_state.result_area);
+    snprintf(line, sizeof(line), "Area: %s", area ? area->name : "Unknown Area");
     int stats_x = (VIRT_W / 2) - 86;
     DrawText(line, stats_x, 132, 9, RAYWHITE);
 
-    snprintf(line, sizeof(line), "Bosses defeated: %d", g_state.result_bosses_defeated);
+    snprintf(line, sizeof(line), "Floor reached: %d/%d", g_state.result_floor, area_floors);
     DrawText(line, stats_x, 148, 9, RAYWHITE);
 
+    snprintf(line, sizeof(line), "Bosses defeated: %d", g_state.result_bosses_defeated);
+    DrawText(line, stats_x, 164, 9, RAYWHITE);
+
     snprintf(line, sizeof(line), "Gold earned: %d", g_state.gold);
-    DrawText(line, stats_x, 164, 9, (Color){ 230, 200, 80, 255 });
+    DrawText(line, stats_x, 180, 9, (Color){ 230, 200, 80, 255 });
 
     int valid_cards = 0;
     for (int i = 0; i < g_state.run_deck.card_count; i++)
         if (g_state.run_deck.cards[i].def)
             valid_cards++;
     snprintf(line, sizeof(line), "Deck size: %d", valid_cards);
-    DrawText(line, stats_x, 180, 9, RAYWHITE);
+    DrawText(line, stats_x, 196, 9, RAYWHITE);
 
-    snprintf(line, sizeof(line), "Meta: %d runs  %d wins  slots %d/5", g_state.meta.runs_completed, g_state.meta.wins, g_state.max_party_size);
-    DrawText(line, stats_x, 196, 8, (Color){ 170, 175, 205, 230 });
+    snprintf(line, sizeof(line), "Renown: +%d  Total %d", g_state.result_renown_gained, g_state.meta.renown);
+    DrawText(line, stats_x, 212, 8, (Color){ 230, 205, 95, 240 });
+
+    int unlock_y = 226;
+    if (g_state.result_unlocked_area >= 0)
+    {
+        const AreaDef *next = area_def(g_state.result_unlocked_area);
+        snprintf(line, sizeof(line), "Unlocked area: %s", next ? next->name : "Next Area");
+        DrawText(line, stats_x, unlock_y, 8, (Color){ 120, 220, 255, 245 });
+        unlock_y += 12;
+    }
 
     if (g_state.result_unlocked_party_size > 0)
     {
         snprintf(line, sizeof(line), "Unlocked %d-party drafts!", g_state.result_unlocked_party_size);
-        DrawText(line, stats_x, 210, 8, (Color){ 230, 205, 95, 255 });
+        DrawText(line, stats_x, unlock_y, 8, (Color){ 230, 205, 95, 255 });
+        unlock_y += 12;
     }
 
-    int y = 220;
+    int y = unlock_y + 4;
     DrawText("Final party", stats_x, y, 8, (Color){ 160, 160, 190, 220 });
     y += 16;
 

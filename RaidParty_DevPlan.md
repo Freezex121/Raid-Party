@@ -50,13 +50,15 @@ The current codebase is a playable prototype slice, not yet a production-quality
 - P2 visual polish pass is implemented: shared assets/theme layer, textured tactical background, class/card/node color language, cost gems, effect badges, 64x96 full-card pixel-art template scaled 3x, class portraits, illustrated enemy stand-ins, map icon nodes, deck card previews, combat/reward VFX bursts, burn sparks, and boss danger flash.
 - The 640x360 UI layout pass is implemented across all screens with shared layout helpers, larger cards, larger party/enemy/cast UI, combat side panels, card inspector panels, and overlap-aware hand hit-testing.
 - P3 audio foundation is started: Raylib audio lifecycle is initialized, optional SFX/music slots load from `assets/audio`, and safe play/update/stop helpers exist.
-- P4 data/content/balance pass is implemented: JSON content manifests exist under `assets/data`, card special behavior now resolves through effect chains, content validation and balance-report scripts exist, and each floor has a named boss encounter.
-- P5 run-depth pass is implemented: relics, event nodes, relic rewards, shop relic purchases, meta party-slot unlocks, and meta-progress persistence now exist.
+- P4 data/content/balance pass is implemented: runtime content loads from JSON manifests under `assets/data`, card special behavior resolves through effect chains, content validation and balance-report scripts exist, and each floor has a named boss encounter.
+- P5 run-depth pass is implemented: relics, event nodes, boss/event relic rewards, meta party-slot unlocks, and meta-progress persistence now exist.
+- Area-based meta progression is being expanded: areas are JSON-defined, unlock sequentially, can run 3-5 floors, and feed a Renown-based meta shop.
 
 ### Partially Done Or Risky
 
-- Party growth starts at 3 slots, with 4th and 5th slots unlocked through meta boss/win progress.
-- Runtime content still uses compiled C arrays. JSON manifests now mirror cards, enemies, encounters, relics, and events for validation and balance reporting; a runtime loader or codegen step can be added later if iteration speed needs it.
+- Party growth starts at 3 slots, with 4th and 5th slots now intended as Renown shop purchases instead of automatic boss-count unlocks.
+- Players can begin a run with any party size from 1 up to their current max; the draft UI warns when the party is not full.
+- Runtime data now uses JSON as the source of truth for classes, cards, enemies, encounters, relic definitions, events, and map layouts. C still owns behavior enums and effect/relic hooks.
 - Named boss identities and mechanics exist for all 3 floors. True multi-phase boss scripting remains future scope.
 - Upgrade support affects damage/heal/shield numbers, but future special-effect upgrades still need a content/balance audit.
 - Card text/effect audits should continue whenever new cards or effect types are added.
@@ -73,8 +75,8 @@ Goal: One complete short run that feels cohesive, satisfying, and trustworthy. K
 
 Recommended scope:
 
-- Start with 3 party slots; meta-progress unlocks slots 4 and 5.
-- 3 floors, fixed maps, current 6 classes allowed.
+- Start with 3 party slots; meta-progress and the meta shop unlock slots 4 and 5.
+- Multiple sequential areas, each 3-5 floors, using fixed floor templates and area difficulty scaling.
 - 1 real boss per floor, even if each boss only has 2-3 polished mechanics.
 - Hardcoded C data is acceptable for this milestone, but effects must match card text.
 - Relics, events, and meta slot unlocks are now in scope for the vertical slice, while full run save/resume remains future scope.
@@ -205,11 +207,14 @@ Exit criteria:
 
 ### P4 - Data, Content, And Balance
 
-- [x] Move content into JSON manifests for validation and balancing:
+- [x] Move content into JSON manifests for runtime loading, validation, and balancing:
+  - [x] `assets/data/classes.json`
   - [x] `assets/data/cards.json`
   - [x] `assets/data/enemies.json`
   - [x] `assets/data/encounters.json`
-  - [ ] later: `relics.json`, `events.json`
+  - [x] `assets/data/relics.json`
+  - [x] `assets/data/events.json`
+  - [x] `assets/data/maps.json`
 - [x] Create a card effect resolver that supports effect chains instead of one-off card-ID checks.
 - [x] Add a simple content validation step:
   - [x] No missing names/descriptions.
@@ -231,12 +236,16 @@ Exit criteria:
 - [x] Add relic system after the combat loop is satisfying:
   - [x] Passive modifiers at combat start.
   - [x] Clear relic tray UI.
-  - [x] Relic reward sources from elites/bosses/shop.
+  - [x] Relic reward sources from bosses and events.
 - [x] Add event nodes:
   - [x] Short choices with HP, gold, upgrade, remove, curse, or card outcomes.
   - [x] Keep event UI stylish but compact.
 - [x] Add meta-progression:
-  - [x] Unlock party slot 4 and party slot 5 through boss/win progress.
+  - [x] Unlock party slot 4 and party slot 5 through meta shop purchases.
+  - [x] Add sequential area unlocks with area difficulty scaling.
+  - [x] Add Renown rewards from runs.
+  - [x] Add a meta shop for party slots and starting-run support.
+  - [x] Allow under-full party drafts, including solo attempts.
   - [x] Avoid raw stat inflation until balance is proven.
   - [ ] Future: class unlocks, alternate starting cards, cosmetics, and difficulty modifiers.
 - [x] Add persistence:
@@ -293,6 +302,8 @@ Use this as a pass before calling any milestone "done."
 src/main.c                 - Raylib setup, loop, screen update/draw, tween update
 src/game.c/.h              - Global game state and screen changes
 src/assets.c/.h            - Shared visual/audio asset loading, playback helpers, and unload path
+src/util/json.c/.h         - Lightweight runtime JSON parser
+src/data/content_loader.c/.h - Loads runtime JSON data before game init
 src/combat/combat.c/.h     - Combat state, card resolution, turns, enemies
 src/combat/status.c/.h     - Status apply/tick/clear
 src/systems/deck.c/.h      - Shared deck and card instances
@@ -300,11 +311,13 @@ src/systems/party.c/.h     - Party classes, HP, aggro helpers
 src/systems/energy.c/.h    - Energy state
 src/systems/map.c/.h       - Fixed map layouts and node unlocks
 src/systems/relic.c/.h     - Run relic definitions and reward choice helpers
-src/systems/meta.c/.h      - Meta-progress load/save and party-slot unlock rules
-src/data/card_defs.c/.h    - Current hardcoded cards
-src/data/enemy_defs.c/.h   - Current hardcoded enemies
-src/data/encounter_defs.c/.h - Current hardcoded encounter pools
-assets/data/*.json         - Content manifests for validation and balance reporting
+src/systems/meta.c/.h      - Meta-progress load/save, Renown, area unlocks, and shop upgrades
+src/data/area_defs.c/.h    - Runtime-loaded area definitions, floor counts, and difficulty scaling
+src/data/card_defs.c/.h    - Runtime-loaded card definitions and card lookup helpers
+src/data/enemy_defs.c/.h   - Runtime-loaded enemy definitions
+src/data/encounter_defs.c/.h - Runtime-loaded encounter pools
+src/data/event_defs.c/.h   - Runtime-loaded event definitions
+assets/data/*.json         - Runtime content manifests plus validation/balance inputs
 scripts/validate_content.py - JSON content validation
 scripts/balance_report.py  - Lightweight balance report
 src/ui/*                   - Buttons, cards, party frames, enemies, cast bars, floating text
@@ -324,14 +337,14 @@ The old MVP said "no shop," but the current prototype already has shop and rest 
 
 MVP v0.2 includes:
 
-- 3-person starting party draft from 6 available classes, with meta unlocks up to 5 party slots.
-- 3-floor fixed map.
+- 1-3 person starting party draft from 6 available classes, with meta shop unlocks up to 5 party slots.
+- Sequential 3/4/5-floor areas with fixed floor templates.
 - Normal, elite, rest, shop, event, boss, and reward nodes.
 - Fully functioning combat card text/effects.
 - Fully functioning enemy intents.
 - Run-persistent party HP.
 - Card rewards, upgrades, removes, and gold.
-- Relics from elites, bosses, shops, and some events.
+- Relics from bosses and events.
 - Meta-progress save file for run count, wins, bosses defeated, best floor, and party-slot unlocks.
 - Proper title, victory, and defeat screens.
 - Cohesive UI art direction, icons, VFX, and SFX for the included systems.

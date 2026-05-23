@@ -78,6 +78,9 @@ typedef struct {
     char action_feed[5][96];
     float action_feed_timer[5];
     float floor_scale;
+    bool phoenix_used;
+    bool echo_used;
+    int mana_gem_bonus;
 } CombatState;
 
 void combat_start(CombatState *cs, const Party *party, const EncounterDef *encounter);

@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Map Editor — Raid Paper Legends</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#12131f;color:#cdd0e6;font-family:system-ui,sans-serif;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+header{background:#1a1c2e;padding:8px 16px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #2a2d44;flex-shrink:0}
+header h1{font-size:16px;color:#e8cb70}
+header label{font-size:13px;display:flex;align-items:center;gap:6px}
+header select{background:#252841;color:#cdd0e6;border:1px solid #3d4162;padding:3px 8px;border-radius:4px}
+header button{background:#3d4162;color:#cdd0e6;border:1px solid #5a5f82;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px}
+header button:hover{background:#525780}
+header .spacer{flex:1}
+#canvas-wrap{flex:1;position:relative;overflow:hidden;background:#0e0f19;display:flex;align-items:center;justify-content:center}
+#canvas-wrap canvas{image-rendering:pixelated;image-rendering:-webkit-optimize-contrast;image-rendering:crisp-edges;-ms-interpolation-mode:nearest-neighbor;cursor:default}
+#toolbar{background:#1a1c2e;padding:6px 16px;display:flex;align-items:center;gap:10px;border-top:1px solid #2a2d44;flex-shrink:0;font-size:12px;flex-wrap:wrap}
+#toolbar .group{display:flex;align-items:center;gap:4px}
+#toolbar button{background:#252841;color:#cdd0e6;border:1px solid #3d4162;padding:3px 10px;border-radius:3px;cursor:pointer;font-size:11px}
+#toolbar button:hover{background:#3d4162}
+#toolbar button.active{background:#4a5078;border-color:#e8cb70;color:#e8cb70}
+#toolbar .legend{display:flex;gap:8px;margin-left:8px;align-items:center}
+#toolbar .legend span{display:flex;align-items:center;gap:3px}
+.swatch{width:10px;height:10px;border-radius:2px;display:inline-block}
+textarea#output{display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:#0a0b14;color:#b0b5d0;font-family:monospace;font-size:11px;border:none;padding:12px;resize:none;tab-size:2;z-index:10}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Map Editor</h1>
+  <label>Floor: <select id=floorSel></select></label>
+  <label>Tool: <select id=toolSel>
+    <option value=select>Select</option>
+    <option value=add>Add Node</option>
+    <option value=connect>Connect</option>
+    <option value=delete>Delete</option>
+  </select></label>
+  <label id=infoLabel style="font-size:11px;color:#888"></label>
+  <span class=spacer></span>
+  <button id=exportBtn>Export JSON</button>
+  <button id=saveBtn>Save maps.json</button>
+</header>
+
+<div id=canvas-wrap>
+  <canvas id=c width=1280 height=720></canvas>
+  <textarea id=output></textarea>
+</div>
+
+<div id=toolbar>
+  <div class=group>
+    <button data-type=start>S Start</button>
+    <button data-type=combat>X Combat</button>
+    <button data-type=elite>! Elite</button>
+    <button data-type=rest>+ Rest</button>
+    <button data-type=shop>$ Shop</button>
+    <button data-type=event>? Event</button>
+    <button data-type=boss>B Boss</button>
+  </div>
+  <div class=legend>
+    <span><span class=swatch style=background:#7d829b></span>Start</span>
+    <span><span class=swatch style=background:#cd5c4a></span>Combat</span>
+    <span><span class=swatch style=background:#b956cd></span>Elite</span>
+    <span><span class=swatch style=background:#4ebe78></span>Rest</span>
+    <span><span class=swatch style=background:#e1b946></span>Shop</span>
+    <span><span class=swatch style=background:#55b9cd></span>Event</span>
+    <span><span class=swatch style=background:#e64146></span>Boss</span>
+  </div>
+</div>
+
+<script>
+// All coordinates are in game-space (640x360), rendered at 2x on the 1280x720 canvas.
+const S = 2; // scale factor
+const VW = 640, VH = 360;
+
+const NODE_COLORS = {
+  start:'#7d829b', combat:'#cd5c4a', elite:'#b956cd',
+  rest:'#4ebe78',  shop:'#e1b946',  event:'#55b9cd',
+  boss:'#e64146',
+};
+const NODE_ICONS = { start:'S', combat:'X', elite:'!', rest:'+', shop:'$', event:'?', boss:'B' };
+const NODE_NAMES = { start:'Start', combat:'Combat', elite:'Elite', rest:'Rest', shop:'Shop', event:'Event', boss:'Boss' };
+
+let data = { schema: 1, floors: [] };
+let currentFloor = 0;
+let tool = 'select';
+let dragNode = -1, dragOffX = 0, dragOffY = 0;
+let connStart = -1;
+const nodeRadius = 14, bossRadius = 18;
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Layout (mirrors calc_positions in map.c, game-space coords) ──
+function layoutNodes(nodes) {
+  if (!nodes || !nodes.length) return;
+  let rows = 0;
+  for (const n of nodes) if (n.row > rows) rows = n.row;
+  rows++;
+  const topY = 72, bottomY = 300;
+  const rowHeight = rows > 1 ? (bottomY - topY) / (rows - 1) : 0;
+  for (const n of nodes) {
+    const sameRow = nodes.filter(o => o.row === n.row).length;
+    const colIndex = nodes.filter(o => o.row === n.row && nodes.indexOf(o) < nodes.indexOf(n)).length;
+    const spacing = VW / (sameRow + 1);
+    n._x = spacing * (colIndex + 1);
+    n._y = topY + n.row * rowHeight;
+  }
+}
+
+// ── Load / switch floors ────────────────────────────────────────
+function loadFloor(index) {
+  currentFloor = index;
+  const floor = data.floors[index];
+  if (!floor) return;
+  layoutNodes(floor.nodes);
+  document.getElementById('floorSel').value = index;
+  render();
+}
+
+function rebuildFloorSelect() {
+  const sel = document.getElementById('floorSel');
+  sel.innerHTML = '';
+  for (let i = 0; i < data.floors.length; i++) {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = 'Floor ' + data.floors[i].floor;
+    sel.appendChild(opt);
+  }
+  sel.value = currentFloor;
+}
+
+function getNodes() { const f = data.floors[currentFloor]; return f ? f.nodes : []; }
+
+// ── Hit test (game-space coords) ────────────────────────────────
+function hitTest(mx, my) {
+  const nodes = getNodes();
+  for (let i = nodes.length - 1; i >= 0; i--) {
+    const n = nodes[i];
+    const r = n.type === 'boss' ? bossRadius : nodeRadius;
+    if (mx >= n._x - r - 4 && mx <= n._x + r + 4 &&
+        my >= n._y - r - 4 && my <= n._y + r + 4) return i;
+  }
+  return -1;
+}
+
+// ── Rendering (draw in game-space coords, ctx pre-scaled by S) ──
+function render() {
+  ctx.save();
+  ctx.scale(S, S);
+  ctx.clearRect(0, 0, VW, VH);
+
+  const grad = ctx.createLinearGradient(0, 0, 0, VH);
+  grad.addColorStop(0, '#12131f');
+  grad.addColorStop(1, '#0a0b12');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, VW, VH);
+
+  const nodes = getNodes();
+  if (!nodes) { ctx.restore(); return; }
+
+  // connections
+  for (let i = 0; i < nodes.length; i++) {
+    const n = nodes[i];
+    if (n._x === undefined) continue;
+    for (const ci of n.connections) {
+      if (ci < 0 || ci >= nodes.length) continue;
+      const t = nodes[ci];
+      if (t._x === undefined) continue;
+      ctx.beginPath();
+      ctx.moveTo(n._x, n._y);
+      ctx.lineTo(t._x, t._y);
+      ctx.strokeStyle = '#3d4162';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+  }
+
+  // nodes
+  for (let i = 0; i < nodes.length; i++) {
+    const n = nodes[i];
+    if (n._x === undefined) continue;
+    const r = n.type === 'boss' ? bossRadius : nodeRadius;
+    const col = NODE_COLORS[n.type] || '#7d829b';
+    const icon = NODE_ICONS[n.type] || '?';
+    const name = NODE_NAMES[n.type] || '?';
+
+    if (i === dragNode || i === connStart) {
+      ctx.beginPath();
+      ctx.arc(n._x, n._y, r + 5, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(232,203,112,0.25)';
+      ctx.fill();
+    }
+
+    ctx.beginPath();
+    ctx.arc(n._x, n._y, r, 0, Math.PI * 2);
+    ctx.fillStyle = col;
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(n._x, n._y, r - 3, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.fill();
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold ' + (n.type === 'boss' ? 11 : 9) + 'px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(icon, n._x, n._y);
+
+    ctx.fillStyle = col;
+    ctx.font = '6px sans-serif';
+    ctx.fillText(name, n._x, n._y + r + 7);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.font = '5px sans-serif';
+    ctx.fillText('#' + i, n._x, n._y + r + 14);
+  }
+
+  ctx.fillStyle = 'rgba(200,200,220,0.4)';
+  ctx.font = '8px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('Nodes: ' + nodes.length + '  |  Tool: ' + tool, 8, 6);
+
+  ctx.restore();
+}
+
+// ── JSON helpers ────────────────────────────────────────────────
+// Deep-copy the current floor's nodes, preserving _x/_y so render never breaks.
+function saveFloor() {
+  const nodes = getNodes().map(n => ({
+    type: n.type, row: n.row, col: n.col,
+    connections: n.connections.slice(),
+    _x: n._x, _y: n._y
+  }));
+  data.floors[currentFloor] = { floor: currentFloor + 1, nodes };
+}
+
+// Final export — strips editor-internal fields.
+function toJSON() {
+  return {
+    schema: 1,
+    floors: data.floors.map(fl => ({
+      floor: fl.floor,
+      nodes: fl.nodes.map(n => ({
+        type: n.type, row: n.row, col: n.col,
+        connections: n.connections.slice()
+      }))
+    }))
+  };
+}
+
+// ── Canvas interaction (all positions in game-space) ────────────
+function canvasPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) / rect.width * VW,
+    y: (e.clientY - rect.top) / rect.height * VH
+  };
+}
+
+canvas.addEventListener('mousedown', e => {
+  const pos = canvasPos(e);
+  const idx = hitTest(pos.x, pos.y);
+  const nodes = getNodes();
+
+  if (tool === 'select' && idx >= 0) {
+    dragNode = idx;
+    dragOffX = pos.x - nodes[idx]._x;
+    dragOffY = pos.y - nodes[idx]._y;
+  } else if (tool === 'add') {
+    const active = document.querySelector('#toolbar .group button.active');
+    const type = active ? active.dataset.type : 'combat';
+    const maxRow = nodes.length ? Math.max(...nodes.map(n => n.row)) : 0;
+    nodes.push({ type, row: maxRow + 1, col: 0, connections: [], _x: pos.x, _y: pos.y });
+    layoutNodes(nodes);
+    saveFloor();
+    render();
+  } else if (tool === 'connect' && idx >= 0) {
+    if (connStart < 0) { connStart = idx; render(); return; }
+    if (connStart !== idx) {
+      const a = nodes[connStart];
+      if (!a.connections.includes(idx)) {
+        a.connections.push(idx);
+        if (a.connections.length > 3) a.connections = a.connections.slice(0, 3);
+      }
+    }
+    connStart = -1;
+    saveFloor();
+    render();
+  } else if (tool === 'delete' && idx >= 0) {
+    if (!confirm('Delete #' + idx + ' (' + NODE_NAMES[nodes[idx].type] + ')?')) return;
+    nodes.splice(idx, 1);
+    for (const n of nodes) {
+      n.connections = n.connections.map(c => c === idx ? -1 : (c > idx ? c - 1 : c)).filter(c => c >= 0);
+    }
+    layoutNodes(nodes);
+    saveFloor();
+    render();
+  }
+});
+
+canvas.addEventListener('mousemove', e => {
+  const pos = canvasPos(e);
+
+  const hoverIdx = hitTest(pos.x, pos.y);
+  canvas.style.cursor = hoverIdx >= 0 ? 'pointer' : 'default';
+
+  const el = document.getElementById('infoLabel');
+  if (hoverIdx >= 0) {
+    const n = getNodes()[hoverIdx];
+    el.textContent = '#' + hoverIdx + ': ' + NODE_NAMES[n.type] + '  row=' + n.row + ' col=' + n.col + ' conns=[' + n.connections.join(',') + ']';
+  } else {
+    el.textContent = '(' + Math.round(pos.x) + ', ' + Math.round(pos.y) + ')';
+  }
+
+  if (dragNode < 0) return;
+  const nodes = getNodes();
+  if (dragNode >= nodes.length) { dragNode = -1; return; }
+  nodes[dragNode]._x = pos.x - dragOffX;
+  nodes[dragNode]._y = pos.y - dragOffY;
+  render();
+});
+
+canvas.addEventListener('mouseup', () => {
+  if (dragNode < 0) return;
+  const nodes = getNodes();
+  if (dragNode >= nodes.length) { dragNode = -1; return; }
+  const n = nodes[dragNode];
+  const maxRow = nodes.length ? Math.max(...nodes.map(x => x.row)) : 0;
+  const rowHeight = maxRow > 0 ? (300 - 72) / maxRow : 50;
+  let bestRow = 0, bestDist = Infinity;
+  for (let r = 0; r <= maxRow + 2; r++) {
+    const ry = 72 + r * rowHeight;
+    const d = Math.abs(n._y - ry);
+    if (d < bestDist) { bestDist = d; bestRow = r; }
+  }
+  n.row = Math.max(0, bestRow);
+  layoutNodes(nodes);
+  saveFloor();
+  dragNode = -1;
+  render();
+});
+
+canvas.addEventListener('mouseleave', () => {
+  dragNode = -1;
+  document.getElementById('infoLabel').textContent = '';
+});
+
+// ── Toolbar ─────────────────────────────────────────────────────
+document.querySelectorAll('#toolbar .group button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#toolbar .group button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('toolSel').value = 'add';
+    tool = 'add';
+  });
+});
+document.getElementById('toolSel').addEventListener('change', e => {
+  tool = e.target.value;
+  connStart = -1;
+  render();
+});
+
+// ── Floor selector ──────────────────────────────────────────────
+document.getElementById('floorSel').addEventListener('change', e => {
+  saveFloor();
+  loadFloor(parseInt(e.target.value));
+});
+
+// ── Export / Save ───────────────────────────────────────────────
+document.getElementById('exportBtn').addEventListener('click', () => {
+  saveFloor();
+  document.getElementById('output').value = JSON.stringify(toJSON(), null, 2);
+  document.getElementById('output').style.display = 'block';
+});
+document.getElementById('saveBtn').addEventListener('click', () => {
+  saveFloor();
+  const blob = new Blob([JSON.stringify(toJSON(), null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'maps.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+document.addEventListener('click', e => {
+  const out = document.getElementById('output');
+  if (e.target !== out && !e.target.closest('button')) out.style.display = 'none';
+});
+
+// ── Init ────────────────────────────────────────────────────────
+const fileInput = document.createElement('input');
+fileInput.type = 'file';
+fileInput.accept = '.json';
+fileInput.style.display = 'none';
+document.body.appendChild(fileInput);
+fileInput.addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try { data = JSON.parse(ev.target.result); } catch(_) { alert('Invalid JSON'); return; }
+    rebuildFloorSelect();
+    loadFloor(0);
+  };
+  reader.readAsText(f);
+});
+
+async function init() {
+  let loaded = false;
+  try {
+    const r = await fetch('../assets/data/maps.json');
+    if (r.ok) { data = await r.json(); loaded = true; }
+  } catch(_) {}
+  if (!loaded) {
+    try {
+      const r = await fetch('./maps.json');
+      if (r.ok) { data = await r.json(); loaded = true; }
+    } catch(_) {}
+  }
+  if (!loaded) {
+    const btn = document.createElement('button');
+    btn.textContent = 'Load maps.json';
+    btn.onclick = () => fileInput.click();
+    document.querySelector('header .spacer').after(btn);
+  }
+  while (data.floors.length < 3) {
+    data.floors.push({ floor: data.floors.length + 1, nodes: [
+      { type:'start', row:0, col:0, connections:[1] },
+      { type:'combat', row:1, col:0, connections:[2] },
+      { type:'boss', row:2, col:0, connections:[] }
+    ]});
+  }
+  rebuildFloorSelect();
+  loadFloor(0);
+  document.querySelector('#toolbar .group button[data-type=combat]').classList.add('active');
+}
+init();
+</script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 #ifndef CARD_DEFS_H
 #define CARD_DEFS_H
 
+#include <stdbool.h>
 #include "systems/deck.h"
 
 #define CLASS_CARD_COUNT 9
@@ -11,17 +12,22 @@
 #define SHAMAN_CARD_COUNT 8
 #define RANGER_CARD_COUNT 8
 
-extern const CardDef guardian_cards[CLASS_CARD_COUNT];
-extern const CardDef cleric_cards[CLASS_CARD_COUNT];
-extern const CardDef mage_cards[CLASS_CARD_COUNT];
-extern const CardDef rogue_cards[CLASS_CARD_COUNT];
-extern const CardDef shaman_cards[CLASS_CARD_COUNT];
-extern const CardDef ranger_cards[CLASS_CARD_COUNT];
+extern CardDef guardian_cards[CLASS_CARD_COUNT];
+extern CardDef cleric_cards[CLASS_CARD_COUNT];
+extern CardDef mage_cards[CLASS_CARD_COUNT];
+extern CardDef rogue_cards[CLASS_CARD_COUNT];
+extern CardDef shaman_cards[CLASS_CARD_COUNT];
+extern CardDef ranger_cards[CLASS_CARD_COUNT];
 
 extern const CardDef *class_card_sets[CLASS_COUNT];
-extern const int class_card_counts[CLASS_COUNT];
+extern int class_card_counts[CLASS_COUNT];
 
-#define UTILITY_CARD_COUNT 4
-extern const CardDef utility_cards[UTILITY_CARD_COUNT];
+#define MAX_UTILITY_CARDS 16
+extern CardDef utility_cards[MAX_UTILITY_CARDS];
+extern int utility_card_count;
+
+bool card_defs_load_json(const char *path);
+const CardDef *card_def_by_id(const char *id);
+int card_defs_loaded_count(void);
 
 #endif

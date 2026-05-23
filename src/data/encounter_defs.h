@@ -1,6 +1,7 @@
 #ifndef ENCOUNTER_DEFS_H
 #define ENCOUNTER_DEFS_H
 
+#include <stdbool.h>
 #include "enemy_defs.h"
 
 typedef struct {
@@ -8,6 +9,7 @@ typedef struct {
     int count;
 } EncounterDef;
 
+bool encounter_defs_load_json(const char *path);
 const EncounterDef *encounter_for_floor(int floor, int index);
 int encounter_count_for_floor(int floor);
 const EncounterDef *elite_for_floor(int floor);

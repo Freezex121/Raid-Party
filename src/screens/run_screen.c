@@ -9,6 +9,7 @@
 #include "ui/theme.h"
 #include "ui/layout.h"
 #include "ui/relic_tray.h"
+#include "data/area_defs.h"
 #include "data/enemy_defs.h"
 #include "data/encounter_defs.h"
 #include "systems/relic.h"
@@ -206,8 +207,10 @@ void run_screen_update(void)
         if (!was_victory)
         {
             g_state.run_won = false;
+            g_state.result_area = g_state.current_area;
             g_state.result_floor = g_state.map.floor + 1;
-            snprintf(g_state.result_reason, sizeof(g_state.result_reason), "The party wiped on Floor %d.", g_state.result_floor);
+            const AreaDef *area = area_def(g_state.current_area);
+            snprintf(g_state.result_reason, sizeof(g_state.result_reason), "The party wiped in %s, Floor %d.", area ? area->name : "the area", g_state.result_floor);
             game_change_screen(SCREEN_GAME_OVER);
             return;
         }
@@ -215,9 +218,24 @@ void run_screen_update(void)
         int gold_gain = g_state.encounter_is_boss ? 50 : (g_state.encounter_is_elite ? 25 : 10);
         if (relic_has(g_state.relics, g_state.relic_count, RELIC_GILDED_CHARM))
             gold_gain += 8;
+        if (relic_has(g_state.relics, g_state.relic_count, RELIC_RABBIT_FOOT) && (rand() % 10) == 0)
+            gold_gain *= 2;
         g_state.gold += gold_gain;
         ft_spawn_gold(gold_gain);
-        g_state.relic_reward_pending = g_state.encounter_is_elite || g_state.encounter_is_boss;
+
+        // Bandage Roll: heal lowest HP ally for 8
+        if (relic_has(g_state.relics, g_state.relic_count, RELIC_BANDAGE_ROLL))
+        {
+            int lowest = party_lowest_hp(&g_state.run_party);
+            if (lowest >= 0)
+            {
+                g_state.run_party.members[lowest].hp += 8;
+                if (g_state.run_party.members[lowest].hp > g_state.run_party.members[lowest].max_hp)
+                    g_state.run_party.members[lowest].hp = g_state.run_party.members[lowest].max_hp;
+            }
+        }
+
+        g_state.relic_reward_pending = g_state.encounter_is_boss;
         g_state.relic_reward_count = 0;
 
         int ci = g_state.map.current_index;
@@ -232,12 +250,16 @@ void run_screen_update(void)
         {
             g_state.result_bosses_defeated++;
             g_state.map.floor++;
-            if (g_state.map.floor >= MAX_FLOORS)
+            g_state.frugal_used_this_floor = false;
+            int area_floors = area_floor_count(g_state.current_area);
+            if (g_state.map.floor >= area_floors)
             {
                 g_state.run_won = true;
-                g_state.result_floor = MAX_FLOORS;
+                g_state.result_area = g_state.current_area;
+                g_state.result_floor = area_floors;
                 g_state.relic_reward_pending = false;
-                snprintf(g_state.result_reason, sizeof(g_state.result_reason), "Final boss defeated.");
+                const AreaDef *area = area_def(g_state.current_area);
+                snprintf(g_state.result_reason, sizeof(g_state.result_reason), "%s cleared.", area ? area->name : "Area");
                 game_change_screen(SCREEN_GAME_OVER);
                 return;
             }
@@ -382,6 +404,14 @@ void run_screen_draw(void)
     DrawRectangleRec(end_turn_btn, btn_col);
     DrawRectangleLinesEx(end_turn_btn, 1.0f, (Color){ 100, 100, 140, 200 });
     DrawText("End Turn", (int)(end_turn_btn.x + end_turn_btn.width / 2 - MeasureText("End Turn", 7) / 2), (int)(end_turn_btn.y + 7), 7, RAYWHITE);
+
+    for (int i = 0; i < cs->enemy_count; i++)
+    {
+        if (!cs->enemies[i].def || cs->enemies[i].hp <= 0 || cs->enemies[i].intent.ability_idx < 0) continue;
+        int ab_idx = cs->enemies[i].intent.ability_idx;
+        Rectangle bar = layout_enemy_cast_bar_rect((Vector2){ (float)cs->enemies[i].pos_x, (float)cs->enemies[i].pos_y });
+        cast_bar_draw_ability_tooltip(&cs->enemies[i].def->abilities[ab_idx], bar);
+    }
 
 }
 

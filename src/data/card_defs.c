@@ -1,120 +1,24 @@
 #include "card_defs.h"
-#include <stddef.h>
+#include "util/json.h"
+#include "util/log.h"
+#include <stdlib.h>
+#include <string.h>
 
-static const CardEffect fx_util_prep[] = {
-    { CARD_EFFECT_DRAW_CARDS, STATUS_NONE, 2, 0 },
-};
+#define MAX_JSON_CARDS 128
+#define MAX_CARD_EFFECTS_PER_CARD 8
 
-static const CardEffect fx_util_energ[] = {
-    { CARD_EFFECT_GAIN_ENERGY, STATUS_NONE, 2, 0 },
-};
+static CardDef all_cards[MAX_JSON_CARDS];
+static CardEffect effect_storage[MAX_JSON_CARDS][MAX_CARD_EFFECTS_PER_CARD];
+static int all_card_count = 0;
 
-static const CardEffect fx_clr_renew[] = {
-    { CARD_EFFECT_APPLY_STATUS_TARGET_ALLY, STATUS_RENEW, 5, 3 },
-};
-
-static const CardEffect fx_clr_revive[] = {
-    { CARD_EFFECT_REVIVE_TARGET, STATUS_NONE, 0, 0 },
-};
-
-static const CardEffect fx_mag_combust[] = {
-    { CARD_EFFECT_APPLY_STATUS_TARGET_ENEMY, STATUS_BURNING, 3, 3 },
-};
-
-static const CardEffect fx_rog_stealth[] = {
-    { CARD_EFFECT_RESET_CASTER_AGGRO, STATUS_NONE, 0, 0 },
-};
-
-static const CardEffect fx_rog_smoke[] = {
-    { CARD_EFFECT_TRANSFER_AGGRO_TO_GUARDIAN, STATUS_NONE, 0, 0 },
-};
-
-static const CardEffect fx_shm_heal_totem[] = {
-    { CARD_EFFECT_APPLY_STATUS_ALL_ALLIES, STATUS_TOTEM_HEAL, 4, 3 },
-};
-
-static const CardEffect fx_rng_trap[] = {
-    { CARD_EFFECT_APPLY_STATUS_TARGET_ENEMY, STATUS_TRAP, 4, 2 },
-};
-
-#define NOFX NULL, 0
-#define FX(ARR) ARR, (int)(sizeof(ARR) / sizeof((ARR)[0]))
-#define CARD(ID, NAME, TYPE, CLASS, COST, DAMAGE, HEAL, HEAL2, HEAL_SELF, SHIELD, BURN_STACKS, TAUNT, TAUNT_TURNS, INTERRUPT, AGGRO_SELF, EXHAUST, CHANNEL, CHANNEL_TURNS, TARGET, REPEAT_HITS, EFFECT_ARGS, DESC) \
-    { ID, NAME, TYPE, CLASS, COST, DAMAGE, HEAL, HEAL2, HEAL_SELF, SHIELD, BURN_STACKS, TAUNT, TAUNT_TURNS, INTERRUPT, AGGRO_SELF, EXHAUST, CHANNEL, CHANNEL_TURNS, TARGET, REPEAT_HITS, EFFECT_ARGS, DESC }
-
-const CardDef guardian_cards[CLASS_CARD_COUNT] = {
-    CARD("grd_taunt",       "Taunt",            CARD_SKILL,  CLASS_GUARDIAN, 1, 0,  0,  0, false, 8,  0, true,  2, false, 0,  false, false, 0, TARGET_SELF,  1, NOFX, "Taunt enemies. Gain Shield."),
-    CARD("grd_shield_slam", "Shield Slam",      CARD_ATTACK, CLASS_GUARDIAN, 1, 8,  0,  0, false, 4,  0, false, 0, false, 8,  false, false, 0, TARGET_ENEMY, 1, NOFX, "Deal damage to an enemy. Gain Shield."),
-    CARD("grd_stance",      "Defensive Stance", CARD_SKILL,  CLASS_GUARDIAN, 1, 0,  0,  0, false, 14, 0, false, 0, false, 0,  false, false, 0, TARGET_SELF,  1, NOFX, "Gain a large amount of Shield."),
-    CARD("grd_provoke",     "Provoke",          CARD_SKILL,  CLASS_GUARDIAN, 0, 0,  0,  0, false, 0,  0, true,  1, false, 0,  false, false, 0, TARGET_SELF,  1, NOFX, "Taunt enemies for 1 turn."),
-    CARD("grd_bash",        "Bash",             CARD_ATTACK, CLASS_GUARDIAN, 2, 12, 0,  0, false, 0,  0, true,  1, false, 12, false, false, 0, TARGET_ENEMY, 1, NOFX, "Deal heavy damage to an enemy. Taunt."),
-    CARD("grd_block",       "Block",            CARD_SKILL,  CLASS_GUARDIAN, 1, 0,  0,  0, false, 10, 0, false, 0, false, 0,  false, false, 0, TARGET_SELF,  1, NOFX, "Gain Shield."),
-    CARD("grd_shield_wall", "Shield Wall",      CARD_SKILL,  CLASS_GUARDIAN, 3, 0,  0,  0, false, 28, 0, false, 0, false, 0,  false, false, 0, TARGET_SELF,  1, NOFX, "Gain a massive amount of Shield."),
-    CARD("grd_fortress",    "Fortress",         CARD_SKILL,  CLASS_GUARDIAN, 4, 0,  0,  0, false, 40, 0, false, 0, false, 0,  false, false, 0, TARGET_SELF,  1, NOFX, "Gain an immense amount of Shield."),
-};
-
-const CardDef cleric_cards[CLASS_CARD_COUNT] = {
-    CARD("clr_heal",      "Heal",              CARD_SKILL,  CLASS_CLERIC, 1, 0,  12, 0,  false, 0, 0, false, 0, false, 6,  false, false, 0, TARGET_ALLY, 1, NOFX, "Heal an ally."),
-    CARD("clr_flash",     "Flash Heal",        CARD_SKILL,  CLASS_CLERIC, 2, 0,  20, 0,  false, 0, 0, false, 0, false, 10, false, false, 0, TARGET_ALLY, 1, NOFX, "Heal an ally for a large amount."),
-    CARD("clr_renew",     "Renew",             CARD_SKILL,  CLASS_CLERIC, 1, 0,  0,  0,  false, 0, 0, false, 0, false, 4,  false, false, 0, TARGET_ALLY, 1, FX(fx_clr_renew), "Heal an ally over 3 turns."),
-    CARD("clr_smite",     "Smite",             CARD_ATTACK, CLASS_CLERIC, 1, 7,  4,  0,  false, 0, 0, false, 0, false, 7,  false, false, 0, TARGET_ENEMY, 1, NOFX, "Deal damage to an enemy. Heal the lowest HP ally."),
-    CARD("clr_revive",    "Revive",            CARD_SKILL,  CLASS_CLERIC, 2, 0,  0,  0,  false, 0, 0, false, 0, false, 0,  true,  false, 0, TARGET_ALLY, 1, FX(fx_clr_revive), "Revive a downed ally. Exhaust."),
-    CARD("clr_holy_fire", "Holy Fire",         CARD_ATTACK, CLASS_CLERIC, 1, 10, 0,  0,  false, 0, 0, false, 0, false, 10, false, false, 0, TARGET_ENEMY, 1, NOFX, "Deal damage to an enemy."),
-    CARD("clr_prayer",    "Prayer of Healing", CARD_SKILL,  CLASS_CLERIC, 0, 0,  30, 0,  false, 0, 0, false, 0, false, 0,  true,  true,  2, TARGET_SELF,  1, NOFX, "Channel for 2 turns. Heal all allies."),
-    CARD("clr_divine",    "Divine Light",      CARD_SKILL,  CLASS_CLERIC, 3, 0,  35, 0,  false, 0, 0, false, 0, false, 0,  true,  false, 0, TARGET_ALLY, 1, NOFX, "Heal an ally for a massive amount."),
-};
-
-const CardDef mage_cards[CLASS_CARD_COUNT] = {
-    CARD("mag_fireball",  "Fireball",        CARD_ATTACK, CLASS_MAGE, 2, 16, 0, 0, false, 0, 0, false, 0, false, 16, false, false, 0, TARGET_ENEMY, 1, NOFX, "Deal heavy damage to an enemy."),
-    CARD("mag_missiles",  "Arcane Missiles", CARD_ATTACK, CLASS_MAGE, 1, 4,  0, 0, false, 0, 0, false, 0, false, 4,  false, false, 0, TARGET_ENEMY, 3, NOFX, "Deal damage to an enemy three times."),
-    CARD("mag_frostbolt", "Frostbolt",       CARD_ATTACK, CLASS_MAGE, 1, 9,  0, 0, false, 0, 0, false, 0, false, 9,  false, false, 0, TARGET_ENEMY, 1, NOFX, "Deal damage to an enemy."),
-    CARD("mag_scorch",    "Scorch",          CARD_ATTACK, CLASS_MAGE, 0, 5,  0, 0, false, 0, 0, false, 0, false, 5,  false, false, 0, TARGET_ENEMY, 1, NOFX, "Deal damage to an enemy."),
-    CARD("mag_pyro",      "Pyroblast",       CARD_ATTACK, CLASS_MAGE, 3, 28, 0, 0, false, 0, 0, false, 0, false, 28, true,  false, 0, TARGET_ENEMY, 1, NOFX, "Deal massive damage to an enemy. Exhaust."),
-    CARD("mag_combust",   "Combustion",      CARD_SKILL,  CLASS_MAGE, 1, 0,  0, 0, false, 0, 3, false, 0, false, 0,  false, false, 0, TARGET_ENEMY, 1, FX(fx_mag_combust), "Apply Burning to an enemy."),
-    CARD("mag_firestorm", "Fire Storm",      CARD_SKILL,  CLASS_MAGE, 0, 30, 0, 0, false, 0, 0, false, 0, false, 0,  true,  true,  2, TARGET_SELF,  1, NOFX, "Channel for 2 turns. Deal damage to all enemies."),
-    CARD("mag_inferno",   "Inferno",         CARD_ATTACK, CLASS_MAGE, 3, 28, 0, 0, false, 0, 0, false, 0, false, 28, false, false, 0, TARGET_ENEMY, 1, NOFX, "Deal massive damage to an enemy."),
-    CARD("mag_meteor",    "Meteor",          CARD_ATTACK, CLASS_MAGE, 4, 35, 0, 0, false, 0, 0, false, 0, false, 35, false, false, 0, TARGET_ALL_ENEMIES, 1, NOFX, "Deal immense damage to all enemies."),
-};
-
-const CardDef rogue_cards[CLASS_CARD_COUNT] = {
-    CARD("rog_backstab", "Backstab",      CARD_ATTACK, CLASS_ROGUE, 1, 12, 0, 0, false, 0, 0, false, 0, false, 12, false, false, 0, TARGET_ENEMY, 1, NOFX, "Deal damage to an enemy."),
-    CARD("rog_kick",     "Kick",          CARD_ATTACK, CLASS_ROGUE, 1, 6,  0, 0, false, 0, 0, false, 0, true,  6,  false, false, 0, TARGET_ENEMY, 1, NOFX, "Deal damage to an enemy. Interrupt."),
-    CARD("rog_poison",   "Poison Blade",  CARD_ATTACK, CLASS_ROGUE, 1, 7,  0, 0, false, 0, 0, false, 0, false, 7,  false, false, 0, TARGET_ENEMY, 1, NOFX, "Deal damage to an enemy."),
-    CARD("rog_stealth",  "Stealth",       CARD_SKILL,  CLASS_ROGUE, 1, 0,  0, 0, false, 0, 0, false, 0, false, 0,  false, false, 0, TARGET_SELF,  1, FX(fx_rog_stealth), "Reset your aggro to 0."),
-    CARD("rog_smoke",    "Smoke Bomb",    CARD_SKILL,  CLASS_ROGUE, 1, 0,  0, 0, false, 0, 0, false, 0, false, 0,  false, false, 0, TARGET_ALLY, 1, FX(fx_rog_smoke), "Transfer aggro from an ally to the tank."),
-    CARD("rog_evis",     "Eviscerate",    CARD_ATTACK, CLASS_ROGUE, 2, 18, 0, 0, false, 0, 0, false, 0, false, 18, false, false, 0, TARGET_ENEMY, 1, NOFX, "Deal heavy damage to an enemy."),
-    CARD("rog_shadow",   "Shadow Strike", CARD_ATTACK, CLASS_ROGUE, 3, 26, 0, 0, false, 0, 0, false, 0, false, 26, false, false, 0, TARGET_ENEMY, 1, NOFX, "Deal massive damage to an enemy."),
-    CARD("rog_assass",   "Assassinate",   CARD_ATTACK, CLASS_ROGUE, 4, 42, 0, 0, false, 0, 0, false, 0, false, 42, false, false, 0, TARGET_ENEMY, 1, NOFX, "Deal devastating damage to an enemy."),
-};
-
-const CardDef shaman_cards[CLASS_CARD_COUNT] = {
-    CARD("shm_lightning",  "Lightning Bolt", CARD_ATTACK, CLASS_SHAMAN, 1, 10, 0,  0, false, 0, 0, false, 0, false, 10, false, false, 0, TARGET_ENEMY,       1, NOFX, "Deal damage to an enemy."),
-    CARD("shm_heal_totem", "Healing Totem",  CARD_SKILL,  CLASS_SHAMAN, 1, 0,  0,  0, false, 0, 0, false, 0, false, 0,  false, false, 0, TARGET_SELF,        1, FX(fx_shm_heal_totem), "Heal all allies for 3 turns."),
-    CARD("shm_silence",    "Silence",        CARD_SKILL,  CLASS_SHAMAN, 1, 0,  0,  0, false, 0, 0, false, 0, true,  0,  false, false, 0, TARGET_ENEMY,       1, NOFX, "Interrupt an enemy's cast."),
-    CARD("shm_fury",       "Windfury",       CARD_ATTACK, CLASS_SHAMAN, 1, 6,  0,  0, false, 0, 0, false, 0, false, 6,  false, false, 0, TARGET_ENEMY,       2, NOFX, "Deal damage to an enemy twice."),
-    CARD("shm_chain",      "Chain Heal",     CARD_SKILL,  CLASS_SHAMAN, 2, 0,  10, 5, false, 0, 0, false, 0, false, 5,  false, false, 0, TARGET_ALLY,        1, NOFX, "Heal an ally, then a second ally for less."),
-    CARD("shm_earth",      "Earth Shield",   CARD_SKILL,  CLASS_SHAMAN, 1, 0,  0,  0, false, 8, 0, false, 0, false, 0,  false, false, 0, TARGET_ALLY,        1, NOFX, "Grant Shield to an ally."),
-    CARD("shm_storm",      "Thunder Storm",  CARD_ATTACK, CLASS_SHAMAN, 3, 22, 0,  0, false, 0, 0, false, 0, false, 22, false, false, 0, TARGET_ALL_ENEMIES, 1, NOFX, "Deal damage to all enemies."),
-    CARD("shm_cataclysm",  "Cataclysm",      CARD_ATTACK, CLASS_SHAMAN, 4, 30, 0,  0, false, 0, 0, false, 0, false, 30, false, false, 0, TARGET_ALL_ENEMIES, 1, NOFX, "Deal immense damage to all enemies."),
-};
-
-const CardDef ranger_cards[CLASS_CARD_COUNT] = {
-    CARD("rng_shot",      "Shoot",         CARD_ATTACK, CLASS_RANGER, 1, 10, 0, 0, false, 0, 0, false, 0, false, 10, false, false, 0, TARGET_ENEMY,       1, NOFX, "Deal damage to an enemy."),
-    CARD("rng_multishot", "Multishot",     CARD_ATTACK, CLASS_RANGER, 1, 6,  0, 0, false, 0, 0, false, 0, false, 6,  false, false, 0, TARGET_ALL_ENEMIES, 1, NOFX, "Deal damage to all enemies."),
-    CARD("rng_trap",      "Snare Trap",    CARD_SKILL,  CLASS_RANGER, 1, 0,  0, 0, false, 0, 0, false, 0, false, 0,  false, false, 0, TARGET_ENEMY,       1, FX(fx_rng_trap), "Reduce an enemy's next attack."),
-    CARD("rng_aim",       "Aimed Shot",    CARD_ATTACK, CLASS_RANGER, 2, 20, 0, 0, false, 0, 0, false, 0, false, 20, false, false, 0, TARGET_ENEMY,       1, NOFX, "Deal heavy damage to an enemy."),
-    CARD("rng_heal",      "Tranquil Shot", CARD_ATTACK, CLASS_RANGER, 1, 6,  6, 0, true,  0, 0, false, 0, false, 6,  false, false, 0, TARGET_ENEMY,       1, NOFX, "Deal damage to an enemy. Heal self."),
-    CARD("rng_barrage",   "Barrage",       CARD_ATTACK, CLASS_RANGER, 2, 14, 0, 0, false, 0, 0, false, 0, false, 14, false, false, 0, TARGET_ENEMY,       1, NOFX, "Deal damage to an enemy."),
-    CARD("rng_snipe",     "Snipe",         CARD_ATTACK, CLASS_RANGER, 3, 25, 0, 0, false, 0, 0, false, 0, false, 25, false, false, 0, TARGET_ENEMY,       1, NOFX, "Deal massive damage to an enemy."),
-    CARD("rng_rain",      "Rain of Arrows",CARD_ATTACK, CLASS_RANGER, 4, 18, 0, 0, false, 0, 0, false, 0, false, 18, false, false, 0, TARGET_ALL_ENEMIES, 1, NOFX, "Deal heavy damage to all enemies."),
-};
-
-const CardDef utility_cards[UTILITY_CARD_COUNT] = {
-    CARD("util_prep",  "Preparation", CARD_SKILL, CLASS_NONE, 0, 0, 0, 0, false, 0, 0, false, 0, false, 0, false, false, 0, TARGET_SELF,       1, FX(fx_util_prep),  "Draw 2 cards."),
-    CARD("util_energ", "Energize",    CARD_SKILL, CLASS_NONE, 0, 0, 0, 0, false, 0, 0, false, 0, false, 0, false, false, 0, TARGET_SELF,       1, FX(fx_util_energ), "Gain 2 energy."),
-    CARD("util_for",   "Fortify",     CARD_SKILL, CLASS_NONE, 1, 0, 0, 0, false, 6, 0, false, 0, false, 0, false, false, 0, TARGET_ALL_ALLIES, 1, NOFX,           "Grant 6 Shield to all allies."),
-    CARD("util_rejuv", "Rejuvenate",  CARD_SKILL, CLASS_NONE, 1, 0, 8, 0, false, 0, 0, false, 0, false, 0, false, false, 0, TARGET_ALL_ALLIES, 1, NOFX,           "Heal all allies for 8."),
-};
+CardDef guardian_cards[CLASS_CARD_COUNT];
+CardDef cleric_cards[CLASS_CARD_COUNT];
+CardDef mage_cards[CLASS_CARD_COUNT];
+CardDef rogue_cards[CLASS_CARD_COUNT];
+CardDef shaman_cards[CLASS_CARD_COUNT];
+CardDef ranger_cards[CLASS_CARD_COUNT];
+CardDef utility_cards[MAX_UTILITY_CARDS];
+int utility_card_count = 0;
 
 const CardDef *class_card_sets[CLASS_COUNT] = {
     [CLASS_GUARDIAN] = guardian_cards,
@@ -125,15 +29,219 @@ const CardDef *class_card_sets[CLASS_COUNT] = {
     [CLASS_RANGER]   = ranger_cards,
 };
 
-const int class_card_counts[CLASS_COUNT] = {
-    [CLASS_GUARDIAN] = GUARDIAN_CARD_COUNT,
-    [CLASS_CLERIC]   = CLERIC_CARD_COUNT,
-    [CLASS_MAGE]     = MAGE_CARD_COUNT,
-    [CLASS_ROGUE]    = ROGUE_CARD_COUNT,
-    [CLASS_SHAMAN]   = SHAMAN_CARD_COUNT,
-    [CLASS_RANGER]   = RANGER_CARD_COUNT,
-};
+int class_card_counts[CLASS_COUNT] = { 0 };
 
-#undef CARD
-#undef FX
-#undef NOFX
+static char *copy_text(const char *text)
+{
+    if (!text) text = "";
+    size_t len = strlen(text);
+    char *out = (char *)malloc(len + 1);
+    if (!out) return NULL;
+    memcpy(out, text, len + 1);
+    return out;
+}
+
+static const JsonValue *field(const JsonValue *object, const char *key)
+{
+    return json_object_get(object, key);
+}
+
+static CardType parse_card_type(const char *text)
+{
+    if (text && strcmp(text, "attack") == 0) return CARD_ATTACK;
+    if (text && strcmp(text, "power") == 0) return CARD_POWER;
+    return CARD_SKILL;
+}
+
+static ClassType parse_class(const char *text)
+{
+    if (text && strcmp(text, "guardian") == 0) return CLASS_GUARDIAN;
+    if (text && strcmp(text, "cleric") == 0) return CLASS_CLERIC;
+    if (text && strcmp(text, "mage") == 0) return CLASS_MAGE;
+    if (text && strcmp(text, "rogue") == 0) return CLASS_ROGUE;
+    if (text && strcmp(text, "shaman") == 0) return CLASS_SHAMAN;
+    if (text && strcmp(text, "ranger") == 0) return CLASS_RANGER;
+    return CLASS_NONE;
+}
+
+static TargetType parse_target(const char *text)
+{
+    if (text && strcmp(text, "all_enemies") == 0) return TARGET_ALL_ENEMIES;
+    if (text && strcmp(text, "ally") == 0) return TARGET_ALLY;
+    if (text && strcmp(text, "all_allies") == 0) return TARGET_ALL_ALLIES;
+    if (text && strcmp(text, "self") == 0) return TARGET_SELF;
+    return TARGET_ENEMY;
+}
+
+static StatusType parse_status(const char *text)
+{
+    if (text && strcmp(text, "burning") == 0) return STATUS_BURNING;
+    if (text && strcmp(text, "renew") == 0) return STATUS_RENEW;
+    if (text && strcmp(text, "trap") == 0) return STATUS_TRAP;
+    if (text && strcmp(text, "totem_heal") == 0) return STATUS_TOTEM_HEAL;
+    return STATUS_NONE;
+}
+
+static CardEffectType parse_effect_type(const char *text)
+{
+    if (text && strcmp(text, "draw_cards") == 0) return CARD_EFFECT_DRAW_CARDS;
+    if (text && strcmp(text, "gain_energy") == 0) return CARD_EFFECT_GAIN_ENERGY;
+    if (text && strcmp(text, "revive_target") == 0) return CARD_EFFECT_REVIVE_TARGET;
+    if (text && strcmp(text, "apply_status_target_enemy") == 0) return CARD_EFFECT_APPLY_STATUS_TARGET_ENEMY;
+    if (text && strcmp(text, "apply_status_target_ally") == 0) return CARD_EFFECT_APPLY_STATUS_TARGET_ALLY;
+    if (text && strcmp(text, "apply_status_all_allies") == 0) return CARD_EFFECT_APPLY_STATUS_ALL_ALLIES;
+    if (text && strcmp(text, "reset_caster_aggro") == 0) return CARD_EFFECT_RESET_CASTER_AGGRO;
+    if (text && strcmp(text, "transfer_aggro_to_guardian") == 0) return CARD_EFFECT_TRANSFER_AGGRO_TO_GUARDIAN;
+    return CARD_EFFECT_DRAW_CARDS;
+}
+
+static void reset_cards(void)
+{
+    memset(all_cards, 0, sizeof(all_cards));
+    memset(effect_storage, 0, sizeof(effect_storage));
+    memset(guardian_cards, 0, sizeof(guardian_cards));
+    memset(cleric_cards, 0, sizeof(cleric_cards));
+    memset(mage_cards, 0, sizeof(mage_cards));
+    memset(rogue_cards, 0, sizeof(rogue_cards));
+    memset(shaman_cards, 0, sizeof(shaman_cards));
+    memset(ranger_cards, 0, sizeof(ranger_cards));
+    memset(utility_cards, 0, sizeof(utility_cards));
+    memset(class_card_counts, 0, sizeof(class_card_counts));
+    all_card_count = 0;
+    utility_card_count = 0;
+}
+
+static CardDef *class_storage(ClassType ct)
+{
+    switch (ct)
+    {
+        case CLASS_GUARDIAN: return guardian_cards;
+        case CLASS_CLERIC: return cleric_cards;
+        case CLASS_MAGE: return mage_cards;
+        case CLASS_ROGUE: return rogue_cards;
+        case CLASS_SHAMAN: return shaman_cards;
+        case CLASS_RANGER: return ranger_cards;
+        default: return NULL;
+    }
+}
+
+static bool add_to_visible_sets(const CardDef *def, const char *class_text)
+{
+    if (!def || !class_text) return true;
+
+    if (strcmp(class_text, "utility") == 0)
+    {
+        if (utility_card_count >= MAX_UTILITY_CARDS)
+        {
+            LOG_E(CAT_CARD, "Too many utility cards in JSON");
+            return false;
+        }
+        utility_cards[utility_card_count++] = *def;
+        return true;
+    }
+
+    ClassType ct = def->class;
+    CardDef *set = class_storage(ct);
+    if (!set) return true;
+
+    if (class_card_counts[ct] >= CLASS_CARD_COUNT)
+    {
+        LOG_E(CAT_CARD, "Too many cards for class %s", class_text);
+        return false;
+    }
+
+    set[class_card_counts[ct]++] = *def;
+    return true;
+}
+
+bool card_defs_load_json(const char *path)
+{
+    char error[192] = "";
+    JsonValue *root = json_load_file(path, error, sizeof(error));
+    if (!root)
+    {
+        LOG_E(CAT_CARD, "%s", error);
+        return false;
+    }
+
+    const JsonValue *cards = field(root, "cards");
+    if (!cards || cards->type != JSON_ARRAY)
+    {
+        LOG_E(CAT_CARD, "%s: cards must be an array", path);
+        json_free(root);
+        return false;
+    }
+
+    reset_cards();
+    int count = json_array_count(cards);
+    for (int i = 0; i < count && all_card_count < MAX_JSON_CARDS; i++)
+    {
+        const JsonValue *item = json_array_get(cards, i);
+        if (!item || item->type != JSON_OBJECT) continue;
+
+        int slot = all_card_count;
+        const char *class_text = json_string(field(item, "class"), "utility");
+        CardDef def = { 0 };
+        def.id = copy_text(json_string(field(item, "id"), ""));
+        def.name = copy_text(json_string(field(item, "name"), ""));
+        def.type = parse_card_type(json_string(field(item, "type"), "skill"));
+        def.class = parse_class(class_text);
+        def.cost = json_int(field(item, "cost"), 0);
+        def.damage = json_int(field(item, "damage"), 0);
+        def.heal = json_int(field(item, "heal"), 0);
+        def.heal2 = json_int(field(item, "heal2"), 0);
+        def.heal_self = json_bool(field(item, "heal_self"), false);
+        def.shield = json_int(field(item, "shield"), 0);
+        def.burn_stacks = json_int(field(item, "burn_stacks"), 0);
+        def.taunt = json_bool(field(item, "taunt"), false);
+        def.taunt_turns = json_int(field(item, "taunt_turns"), 0);
+        def.interrupt = json_bool(field(item, "interrupt"), false);
+        def.aggro_self = json_int(field(item, "aggro_self"), 0);
+        def.exhaust = json_bool(field(item, "exhaust"), false);
+        def.consume = json_bool(field(item, "consume"), false);
+        def.channel = json_bool(field(item, "channel"), false);
+        def.channel_turns = json_int(field(item, "channel_turns"), 0);
+        def.target = parse_target(json_string(field(item, "target"), "enemy"));
+        def.repeat_hits = json_int(field(item, "repeat_hits"), 1);
+        if (def.repeat_hits < 1) def.repeat_hits = 1;
+        def.description = copy_text(json_string(field(item, "description"), ""));
+
+        const JsonValue *effects = field(item, "effects");
+        int effect_count = json_array_count(effects);
+        if (effect_count > MAX_CARD_EFFECTS_PER_CARD)
+            effect_count = MAX_CARD_EFFECTS_PER_CARD;
+        for (int fx = 0; fx < effect_count; fx++)
+        {
+            const JsonValue *effect = json_array_get(effects, fx);
+            if (!effect || effect->type != JSON_OBJECT) continue;
+            effect_storage[slot][def.effect_count].type = parse_effect_type(json_string(field(effect, "type"), ""));
+            effect_storage[slot][def.effect_count].status = parse_status(json_string(field(effect, "status"), ""));
+            effect_storage[slot][def.effect_count].amount = json_int(field(effect, "amount"), 0);
+            effect_storage[slot][def.effect_count].turns = json_int(field(effect, "turns"), 0);
+            def.effect_count++;
+        }
+        def.effects = def.effect_count > 0 ? effect_storage[slot] : NULL;
+
+        all_cards[slot] = def;
+        all_card_count++;
+        add_to_visible_sets(&all_cards[slot], class_text);
+    }
+
+    json_free(root);
+    LOG_I(CAT_CARD, "Loaded %d cards from %s", all_card_count, path);
+    return all_card_count > 0;
+}
+
+const CardDef *card_def_by_id(const char *id)
+{
+    if (!id) return NULL;
+    for (int i = 0; i < all_card_count; i++)
+        if (all_cards[i].id && strcmp(all_cards[i].id, id) == 0)
+            return &all_cards[i];
+    return NULL;
+}
+
+int card_defs_loaded_count(void)
+{
+    return all_card_count;
+}

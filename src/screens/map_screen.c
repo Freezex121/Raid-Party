@@ -1,6 +1,7 @@
 #include "screens.h"
 #include "game.h"
 #include "systems/map.h"
+#include "data/area_defs.h"
 #include "data/encounter_defs.h"
 #include "util/log.h"
 #include "ui/relic_tray.h"
@@ -96,10 +97,18 @@ void map_screen_draw(void)
 {
     theme_draw_background();
 
-    char title[64];
-    snprintf(title, sizeof(title), "Floor %d", g_state.map.floor + 1);
+    const AreaDef *area = area_def(g_state.current_area);
+    int floor_count = area_floor_count(g_state.current_area);
+
+    char title[96];
+    snprintf(title, sizeof(title), "%s", area ? area->name : "Area");
     DrawText(title, (VIRT_W / 2) - MeasureText(title, 16) / 2, 14, 16, RAYWHITE);
-    DrawText("Choose your route", (VIRT_W / 2) - MeasureText("Choose your route", 8) / 2, 36, 8, (Color){ 150, 155, 180, 210 });
+    char subtitle[96];
+    snprintf(subtitle, sizeof(subtitle), "Area %d  Floor %d/%d  Choose your route",
+        g_state.current_area + 1,
+        g_state.map.floor + 1,
+        floor_count);
+    DrawText(subtitle, (VIRT_W / 2) - MeasureText(subtitle, 8) / 2, 36, 8, (Color){ 150, 155, 180, 210 });
     relic_tray_draw(g_state.relics, g_state.relic_count, (Rectangle){ 482.0f, 10.0f, 146.0f, 42.0f });
 
     MapState *map = &g_state.map;

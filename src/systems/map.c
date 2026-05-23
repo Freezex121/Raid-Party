@@ -1,5 +1,6 @@
 #include "map.h"
 #include "constants.h"
+#include "util/json.h"
 #include "util/log.h"
 #include <string.h>
 
@@ -13,59 +14,83 @@ typedef struct {
 static NodeDef floor_layouts[MAX_FLOORS][MAX_NODES_PER_FLOOR];
 static int floor_node_counts[MAX_FLOORS];
 
-static void init_layouts(void)
+static const JsonValue *field(const JsonValue *object, const char *key)
 {
-    static bool initialized = false;
-    if (initialized) return;
+    return json_object_get(object, key);
+}
 
-    NodeDef f1[] = {
-        { NODE_START,  0, 0, {1, 2}, 2 },
-        { NODE_COMBAT, 1, 0, {3, 4}, 2 },
-        { NODE_COMBAT, 1, 1, {4},    1 },
-        { NODE_COMBAT, 2, 0, {5},    1 },
-        { NODE_EVENT,  2, 1, {5},    1 },
-        { NODE_REST,   3, 0, {6},    1 },
-        { NODE_ELITE,  4, 0, {7},    1 },
-        { NODE_BOSS,   5, 0, {},     0 },
-    };
-    memcpy(floor_layouts[0], f1, sizeof(f1));
-    floor_node_counts[0] = 8;
+static NodeType parse_node_type(const char *text)
+{
+    if (text && strcmp(text, "start") == 0) return NODE_START;
+    if (text && strcmp(text, "combat") == 0) return NODE_COMBAT;
+    if (text && strcmp(text, "elite") == 0) return NODE_ELITE;
+    if (text && strcmp(text, "rest") == 0) return NODE_REST;
+    if (text && strcmp(text, "shop") == 0) return NODE_SHOP;
+    if (text && strcmp(text, "event") == 0) return NODE_EVENT;
+    if (text && strcmp(text, "boss") == 0) return NODE_BOSS;
+    return NODE_COMBAT;
+}
 
-    NodeDef f2[] = {
-        { NODE_START,  0, 0, {1, 2}, 2 },
-        { NODE_COMBAT, 1, 0, {3, 4}, 2 },
-        { NODE_COMBAT, 1, 1, {4, 5}, 2 },
-        { NODE_ELITE,  2, 0, {6},    1 },
-        { NODE_REST,   2, 1, {6, 7}, 2 },
-        { NODE_EVENT,  2, 2, {7},    1 },
-        { NODE_COMBAT, 3, 0, {8},    1 },
-        { NODE_SHOP,   3, 1, {9},    1 },
-        { NODE_ELITE,  4, 0, {10},   1 },
-        { NODE_COMBAT, 4, 1, {10},   1 },
-        { NODE_BOSS,   5, 0, {},     0 },
-    };
-    memcpy(floor_layouts[1], f2, sizeof(f2));
-    floor_node_counts[1] = 11;
+bool map_load_json(const char *path)
+{
+    char error[192] = "";
+    JsonValue *root = json_load_file(path, error, sizeof(error));
+    if (!root)
+    {
+        LOG_E(CAT_SCREEN, "%s", error);
+        return false;
+    }
 
-    NodeDef f3[] = {
-        { NODE_START,  0, 0, {1, 2}, 2 },
-        { NODE_COMBAT, 1, 0, {3},    1 },
-        { NODE_ELITE,  1, 1, {3, 4}, 2 },
-        { NODE_REST,   2, 0, {5, 6}, 2 },
-        { NODE_SHOP,   2, 1, {6, 7}, 2 },
-        { NODE_COMBAT, 3, 0, {8},    1 },
-        { NODE_ELITE,  3, 1, {8},    1 },
-        { NODE_EVENT,  3, 2, {9},    1 },
-        { NODE_COMBAT, 4, 0, {10},   1 },
-        { NODE_REST,   4, 1, {10},   1 },
-        { NODE_ELITE,  5, 0, {12},   1 },
-        { NODE_COMBAT, 5, 1, {12},   1 },
-        { NODE_BOSS,   6, 0, {},     0 },
-    };
-    memcpy(floor_layouts[2], f3, sizeof(f3));
-    floor_node_counts[2] = 13;
+    const JsonValue *floors = field(root, "floors");
+    if (!floors || floors->type != JSON_ARRAY)
+    {
+        LOG_E(CAT_SCREEN, "%s: floors must be an array", path);
+        json_free(root);
+        return false;
+    }
 
-    initialized = true;
+    memset(floor_layouts, 0, sizeof(floor_layouts));
+    memset(floor_node_counts, 0, sizeof(floor_node_counts));
+
+    int loaded_floors = 0;
+    int floor_count = json_array_count(floors);
+    for (int f = 0; f < floor_count; f++)
+    {
+        const JsonValue *floor_obj = json_array_get(floors, f);
+        if (!floor_obj || floor_obj->type != JSON_OBJECT) continue;
+
+        int floor_index = json_int(field(floor_obj, "floor"), f + 1) - 1;
+        if (floor_index < 0 || floor_index >= MAX_FLOORS) continue;
+
+        const JsonValue *nodes = field(floor_obj, "nodes");
+        int node_count = json_array_count(nodes);
+        if (node_count > MAX_NODES_PER_FLOOR)
+            node_count = MAX_NODES_PER_FLOOR;
+
+        for (int n = 0; n < node_count; n++)
+        {
+            const JsonValue *node = json_array_get(nodes, n);
+            if (!node || node->type != JSON_OBJECT) continue;
+
+            NodeDef *out = &floor_layouts[floor_index][floor_node_counts[floor_index]++];
+            out->type = parse_node_type(json_string(field(node, "type"), "combat"));
+            out->row = json_int(field(node, "row"), 0);
+            out->col = json_int(field(node, "col"), 0);
+
+            const JsonValue *connections = field(node, "connections");
+            int conn_count = json_array_count(connections);
+            if (conn_count > 3) conn_count = 3;
+            for (int c = 0; c < conn_count; c++)
+                out->conns[out->conn_count++] = json_int(json_array_get(connections, c), -1);
+        }
+
+        if (floor_node_counts[floor_index] > 0)
+            loaded_floors++;
+    }
+
+    json_free(root);
+    LOG_I(CAT_SCREEN, "Loaded %d map floors from %s", loaded_floors, path);
+    return loaded_floors == MAX_FLOORS;
 }
 
 static void calc_positions(MapNode *nodes, int count, int floor)
@@ -106,7 +131,6 @@ static void calc_positions(MapNode *nodes, int count, int floor)
 
 void map_generate(MapState *map, int floor)
 {
-    init_layouts();
     memset(map, 0, sizeof(MapState));
 
     if (floor < 0) floor = 0;
@@ -134,7 +158,8 @@ void map_generate(MapState *map, int floor)
     calc_positions(map->nodes, count, floor);
 
     int start = map_find_start(map);
-    if (start >= 0) map->nodes[start].available = true;
+    if (start >= 0 && start < map->node_count)
+        map->nodes[start].available = true;
 
     map->current_index = -1;
 

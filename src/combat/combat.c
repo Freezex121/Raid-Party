@@ -1,6 +1,8 @@
 #include "combat.h"
 #include "game.h"
+#include "data/area_defs.h"
 #include "data/card_defs.h"
+#include "data/enemy_defs.h"
 #include "systems/relic.h"
 #include "ui/floating_text.h"
 #include "ui/layout.h"
@@ -132,6 +134,8 @@ static void apply_shield_to_ally(CombatState *cs, int ally_idx, int amount)
     if (ally_idx < 0 || ally_idx >= cs->party.count) return;
     PartyMember *pm = &cs->party.members[ally_idx];
     if (!pm->alive) return;
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_MIRROR_SHIELD))
+        amount += 3;
     pm->shield += amount;
 
     char buf[16];
@@ -195,13 +199,26 @@ static void apply_damage_to_ally(CombatState *cs, int ally_idx, int damage, cons
 
     if (pm->hp <= 0)
     {
-        pm->alive = false;
-        pm->aggro = 0;
-        pm->shield = 0;
-        LOG_I(CAT_COMBAT, "%s DOWNED! Removing %s cards.", pm->name, class_name(pm->class));
-        combat_feed_add(cs, "%s is downed", pm->name);
-        deck_remove_class_cards(&cs->deck, pm->class);
-        ft_spawn(p.x - 18.0f, p.y + 7.0f, "DOWNED", 8, (Color){ 240, 80, 80, 255 });
+        if (!cs->phoenix_used && relic_has(g_state.relics, g_state.relic_count, RELIC_PHOENIX_FEATHER))
+        {
+            cs->phoenix_used = true;
+            pm->hp = pm->max_hp / 2;
+            if (pm->hp < 1) pm->hp = 1;
+            pm->shield = 0;
+            LOG_I(CAT_COMBAT, "%s saved by Phoenix Feather!", pm->name);
+            combat_feed_add(cs, "Phoenix Feather saved %s", pm->name);
+            ft_spawn(p.x - 18.0f, p.y + 7.0f, "REVIVED", 7, (Color){ 255, 150, 50, 255 });
+        }
+        else
+        {
+            pm->alive = false;
+            pm->aggro = 0;
+            pm->shield = 0;
+            LOG_I(CAT_COMBAT, "%s DOWNED! Removing %s cards.", pm->name, class_name(pm->class));
+            combat_feed_add(cs, "%s is downed", pm->name);
+            deck_remove_class_cards(&cs->deck, pm->class);
+            ft_spawn(p.x - 18.0f, p.y + 7.0f, "DOWNED", 8, (Color){ 240, 80, 80, 255 });
+        }
     }
 }
 
@@ -461,6 +478,23 @@ static void apply_relic_combat_start(CombatState *cs)
         }
         combat_feed_add(cs, "Mending Bead: +4 HP");
     }
+
+    // Spirit Stone: +1 energy per owned relic (max +3)
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_SPIRIT_STONE))
+    {
+        int bonus = g_state.relic_count;
+        if (bonus > 3) bonus = 3;
+        cs->energy.current += bonus;
+        if (cs->energy.current > cs->energy.max) cs->energy.current = cs->energy.max;
+        combat_feed_add(cs, "Spirit Stone: +%d energy", bonus);
+    }
+
+    // Mana Gem bonus
+    if (cs->mana_gem_bonus > 0)
+    {
+        cs->energy.max += cs->mana_gem_bonus;
+    }
+
 }
 
 // ── Card resolver ───────────────────────────────────────────
@@ -472,6 +506,7 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
     CardInstance *inst = &cs->deck.cards[cs->deck.hand[hand_idx]];
     const CardDef *card = inst->def;
     if (!card || !card->name) return;
+    int played_uid = inst->uid;
 
     bool ug = inst->upgraded;
 
@@ -513,6 +548,35 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
     dmg = (int)(dmg * combo_mult);
     hl  = (int)(hl * combo_mult);
     sh  = (int)(sh * combo_mult);
+
+    // ── Blood Amber: lose 1 HP, gain 1 energy per card played ──
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_BLOOD_AMBER))
+    {
+        int caster = -1;
+        find_caster(cs, card->class, &caster);
+        if (caster >= 0)
+        {
+            cs->party.members[caster].hp -= 1;
+            if (cs->party.members[caster].hp < 0) cs->party.members[caster].hp = 0;
+            cs->energy.current += 1;
+            if (cs->energy.current > cs->energy.max) cs->energy.current = cs->energy.max;
+            combat_feed_add(cs, "Blood Amber: -1 HP, +1 energy");
+        }
+    }
+
+    // ── Echo Bell: double effects of first card played (cost 1+) ──
+    float echo_mult = 1.0f;
+    if (!cs->echo_used && card->cost >= 1 && relic_has(g_state.relics, g_state.relic_count, RELIC_ECHO_BELL))
+    {
+        echo_mult = 2.0f;
+        cs->echo_used = true;
+        combat_feed_add(cs, "Echo Bell: doubled");
+    }
+
+    // Apply multiplier with echo
+    dmg = (int)(dmg * echo_mult);
+    hl  = (int)(hl * echo_mult);
+    sh  = (int)(sh * echo_mult);
 
     // ── Utility card effects ────────────────────────────────
     // Channel cards don't resolve immediately — they start a channel instead
@@ -620,6 +684,12 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
         deck_exhaust_index(&cs->deck, hand_idx);
         LOG_I(CAT_CARD, "  %s starts channeling for %d turns!", card->name, card->channel_turns);
     }
+    else if (card->consume)
+    {
+        deck_remove_card_by_uid(&cs->deck, played_uid);
+        deck_remove_card_by_uid(&g_state.run_deck, played_uid);
+        combat_feed_add(cs, "%s consumed", card->name);
+    }
     else if (card->exhaust)
         deck_exhaust_index(&cs->deck, hand_idx);
     else
@@ -642,8 +712,20 @@ static void check_victory(CombatState *cs)
         int gold_gain = g_state.encounter_is_boss ? 50 : (g_state.encounter_is_elite ? 25 : 10);
         if (relic_has(g_state.relics, g_state.relic_count, RELIC_GILDED_CHARM))
             gold_gain += 8;
+        if (relic_has(g_state.relics, g_state.relic_count, RELIC_RABBIT_FOOT) && (rand() % 10) == 0)
+            gold_gain *= 2;
         ft_spawn_gold(gold_gain);
         cs->gold_spawned = true;
+    }
+
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_LEECH_BLADE))
+    {
+        int lowest = party_lowest_hp(&cs->party);
+        if (lowest >= 0)
+        {
+            apply_heal_to_ally(cs, lowest, 5);
+            combat_feed_add(cs, "Leech Blade: healed lowest ally");
+        }
     }
 
     LOG_I(CAT_COMBAT, "=== VICTORY ===");
@@ -696,6 +778,8 @@ static void enemy_action(EnemyState *e, CombatState *cs)
     {
         for (int i = 0; i < cs->party.count; i++)
             apply_damage_to_ally(cs, i, damage, e->def->name);
+        if (relic_has(g_state.relics, g_state.relic_count, RELIC_THORNED_AMULET))
+            apply_damage_to_enemy(cs, (int)(e - cs->enemies), 2);
         check_defeat(cs);
         return;
     }
@@ -710,6 +794,8 @@ static void enemy_action(EnemyState *e, CombatState *cs)
         if (target < 0) break;
         apply_damage_to_ally(cs, target, damage, e->def->name);
     }
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_THORNED_AMULET) && damage > 0)
+        apply_damage_to_enemy(cs, (int)(e - cs->enemies), 2);
 
     if (ab->shield_amount > 0 && e->hp > 0)
         apply_shield_to_enemy(cs, (int)(e - cs->enemies), ab->shield_amount);
@@ -915,7 +1001,10 @@ void combat_start(CombatState *cs, const Party *party, const EncounterDef *encou
     cs->hovered_enemy = -1;
     cs->hovered_ally = -1;
     cs->gold_spawned = false;
-    cs->floor_scale = g_state.map.floor == 0 ? 1.0f : (g_state.map.floor == 1 ? 1.15f : 1.30f);
+    cs->floor_scale = area_difficulty_scale(g_state.current_area) * (1.0f + 0.12f * (float)g_state.map.floor);
+    cs->phoenix_used = false;
+    cs->echo_used = false;
+    cs->mana_gem_bonus = relic_has(g_state.relics, g_state.relic_count, RELIC_MANA_GEM) ? 1 : 0;
     cs->channel_card = NULL;
     cs->channel_remaining = 0;
     cs->channel_class = CLASS_NONE;
@@ -948,7 +1037,8 @@ void combat_start(CombatState *cs, const Party *party, const EncounterDef *encou
 
     for (int i = 0; i < cs->enemy_count; i++)
     {
-        const EnemyDef *ed = (encounter && encounter->enemies[i]) ? encounter->enemies[i] : &flame_imp;
+        const EnemyDef *ed = (encounter && encounter->enemies[i]) ? encounter->enemies[i] : enemy_def_by_id("flame_imp");
+        if (!ed) continue;
         LOG_T("  enemy[%d]: %s HP=%d", i, ed->name, ed->hp);
         int scaled_hp = (int)(ed->hp * cs->floor_scale);
         cs->enemies[i].def = ed;
@@ -962,8 +1052,67 @@ void combat_start(CombatState *cs, const Party *party, const EncounterDef *encou
     calc_enemy_positions(cs->enemies, cs->enemy_count);
     LOG_T("  enemy positions calculated");
 
+    // ── Enemy-affecting relic effects ───────────────────────────
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_POISON_FANG))
+    {
+        for (int i = 0; i < cs->enemy_count; i++)
+            if (cs->enemies[i].def && cs->enemies[i].hp > 0)
+                status_apply(cs->enemies[i].statuses, &cs->enemies[i].status_count, STATUS_BURNING, 3, 2);
+        combat_feed_add(cs, "Poison Fang: +2 Burning");
+    }
+
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_VOID_STONE))
+    {
+        for (int i = 0; i < cs->enemy_count; i++)
+            cs->enemies[i].shield = 0;
+        combat_feed_add(cs, "Void Stone: removed enemy shields");
+    }
+
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_TOXIC_VIAL))
+    {
+        int living = 0;
+        for (int i = 0; i < cs->enemy_count; i++)
+            if (cs->enemies[i].def && cs->enemies[i].hp > 0) living++;
+        if (living > 0)
+        {
+            int pick = rand() % living;
+            int idx = 0;
+            for (int i = 0; i < cs->enemy_count; i++)
+            {
+                if (!cs->enemies[i].def || cs->enemies[i].hp <= 0) continue;
+                if (idx == pick)
+                {
+                    status_apply(cs->enemies[i].statuses, &cs->enemies[i].status_count, STATUS_BURNING, 3, 3);
+                    break;
+                }
+                idx++;
+            }
+        }
+        combat_feed_add(cs, "Toxic Vial: applied Burning");
+    }
+
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_TITAN_HEART) && g_state.titan_heart_bonus == 0)
+    {
+        for (int i = 0; i < cs->party.count; i++)
+            cs->party.members[i].max_hp += 10;
+        g_state.titan_heart_bonus = 10;
+    }
+
     LOG_T("  calling advance_turn");
     advance_turn(cs);
+
+    // Crystal Ball: +1 cast time on enemies' current intent (after advance_turn sets them)
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_CRYSTAL_BALL))
+    {
+        for (int i = 0; i < cs->enemy_count; i++)
+        {
+            EnemyState *e = &cs->enemies[i];
+            if (!e->def || e->hp <= 0 || e->intent.ability_idx < 0) continue;
+            e->intent.remaining_turns++;
+        }
+        combat_feed_add(cs, "Crystal Ball: delayed enemies");
+    }
+
     LOG_T("combat_start END");
 }
 

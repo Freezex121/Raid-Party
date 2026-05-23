@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 
-#define MAX_RUN_RELICS 12
+#define MAX_RUN_RELICS 26
 #define RELIC_REWARD_CHOICES 3
 
 typedef enum {
@@ -14,6 +14,25 @@ typedef enum {
     RELIC_SCOUTING_MAP,
     RELIC_GILDED_CHARM,
     RELIC_VETERAN_SIGIL,
+    RELIC_PHOENIX_FEATHER,
+    RELIC_THORNED_AMULET,
+    RELIC_MIRROR_SHIELD,
+    RELIC_BLOOD_AMBER,
+    RELIC_POISON_FANG,
+    RELIC_SPIRIT_STONE,
+    RELIC_BANDAGE_ROLL,
+    RELIC_EXPLORER_LANTERN,
+    RELIC_MANA_GEM,
+    RELIC_LUCKY_COIN,
+    RELIC_SCHOLAR_NOTES,
+    RELIC_CRYSTAL_BALL,
+    RELIC_VOID_STONE,
+    RELIC_TITAN_HEART,
+    RELIC_FRUGAL_TOME,
+    RELIC_RABBIT_FOOT,
+    RELIC_ECHO_BELL,
+    RELIC_LEECH_BLADE,
+    RELIC_TOXIC_VIAL,
     RELIC_COUNT
 } RelicId;
 
@@ -24,7 +43,9 @@ typedef struct {
     const char *description;
 } RelicDef;
 
+bool relic_defs_load_json(const char *path);
 const RelicDef *relic_def(RelicId id);
+int relic_loaded_count(void);
 bool relic_has(const RelicId *owned, int count, RelicId id);
 bool relic_add_unique(RelicId *owned, int *count, RelicId id);
 RelicId relic_random_unowned(const RelicId *owned, int count);

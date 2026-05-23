@@ -2,6 +2,7 @@
 #include "ui/ui.h"
 #include "ui/theme.h"
 #include "game.h"
+#include "data/area_defs.h"
 #include "util/tween.h"
 #include "util/text.h"
 #include "util/log.h"
@@ -129,36 +130,41 @@ void draft_screen_update(void)
             card_click_cb(i);
     }
 
-    if (selected_count == max_selected)
+    if (selected_count > 0)
     {
-        begin_btn.text = "BEGIN RUN";
+        begin_btn.text = selected_count == max_selected ? "BEGIN RUN" : "BEGIN UNDERMANNED";
         begin_btn_alpha = 1.0f;
         button_update(&begin_btn);
 
         if (begin_btn.pressed_this_frame)
         {
             int sel_idx = 0;
-            for (int i = 0; i < CLASS_COUNT && sel_idx < max_selected; i++)
+            for (int i = 0; i < CLASS_COUNT && sel_idx < selected_count; i++)
             {
                 if (selected[i])
                     g_state.selected_classes[sel_idx++] = i;
             }
+            g_state.selected_count = sel_idx;
             LOG_I(CAT_DRAFT, "BEGIN RUN pressed. selected_count=%d, max_selected=%d", g_state.selected_count, max_selected);
             for (int i = 0; i < g_state.selected_count; i++)
                 LOG_I(CAT_DRAFT, "  selected_classes[%d] = %d", i, g_state.selected_classes[i]);
             memset(&g_state.map, 0, sizeof(g_state.map));
             g_state.map.floor = 0;
-            g_state.gold = 0;
+            g_state.current_area = area_clamp_index(g_state.current_area);
+            g_state.gold = meta_starting_gold(&g_state.meta);
             g_state.relic_count = 0;
             g_state.relic_reward_pending = false;
             g_state.relic_reward_count = 0;
             g_state.encounter = NULL;
             g_state.encounter_is_elite = false;
             g_state.encounter_is_boss = false;
+            g_state.result_area = g_state.current_area;
             g_state.result_floor = 1;
             g_state.result_bosses_defeated = 0;
             g_state.result_recorded = false;
             g_state.result_unlocked_party_size = 0;
+            g_state.result_unlocked_area = -1;
+            g_state.result_renown_gained = 0;
             g_state.run_won = false;
             g_state.result_reason[0] = '\0';
             party_create(&g_state.run_party, g_state.selected_classes, g_state.selected_count);
@@ -172,7 +178,7 @@ void draft_screen_update(void)
     else
     {
         begin_btn.text = selected_count > 0
-            ? TextFormat("SELECT %d TO BEGIN", max_selected)
+            ? "BEGIN UNDERMANNED"
             : "ASSEMBLE YOUR PARTY";
         begin_btn_alpha = 0.4f;
     }
@@ -186,8 +192,16 @@ void draft_screen_draw(void)
 
     char counter[64];
     snprintf(counter, sizeof(counter), "%d / %d selected", selected_count, max_selected);
-    Color counter_color = selected_count == max_selected ? (Color){ 70, 220, 120, 255 } : (Color){ 160, 160, 180, 255 };
+    Color counter_color = selected_count > 0 ? (Color){ 70, 220, 120, 255 } : (Color){ 160, 160, 180, 255 };
     DrawText(counter, VIRT_W/2 - MeasureText(counter, 8) / 2, (int)title_y + 21, 8, counter_color);
+
+    const AreaDef *area = area_def(g_state.current_area);
+    if (area)
+    {
+        char area_line[96];
+        snprintf(area_line, sizeof(area_line), "%s  Floor set: %d", area->name, area->floor_count);
+        DrawText(area_line, VIRT_W / 2 - MeasureText(area_line, 7) / 2, (int)title_y + 34, 7, (Color){ 150, 155, 180, 200 });
+    }
 
     for (int i = 0; i < CLASS_COUNT; i++)
     {
@@ -245,9 +259,15 @@ void draft_screen_draw(void)
             DrawText("SELECTED", (int)(draw_rect.x + draw_rect.width - 70), (int)(draw_rect.y + 10), 6, (Color){ 220, 245, 230, 230 });
     }
 
-    if (selected_count == max_selected)
+    if (selected_count > 0)
     {
         button_draw(&begin_btn);
+        if (selected_count < max_selected)
+        {
+            char warn[96];
+            snprintf(warn, sizeof(warn), "Party not full: %d/%d selected", selected_count, max_selected);
+            DrawText(warn, VIRT_W / 2 - MeasureText(warn, 7) / 2, 344, 7, (Color){ 230, 205, 95, 220 });
+        }
     }
     else
     {

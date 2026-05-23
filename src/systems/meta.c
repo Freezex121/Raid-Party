@@ -9,15 +9,21 @@ void meta_set_defaults(MetaProgress *meta)
     if (!meta) return;
     memset(meta, 0, sizeof(*meta));
     meta->best_floor = 1;
+    meta->highest_area_unlocked = 0;
 }
 
-static void apply_unlock_rules(MetaProgress *meta)
+static void sanitize_meta(MetaProgress *meta)
 {
     if (!meta) return;
-    if (meta->bosses_defeated_total >= 2)
+    if (meta->best_floor < 1) meta->best_floor = 1;
+    if (meta->renown < 0) meta->renown = 0;
+    if (meta->highest_area_unlocked < 0) meta->highest_area_unlocked = 0;
+    if (meta->highest_area_unlocked >= META_MAX_AREAS) meta->highest_area_unlocked = META_MAX_AREAS - 1;
+    if (meta->starting_gold_rank < 0) meta->starting_gold_rank = 0;
+    if (meta->starting_gold_rank > META_TRAVEL_FUND_MAX_RANK)
+        meta->starting_gold_rank = META_TRAVEL_FUND_MAX_RANK;
+    if (meta->slot5_unlocked)
         meta->slot4_unlocked = true;
-    if (meta->wins > 0 || meta->bosses_defeated_total >= 6)
-        meta->slot5_unlocked = true;
 }
 
 void meta_load(MetaProgress *meta)
@@ -40,12 +46,15 @@ void meta_load(MetaProgress *meta)
         else if (strcmp(key, "wins") == 0) meta->wins = value;
         else if (strcmp(key, "best_floor") == 0) meta->best_floor = value;
         else if (strcmp(key, "bosses_defeated_total") == 0) meta->bosses_defeated_total = value;
+        else if (strcmp(key, "renown") == 0) meta->renown = value;
+        else if (strcmp(key, "highest_area_unlocked") == 0) meta->highest_area_unlocked = value;
+        else if (strcmp(key, "starting_gold_rank") == 0) meta->starting_gold_rank = value;
         else if (strcmp(key, "slot4_unlocked") == 0) meta->slot4_unlocked = value != 0;
         else if (strcmp(key, "slot5_unlocked") == 0) meta->slot5_unlocked = value != 0;
     }
 
     fclose(f);
-    apply_unlock_rules(meta);
+    sanitize_meta(meta);
 }
 
 void meta_save(const MetaProgress *meta)
@@ -60,6 +69,9 @@ void meta_save(const MetaProgress *meta)
     fprintf(f, "wins=%d\n", meta->wins);
     fprintf(f, "best_floor=%d\n", meta->best_floor);
     fprintf(f, "bosses_defeated_total=%d\n", meta->bosses_defeated_total);
+    fprintf(f, "renown=%d\n", meta->renown);
+    fprintf(f, "highest_area_unlocked=%d\n", meta->highest_area_unlocked);
+    fprintf(f, "starting_gold_rank=%d\n", meta->starting_gold_rank);
     fprintf(f, "slot4_unlocked=%d\n", meta->slot4_unlocked ? 1 : 0);
     fprintf(f, "slot5_unlocked=%d\n", meta->slot5_unlocked ? 1 : 0);
     fclose(f);
@@ -73,14 +85,52 @@ int meta_party_slots(const MetaProgress *meta)
     return 3;
 }
 
-void meta_record_run(MetaProgress *meta, bool won, int floor_reached, int bosses_defeated)
+int meta_starting_gold(const MetaProgress *meta)
 {
-    if (!meta) return;
+    if (!meta) return 0;
+    int rank = meta->starting_gold_rank;
+    if (rank < 0) rank = 0;
+    if (rank > META_TRAVEL_FUND_MAX_RANK) rank = META_TRAVEL_FUND_MAX_RANK;
+    return rank * META_TRAVEL_FUND_GOLD_PER_RANK;
+}
+
+int meta_next_travel_fund_cost(const MetaProgress *meta)
+{
+    if (!meta || meta->starting_gold_rank >= META_TRAVEL_FUND_MAX_RANK)
+        return 0;
+    return (meta->starting_gold_rank + 1) * 3;
+}
+
+bool meta_area_unlocked(const MetaProgress *meta, int area_index)
+{
+    if (!meta) return area_index <= 0;
+    return area_index >= 0 && area_index <= meta->highest_area_unlocked;
+}
+
+int meta_record_run(MetaProgress *meta, bool won, int area_index, int floor_reached, int bosses_defeated)
+{
+    if (!meta) return 0;
+    if (area_index < 0) area_index = 0;
     meta->runs_completed++;
     if (won)
         meta->wins++;
     if (floor_reached > meta->best_floor)
         meta->best_floor = floor_reached;
     meta->bosses_defeated_total += bosses_defeated;
-    apply_unlock_rules(meta);
+
+    int renown_gained = bosses_defeated * 2;
+    if (floor_reached > 1)
+        renown_gained += 1;
+    if (won)
+        renown_gained += 3 + area_index;
+    if (renown_gained < 1)
+        renown_gained = 1;
+
+    meta->renown += renown_gained;
+
+    if (won && area_index >= meta->highest_area_unlocked && meta->highest_area_unlocked < META_MAX_AREAS - 1)
+        meta->highest_area_unlocked = area_index + 1;
+
+    sanitize_meta(meta);
+    return renown_gained;
 }

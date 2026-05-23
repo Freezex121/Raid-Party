@@ -17,13 +17,16 @@ static int hovered_reward = -1;
 static void generate_rewards(void)
 {
     int count = g_state.encounter_is_elite ? 4 : (g_state.encounter_is_boss ? 4 : 3);
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_EXPLORER_LANTERN))
+        count++;
+    if (count > MAX_REWARD_CARDS) count = MAX_REWARD_CARDS;
     g_state.reward_count = count;
     g_state.reward_picks_remaining = g_state.encounter_is_boss ? 2 : 1;
     for (int i = 0; i < MAX_REWARD_CARDS; i++)
         g_state.reward_picked[i] = false;
 
     // Collect all eligible cards from party classes + utilities
-    const CardDef *pool[48];
+    const CardDef *pool[80];
     int pool_count = 0;
 
     for (int i = 0; i < g_state.selected_count; i++)
@@ -34,11 +37,11 @@ static void generate_rewards(void)
             pool[pool_count++] = &set[c];
     }
     // Also include utility cards
-    for (int c = 0; c < UTILITY_CARD_COUNT; c++)
+    for (int c = 0; c < utility_card_count; c++)
         pool[pool_count++] = &utility_cards[c];
 
     // Pick random cards, no duplicates
-    int used_indices[48] = {0};
+    int used_indices[80] = {0};
 
     for (int i = 0; i < count; i++)
     {
@@ -96,6 +99,16 @@ void reward_screen_update(void)
                     g_state.reward_upgraded[i] ? " UPGRADED" : "");
                 g_state.reward_picked[i] = true;
                 g_state.reward_picks_remaining--;
+
+                // Scholar's Notes: 5g per unpicked card on final pick
+                if (g_state.reward_picks_remaining <= 0 && relic_has(g_state.relics, g_state.relic_count, RELIC_SCHOLAR_NOTES))
+                {
+                    int unpicked = 0;
+                    for (int j = 0; j < g_state.reward_count; j++)
+                        if (!g_state.reward_picked[j]) unpicked++;
+                    int gold_gain = unpicked * 5;
+                    g_state.gold += gold_gain;
+                }
 
                 if (g_state.reward_picks_remaining <= 0)
                 {

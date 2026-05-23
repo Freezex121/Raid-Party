@@ -4,7 +4,6 @@
 #include "systems/relic.h"
 #include "util/log.h"
 #include "ui/deck_browser.h"
-#include "ui/relic_tray.h"
 #include "ui/theme.h"
 #include "ui/layout.h"
 #include "raylib.h"
@@ -12,7 +11,6 @@
 
 #define UPGRADE_COST 30
 #define REMOVE_COST 20
-#define RELIC_COST 45
 
 typedef enum {
     SHOP_MAIN,
@@ -25,20 +23,16 @@ static ShopMode mode = SHOP_MAIN;
 static int hovered_deck = -1;
 static DeckBrowser shop_browser;
 static char msg[128] = "";
+static bool lucky_coin_given = false;
 
 static Rectangle shop_upgrade_button(void)
 {
-    return (Rectangle){ 66.0f, 154.0f, 160.0f, 44.0f };
+    return (Rectangle){ (float)((VIRT_W / 2) - 190), 154.0f, 170.0f, 44.0f };
 }
 
 static Rectangle shop_remove_button(void)
 {
-    return (Rectangle){ 240.0f, 154.0f, 160.0f, 44.0f };
-}
-
-static Rectangle shop_relic_button(void)
-{
-    return (Rectangle){ 414.0f, 154.0f, 160.0f, 44.0f };
+    return (Rectangle){ (float)((VIRT_W / 2) + 20), 154.0f, 170.0f, 44.0f };
 }
 
 static Rectangle shop_browser_bounds(void)
@@ -48,6 +42,13 @@ static Rectangle shop_browser_bounds(void)
 
 void shop_screen_update(void)
 {
+    // Lucky Coin: gain 10g once per shop visit
+    if (!lucky_coin_given && relic_has(g_state.relics, g_state.relic_count, RELIC_LUCKY_COIN))
+    {
+        g_state.gold += 10;
+        lucky_coin_given = true;
+    }
+
     if (mode == SHOP_MAIN)
     {
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
@@ -55,7 +56,6 @@ void shop_screen_update(void)
             Vector2 m = GetMousePosition();
             Rectangle upg_btn = shop_upgrade_button();
             Rectangle rem_btn = shop_remove_button();
-            Rectangle relic_btn = shop_relic_button();
 
             if (CheckCollisionPointRec(m, upg_btn) && g_state.gold >= UPGRADE_COST && deck_browser_has_upgradeable(&g_state.run_deck))
             {
@@ -85,27 +85,6 @@ void shop_screen_update(void)
             else if (CheckCollisionPointRec(m, rem_btn) && g_state.run_deck.card_count <= 3)
             {
                 snprintf(msg, sizeof(msg), "Deck too small to remove!");
-            }
-
-            if (CheckCollisionPointRec(m, relic_btn))
-            {
-                RelicId relic = relic_random_unowned(g_state.relics, g_state.relic_count);
-                if (g_state.gold < RELIC_COST)
-                {
-                    snprintf(msg, sizeof(msg), "Not enough gold! Need %dg", RELIC_COST);
-                }
-                else if (relic == RELIC_NONE)
-                {
-                    snprintf(msg, sizeof(msg), "No relics left to buy!");
-                }
-                else
-                {
-                    const RelicDef *def = relic_def(relic);
-                    g_state.gold -= RELIC_COST;
-                    relic_add_unique(g_state.relics, &g_state.relic_count, relic);
-                    snprintf(msg, sizeof(msg), "Bought %s!", def ? def->name : "a relic");
-                    mode = SHOP_DONE;
-                }
             }
         }
     }
@@ -149,6 +128,7 @@ void shop_screen_update(void)
             g_state.map.nodes[g_state.map.current_index].completed = true;
             g_state.map.current_index = -1;
             map_unlock_next(&g_state.map);
+            lucky_coin_given = false;
             game_change_screen(SCREEN_MAP);
         }
     }
@@ -169,19 +149,15 @@ void shop_screen_draw(void)
         Vector2 m = GetMousePosition();
         Rectangle upg_btn = shop_upgrade_button();
         Rectangle rem_btn = shop_remove_button();
-        Rectangle relic_btn = shop_relic_button();
 
         bool can_upg = g_state.gold >= UPGRADE_COST && deck_browser_has_upgradeable(&g_state.run_deck);
         bool can_rem = g_state.gold >= REMOVE_COST && g_state.run_deck.card_count > 3;
-        bool can_relic = g_state.gold >= RELIC_COST && g_state.relic_count < RELIC_COUNT;
 
         bool hu = CheckCollisionPointRec(m, upg_btn);
         bool hr = CheckCollisionPointRec(m, rem_btn);
-        bool hrel = CheckCollisionPointRec(m, relic_btn);
 
         Color uc = can_upg ? (hu ? (Color){ 80, 140, 220, 255 } : (Color){ 50, 80, 140, 255 }) : (Color){ 40, 40, 60, 255 };
         Color rc = can_rem ? (hr ? (Color){ 220, 100, 100, 255 } : (Color){ 160, 60, 60, 255 }) : (Color){ 40, 40, 60, 255 };
-        Color relic_col = can_relic ? (hrel ? (Color){ 185, 155, 75, 255 } : (Color){ 130, 105, 45, 255 }) : (Color){ 40, 40, 60, 255 };
 
         DrawRectangleRec(upg_btn, uc);
         char ul[64]; snprintf(ul, sizeof(ul), "UPGRADE (%dg)", UPGRADE_COST);
@@ -191,14 +167,8 @@ void shop_screen_draw(void)
         char rl[64]; snprintf(rl, sizeof(rl), "REMOVE (%dg)", REMOVE_COST);
         DrawText(rl, (int)(rem_btn.x + rem_btn.width / 2 - MeasureText(rl, 8) / 2), (int)rem_btn.y + 11, 8, can_rem ? RAYWHITE : (Color){ 100, 100, 120, 200 });
 
-        DrawRectangleRec(relic_btn, relic_col);
-        char rel[64]; snprintf(rel, sizeof(rel), "RELIC (%dg)", RELIC_COST);
-        DrawText(rel, (int)(relic_btn.x + relic_btn.width / 2 - MeasureText(rel, 8) / 2), (int)relic_btn.y + 11, 8, can_relic ? RAYWHITE : (Color){ 100, 100, 120, 200 });
-
         if (msg[0])
             DrawText(msg, (VIRT_W / 2) - MeasureText(msg, 8) / 2, 224, 8, (Color){ 200, 150, 100, 220 });
-
-        relic_tray_draw(g_state.relics, g_state.relic_count, (Rectangle){ 206.0f, 236.0f, 228.0f, 44.0f });
     }
     else if (mode == SHOP_UPGRADE)
     {

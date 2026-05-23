@@ -1,4 +1,5 @@
 #include "game.h"
+#include "data/area_defs.h"
 #include "util/tween.h"
 #include "constants.h"
 #include "raylib.h"
@@ -13,6 +14,10 @@ void game_init(void)
     g_state.screen = SCREEN_TITLE;
     g_state.pending_screen = SCREEN_TITLE;
     g_state.max_party_size = meta_party_slots(&g_state.meta);
+    g_state.selected_area = area_clamp_index(g_state.meta.highest_area_unlocked);
+    g_state.current_area = g_state.selected_area;
+    g_state.result_area = g_state.current_area;
+    g_state.result_unlocked_area = -1;
     g_state.result_floor = 1;
 }
 

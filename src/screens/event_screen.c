@@ -2,13 +2,13 @@
 #include "game.h"
 #include "constants.h"
 #include "data/card_defs.h"
+#include "data/event_defs.h"
 #include "ui/deck_browser.h"
 #include "ui/layout.h"
 #include "ui/theme.h"
 #include "util/log.h"
 #include "util/text.h"
 #include "raylib.h"
-#include <stddef.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,32 +18,6 @@ typedef enum {
     EVENT_REMOVE_CARD,
     EVENT_DONE,
 } EventMode;
-
-static const CardDef curse_doubt = {
-    "curse_doubt",
-    "Doubt",
-    CARD_SKILL,
-    CLASS_NONE,
-    1,
-    0,
-    0,
-    0,
-    false,
-    0,
-    0,
-    false,
-    0,
-    false,
-    0,
-    false,
-    false,
-    0,
-    TARGET_SELF,
-    1,
-    NULL,
-    0,
-    "No effect. Spend energy to clear it from hand."
-};
 
 static EventMode mode = EVENT_CHOICE;
 static int active_node = -999;
@@ -63,44 +37,52 @@ static Rectangle event_choice_rect(int index)
     return (Rectangle){ start_x + index * (w + gap), 154.0f, w, h };
 }
 
-static const char *event_title(int event_id)
+static const EventDef *active_event_def(void)
 {
-    switch (event_id)
+    return event_def_by_index(active_event);
+}
+
+static bool choice_available(const EventChoiceDef *choice)
+{
+    if (!choice) return false;
+    switch (choice->effect)
     {
-        case 0: return "ABANDONED CAMP";
-        case 1: return "ANCIENT SHRINE";
-        default: return "STRANGE MERCHANT";
+        case EVENT_EFFECT_PAY_GOLD_GAIN_RELIC:
+        case EVENT_EFFECT_PAY_GOLD_ADD_CARD:
+            return g_state.gold >= choice->gold;
+        case EVENT_EFFECT_REMOVE_CARD:
+            return g_state.run_deck.card_count > 3;
+        case EVENT_EFFECT_UPGRADE_RANDOM_CARD_HURT_PARTY:
+            return deck_browser_has_upgradeable(&g_state.run_deck);
+        default:
+            return true;
     }
 }
 
-static const char *event_body(int event_id)
+static void describe_unavailable(const EventChoiceDef *choice)
 {
-    switch (event_id)
+    if (!choice)
     {
-        case 0: return "A cold campfire and three untouched packs wait beside the road.";
-        case 1: return "A stone shrine hums softly. The air tastes like lightning.";
-        default: return "A masked merchant offers useful things at suspicious prices.";
+        event_msg[0] = '\0';
+        return;
     }
-}
 
-static const char *choice_title(int event_id, int choice)
-{
-    static const char *titles[3][3] = {
-        { "Share Supplies", "Search Packs", "Travel Light" },
-        { "Take Blessing", "Donate Gold", "Leave It" },
-        { "Buy Scroll", "Sell Trinkets", "Patch Wounds" },
-    };
-    return titles[event_id][choice];
-}
-
-static const char *choice_desc(int event_id, int choice)
-{
-    static const char *descs[3][3] = {
-        { "Heal all allies for 12.", "Gain 35g. Add Doubt.", "Remove a card." },
-        { "Upgrade a card. Lose 6 HP each.", "Pay 20g. Gain a relic.", "No effect." },
-        { "Pay 25g. Add a card.", "Gain 20g.", "Heal all allies for 8." },
-    };
-    return descs[event_id][choice];
+    switch (choice->effect)
+    {
+        case EVENT_EFFECT_PAY_GOLD_GAIN_RELIC:
+        case EVENT_EFFECT_PAY_GOLD_ADD_CARD:
+            snprintf(event_msg, sizeof(event_msg), "Need %dg.", choice->gold);
+            break;
+        case EVENT_EFFECT_REMOVE_CARD:
+            snprintf(event_msg, sizeof(event_msg), "Deck is too small.");
+            break;
+        case EVENT_EFFECT_UPGRADE_RANDOM_CARD_HURT_PARTY:
+            snprintf(event_msg, sizeof(event_msg), "No cards left to upgrade.");
+            break;
+        default:
+            event_msg[0] = '\0';
+            break;
+    }
 }
 
 static void finish_event(const char *fmt, ...)
@@ -171,7 +153,7 @@ static bool upgrade_random_card(char *out, int out_size)
 
 static const CardDef *random_party_card(void)
 {
-    const CardDef *pool[48];
+    const CardDef *pool[80];
     int count = 0;
 
     for (int i = 0; i < g_state.selected_count; i++)
@@ -182,10 +164,11 @@ static const CardDef *random_party_card(void)
             pool[count++] = &class_card_sets[ct][c];
     }
 
-    for (int c = 0; c < UTILITY_CARD_COUNT; c++)
+    for (int c = 0; c < utility_card_count; c++)
         pool[count++] = &utility_cards[c];
 
-    if (count <= 0) return &utility_cards[0];
+    if (count <= 0)
+        return utility_card_count > 0 ? &utility_cards[0] : card_def_by_id("util_prep");
     return pool[rand() % count];
 }
 
@@ -201,21 +184,32 @@ static void complete_map_node(void)
 static void apply_choice(int choice)
 {
     char detail[96] = "";
-
-    if (active_event == 0)
+    const EventDef *event = active_event_def();
+    if (!event || choice < 0 || choice >= event->choice_count)
     {
-        if (choice == 0)
+        finish_event("The road is quiet.");
+        return;
+    }
+
+    const EventChoiceDef *choice_def = &event->choices[choice];
+    switch (choice_def->effect)
+    {
+        case EVENT_EFFECT_HEAL_PARTY:
         {
-            heal_party(12);
+            heal_party(choice_def->amount);
             finish_event("The party shares supplies and recovers.");
+            break;
         }
-        else if (choice == 1)
+        case EVENT_EFFECT_GAIN_GOLD_ADD_CURSE:
         {
-            g_state.gold += 35;
-            deck_add_card(&g_state.run_deck, &curse_doubt);
-            finish_event("Found 35g, but Doubt enters the deck.");
+            const CardDef *curse = card_def_by_id(choice_def->curse);
+            g_state.gold += choice_def->gold;
+            if (curse)
+                deck_add_card(&g_state.run_deck, curse);
+            finish_event("Found %dg%s.", choice_def->gold, curse ? ", but Doubt enters the deck" : "");
+            break;
         }
-        else
+        case EVENT_EFFECT_REMOVE_CARD:
         {
             if (g_state.run_deck.card_count <= 3)
                 finish_event("The deck is too small to trim.");
@@ -225,16 +219,14 @@ static void apply_choice(int choice)
                 deck_browser_reset(&event_browser);
                 event_msg[0] = '\0';
             }
+            break;
         }
-    }
-    else if (active_event == 1)
-    {
-        if (choice == 0)
+        case EVENT_EFFECT_UPGRADE_RANDOM_CARD_HURT_PARTY:
         {
             bool upgraded = upgrade_random_card(detail, sizeof(detail));
             if (upgraded)
             {
-                bool downed = hurt_party(6);
+                bool downed = hurt_party(choice_def->hp_loss);
                 finish_event("%s The shrine takes blood.", detail);
                 if (downed)
                     LOG_I(CAT_SCREEN, "Event shrine downed at least one party member");
@@ -243,52 +235,57 @@ static void apply_choice(int choice)
             {
                 finish_event("The shrine finds nothing to improve.");
             }
+            break;
         }
-        else if (choice == 1)
+        case EVENT_EFFECT_PAY_GOLD_GAIN_RELIC:
         {
             RelicId relic = relic_random_unowned(g_state.relics, g_state.relic_count);
-            if (g_state.gold < 20)
+            if (g_state.gold < choice_def->gold)
                 finish_event("Not enough gold for the offering.");
             else if (relic == RELIC_NONE)
                 finish_event("The shrine is quiet. No relic remains.");
             else
             {
                 const RelicDef *def = relic_def(relic);
-                g_state.gold -= 20;
+                g_state.gold -= choice_def->gold;
                 relic_add_unique(g_state.relics, &g_state.relic_count, relic);
                 finish_event("The shrine grants %s.", def ? def->name : "a relic");
             }
+            break;
         }
-        else
+        case EVENT_EFFECT_PAY_GOLD_ADD_CARD:
         {
-            finish_event("The party leaves the shrine untouched.");
-        }
-    }
-    else
-    {
-        if (choice == 0)
-        {
-            if (g_state.gold < 25)
+            if (g_state.gold < choice_def->gold)
             {
                 finish_event("Not enough gold for the scroll.");
             }
             else
             {
                 const CardDef *card = random_party_card();
-                g_state.gold -= 25;
-                deck_add_card(&g_state.run_deck, card);
-                finish_event("Bought %s for 25g.", card->name);
+                if (card)
+                {
+                    g_state.gold -= choice_def->gold;
+                    deck_add_card(&g_state.run_deck, card);
+                    finish_event("Bought %s for %dg.", card->name, choice_def->gold);
+                }
+                else
+                {
+                    finish_event("The merchant has nothing useful.");
+                }
             }
+            break;
         }
-        else if (choice == 1)
+        case EVENT_EFFECT_GAIN_GOLD:
         {
-            g_state.gold += 20;
-            finish_event("Sold odd trinkets for 20g.");
+            g_state.gold += choice_def->gold;
+            finish_event("Sold odd trinkets for %dg.", choice_def->gold);
+            break;
         }
-        else
+        case EVENT_EFFECT_NONE:
+        default:
         {
-            heal_party(8);
-            finish_event("The merchant's tonic restores the party.");
+            finish_event("The party moves on.");
+            break;
         }
     }
 }
@@ -301,7 +298,8 @@ static void init_event_if_needed(void)
 
     active_node = node;
     active_floor = floor;
-    active_event = (floor * 2 + node + g_state.result_bosses_defeated) % 3;
+    int event_count = event_defs_count();
+    active_event = event_count > 0 ? (floor * 2 + node + g_state.result_bosses_defeated) % event_count : 0;
     if (active_event < 0) active_event = 0;
     mode = EVENT_CHOICE;
     hovered_choice = -1;
@@ -318,14 +316,25 @@ void event_screen_update(void)
 
     if (mode == EVENT_CHOICE)
     {
-        for (int i = 0; i < 3; i++)
+        const EventDef *event = active_event_def();
+        int choice_count = event ? event->choice_count : 0;
+        for (int i = 0; i < choice_count; i++)
         {
             Rectangle r = event_choice_rect(i);
             if (CheckCollisionPointRec(mouse, r))
             {
                 hovered_choice = i;
                 if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-                    apply_choice(i);
+                {
+                    if (choice_available(&event->choices[i]))
+                    {
+                        apply_choice(i);
+                    }
+                    else
+                    {
+                        describe_unavailable(&event->choices[i]);
+                    }
+                }
                 break;
             }
         }
@@ -369,24 +378,35 @@ void event_screen_draw(void)
         return;
     }
 
-    const char *title = event_title(active_event);
+    const EventDef *event = active_event_def();
+    const char *title = event ? event->name : "EVENT";
     DrawText(title, (VIRT_W / 2) - MeasureText(title, 17) / 2, 66, 17, (Color){ 130, 225, 235, 255 });
-    const char *body = event_body(active_event);
+    const char *body = event ? event->body : "";
     DrawText(body, (VIRT_W / 2) - MeasureText(body, 8) / 2, 98, 8, (Color){ 185, 190, 215, 225 });
 
     if (mode == EVENT_CHOICE)
     {
         Vector2 mouse = GetMousePosition();
-        for (int i = 0; i < 3; i++)
+        int choice_count = event ? event->choice_count : 0;
+        for (int i = 0; i < choice_count; i++)
         {
             Rectangle r = event_choice_rect(i);
             bool hover = CheckCollisionPointRec(mouse, r);
-            Color bg = hover ? (Color){ 38, 70, 82, 245 } : (Color){ 18, 25, 38, 235 };
+            bool available = choice_available(&event->choices[i]);
+            Color bg = !available ? (Color){ 22, 23, 31, 220 } :
+                       hover ? (Color){ 38, 70, 82, 245 } : (Color){ 18, 25, 38, 235 };
+            Color border = !available ? (Color){ 70, 72, 88, 170 } :
+                           hover ? RAYWHITE : (Color){ 85, 185, 205, 180 };
+            Color title_col = available ? RAYWHITE : (Color){ 105, 108, 125, 220 };
+            Color desc_col = available ? (Color){ 180, 190, 210, 225 } : (Color){ 100, 102, 120, 205 };
             DrawRectangleRec(r, bg);
-            DrawRectangleLinesEx(r, hover ? 2.0f : 1.0f, hover ? RAYWHITE : (Color){ 85, 185, 205, 180 });
-            DrawText(choice_title(active_event, i), (int)r.x + 9, (int)r.y + 10, 9, RAYWHITE);
-            draw_text_wrapped(choice_desc(active_event, i), (int)r.x + 9, (int)r.y + 31, (int)r.width - 18, 7, 2, (Color){ 180, 190, 210, 225 });
+            DrawRectangleLinesEx(r, hover && available ? 2.0f : 1.0f, border);
+            DrawText(event->choices[i].label, (int)r.x + 9, (int)r.y + 10, 9, title_col);
+            draw_text_wrapped(event->choices[i].description, (int)r.x + 9, (int)r.y + 31, (int)r.width - 18, 7, 2, desc_col);
         }
+
+        if (event_msg[0])
+            DrawText(event_msg, (VIRT_W / 2) - MeasureText(event_msg, 8) / 2, 238, 8, (Color){ 210, 165, 105, 230 });
     }
     else
     {

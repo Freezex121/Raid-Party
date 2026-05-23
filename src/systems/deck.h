@@ -56,6 +56,7 @@ typedef struct {
     bool interrupt;
     int aggro_self;
     bool exhaust;
+    bool consume;
     bool channel;
     int channel_turns;
     TargetType target;

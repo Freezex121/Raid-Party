@@ -2,6 +2,7 @@
 #include "assets.h"
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 
 static Color color_fade_alpha(Color c, unsigned char a)
 {
@@ -44,10 +45,29 @@ static int scaled_font(Rectangle r, int source_px)
 
 static void draw_text_fit(const char *text, int x, int y, int max_w, int size, Color color)
 {
-    if (!text) return;
-    while (size > 4 && MeasureText(text, size) > max_w)
+    if (!text || max_w <= 0) return;
+    while (size > 3 && MeasureText(text, size) > max_w)
         size--;
-    DrawText(text, x, y, size, color);
+    if (MeasureText(text, size) <= max_w)
+    {
+        DrawText(text, x, y, size, color);
+        return;
+    }
+
+    char clipped[96];
+    int len = 0;
+    int text_len = (int)strlen(text);
+    while (len < text_len && len < (int)sizeof(clipped) - 4)
+    {
+        clipped[len] = text[len];
+        clipped[len + 1] = '\0';
+        if (MeasureText(TextFormat("%s...", clipped), size) > max_w)
+            break;
+        len++;
+    }
+    if (len <= 0) return;
+    clipped[len] = '\0';
+    DrawText(TextFormat("%s...", clipped), x, y, size, color);
 }
 
 static const CardEffect *card_effect(const CardDef *card, CardEffectType type)
@@ -177,8 +197,10 @@ static int build_card_tokens(const CardDef *card, bool upgraded, char tokens[][1
     if (card_effect(card, CARD_EFFECT_RESET_CASTER_AGGRO)) count = add_token(tokens, count, max_tokens, "AG0");
     if (card_effect(card, CARD_EFFECT_TRANSFER_AGGRO_TO_GUARDIAN)) count = add_token(tokens, count, max_tokens, "AG>GD");
 
-    if (card->exhaust && !card_has_effect(card, CARD_EFFECT_REVIVE_TARGET) && !card->channel)
+    if (card->exhaust && !card->consume && !card_has_effect(card, CARD_EFFECT_REVIVE_TARGET) && !card->channel)
         count = add_token(tokens, count, max_tokens, "EXH");
+    if (card->consume)
+        count = add_token(tokens, count, max_tokens, "ONE");
 
     return count;
 }
@@ -209,7 +231,7 @@ static void draw_card_tokens(Rectangle dest, const CardDef *card, bool upgraded,
             y += line_h;
         }
 
-        DrawText(tokens[i], x, y, size, token_color(tokens[i], fallback));
+        draw_text_fit(tokens[i], x, y, max_x - x, size, token_color(tokens[i], fallback));
         x += tw + gap;
     }
 }
@@ -297,8 +319,10 @@ static int build_card_detail_lines(const CardDef *card, bool upgraded, char line
         add_detail_line(lines, &count, max_lines, "Move target ally aggro to Guardian");
     if (card->aggro_self > 0)
         add_detail_line(lines, &count, max_lines, "Aggro: +%d to caster", card->aggro_self);
-    if (card->exhaust && !card_has_effect(card, CARD_EFFECT_REVIVE_TARGET) && !card->channel)
+    if (card->exhaust && !card->consume && !card_has_effect(card, CARD_EFFECT_REVIVE_TARGET) && !card->channel)
         add_detail_line(lines, &count, max_lines, "Exhausts after use");
+    if (card->consume)
+        add_detail_line(lines, &count, max_lines, "One-use: removed from deck after play");
 
     if (count == 0 && card->description)
         add_detail_line(lines, &count, max_lines, "%s", card->description);
@@ -428,6 +452,7 @@ const char *theme_primary_effect_label(const CardDef *card)
     if (card_has_effect(card, CARD_EFFECT_RESET_CASTER_AGGRO)) return "AGRO";
     if (card_has_effect(card, CARD_EFFECT_TRANSFER_AGGRO_TO_GUARDIAN)) return "AGRO";
     if (card->channel) return "CHAN";
+    if (card->consume) return "ONE";
     if (card->damage > 0 && card->heal > 0) return "DRAIN";
     if (card->damage > 0) return "DMG";
     if (card->heal > 0) return "HEAL";
@@ -542,6 +567,14 @@ void theme_draw_card_art(Rectangle bounds, const CardDef *card, bool upgraded)
     float s = dest.width / (float)CARD_ART_SOURCE_W;
     DrawRectangleLinesEx(dest, s >= 3.0f ? 3.0f : 1.0f, color_fade_alpha(c, upgraded ? 245 : 185));
 
+    if (upgraded)
+    {
+        Color gold = (Color){ 255, 224, 86, 255 };
+        DrawRectangleLinesEx(dest, s >= 2.0f ? 2.0f : 1.0f, gold);
+        DrawRectangleLinesEx((Rectangle){ dest.x + 2.0f, dest.y + 2.0f, dest.width - 4.0f, dest.height - 4.0f }, 1.0f, (Color){ 255, 245, 150, 210 });
+        DrawRectangleRec((Rectangle){ dest.x + 3.0f, dest.y + dest.height - 6.0f, dest.width - 6.0f, 3.0f }, (Color){ 255, 224, 86, 180 });
+    }
+
     if (!card) return;
 
     int title_x = scaled_x(dest, 4);
@@ -592,7 +625,7 @@ void theme_draw_card_art(Rectangle bounds, const CardDef *card, bool upgraded)
     draw_card_tokens(dest, card, upgraded, c);
 
     if (upgraded)
-        DrawText("*", scaled_x(dest, 45), scaled_y(dest, 2), scaled_font(dest, 5), (Color){ 255, 245, 120, 255 });
+        DrawText("UPG", scaled_x(dest, 39), scaled_y(dest, 2), scaled_font(dest, 3), (Color){ 255, 245, 120, 255 });
 }
 
 void theme_draw_card_tooltip(Rectangle bounds, const CardDef *card, bool upgraded)

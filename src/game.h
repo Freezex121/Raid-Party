@@ -14,6 +14,7 @@
 
 typedef enum {
     SCREEN_TITLE,
+    SCREEN_META_SHOP,
     SCREEN_DRAFT,
     SCREEN_MAP,
     SCREEN_RUN,
@@ -36,6 +37,8 @@ typedef struct {
     int selected_classes[MAX_PARTY_SIZE];
     int selected_count;
     int max_party_size;
+    int selected_area;
+    int current_area;
     MetaProgress meta;
     Party run_party;
     bool run_party_active;
@@ -59,11 +62,18 @@ typedef struct {
     int discard_count;
     int discard_selected;
     int discard_uids[2];
+    int titan_heart_bonus;
+    int current_floor;
+    bool frugal_used_this_floor;
+    bool lucky_coin_used;
     bool run_won;
+    int result_area;
     int result_floor;
     int result_bosses_defeated;
     bool result_recorded;
     int result_unlocked_party_size;
+    int result_unlocked_area;
+    int result_renown_gained;
     char result_reason[128];
 } GameState;
 

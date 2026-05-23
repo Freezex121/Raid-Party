@@ -4,6 +4,7 @@
 #include "util/log.h"
 #include "ui/floating_text.h"
 #include "assets.h"
+#include "data/content_loader.h"
 #include "screens/screens.h"
 #include "constants.h"
 #include <stdlib.h>
@@ -23,6 +24,17 @@ int main(void)
     RenderTexture2D target = LoadRenderTexture(VIRT_W, VIRT_H);
     SetTextureFilter(target.texture, TEXTURE_FILTER_POINT);
 
+    if (!content_load_all())
+    {
+        LOG_E(CAT_SCREEN, "Failed to load runtime JSON content.");
+        UnloadRenderTexture(target);
+        if (IsAudioDeviceReady())
+            CloseAudioDevice();
+        CloseWindow();
+        log_close();
+        return 1;
+    }
+
     assets_load();
     game_init();
     LOG_I(CAT_SCREEN, "Game initialized. Starting title screen.");
@@ -39,6 +51,7 @@ int main(void)
             switch (g_state.screen)
             {
                 case SCREEN_TITLE: title_screen_update(); break;
+                case SCREEN_META_SHOP: meta_shop_screen_update(); break;
                 case SCREEN_DRAFT: draft_screen_update(); break;
                 case SCREEN_MAP:   map_screen_update();   break;
                 case SCREEN_RUN:   run_screen_update();   break;
@@ -65,6 +78,7 @@ int main(void)
         switch (g_state.screen)
         {
             case SCREEN_TITLE: title_screen_draw(); break;
+            case SCREEN_META_SHOP: meta_shop_screen_draw(); break;
             case SCREEN_DRAFT: draft_screen_draw(); break;
             case SCREEN_MAP:   map_screen_draw();   break;
             case SCREEN_RUN:   run_screen_draw();   break;

@@ -6,9 +6,9 @@
       "name": "Abandoned Camp",
       "body": "A cold campfire and three untouched packs wait beside the road.",
       "choices": [
-        { "label": "Share Supplies", "effect": "heal_party", "amount": 12 },
-        { "label": "Search Packs", "effect": "gain_gold_add_curse", "gold": 35, "curse": "curse_doubt" },
-        { "label": "Travel Light", "effect": "remove_card" }
+        { "label": "Share Supplies", "description": "Heal all allies for 12.", "effect": "heal_party", "amount": 12 },
+        { "label": "Search Packs", "description": "Gain 35g. Add Doubt.", "effect": "gain_gold_add_curse", "gold": 35, "curse": "curse_doubt" },
+        { "label": "Travel Light", "description": "Remove a card.", "effect": "remove_card" }
       ]
     },
     {
@@ -16,9 +16,9 @@
       "name": "Ancient Shrine",
       "body": "A stone shrine hums softly. The air tastes like lightning.",
       "choices": [
-        { "label": "Take Blessing", "effect": "upgrade_random_card_hurt_party", "hp_loss": 6 },
-        { "label": "Donate Gold", "effect": "pay_gold_gain_relic", "gold": 20 },
-        { "label": "Leave It", "effect": "none" }
+        { "label": "Take Blessing", "description": "Upgrade a card. Lose 6 HP each.", "effect": "upgrade_random_card_hurt_party", "hp_loss": 6 },
+        { "label": "Donate Gold", "description": "Pay 20g. Gain a relic.", "effect": "pay_gold_gain_relic", "gold": 20 },
+        { "label": "Leave It", "description": "No effect.", "effect": "none" }
       ]
     },
     {
@@ -26,9 +26,9 @@
       "name": "Strange Merchant",
       "body": "A masked merchant offers useful things at suspicious prices.",
       "choices": [
-        { "label": "Buy Scroll", "effect": "pay_gold_add_card", "gold": 25 },
-        { "label": "Sell Trinkets", "effect": "gain_gold", "gold": 20 },
-        { "label": "Patch Wounds", "effect": "heal_party", "amount": 8 }
+        { "label": "Buy Scroll", "description": "Pay 25g. Add a card.", "effect": "pay_gold_add_card", "gold": 25 },
+        { "label": "Sell Trinkets", "description": "Gain 20g.", "effect": "gain_gold", "gold": 20 },
+        { "label": "Patch Wounds", "description": "Heal all allies for 8.", "effect": "heal_party", "amount": 8 }
       ]
     }
   ]

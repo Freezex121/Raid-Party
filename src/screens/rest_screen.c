@@ -10,7 +10,7 @@
 
 typedef enum {
     REST_CHOICE,
-    REST_HEAL,
+    REST_HEAL_DONE,
     REST_UPGRADE,
 } RestMode;
 
@@ -18,6 +18,9 @@ static RestMode mode = REST_CHOICE;
 static int hovered_upgrade = -1;
 static DeckBrowser rest_browser;
 static char rest_msg[96] = "";
+static bool rest_healed = false;
+static bool rest_upgraded = false;
+static bool rest_frugal_shown = false;
 
 static Rectangle rest_heal_button(void)
 {
@@ -47,6 +50,18 @@ static void do_heal(void)
     LOG_I(CAT_SCREEN, "Rest: party fully healed");
 }
 
+static void rest_leave(void)
+{
+    mode = REST_CHOICE;
+    rest_healed = false;
+    rest_upgraded = false;
+    rest_frugal_shown = false;
+    g_state.map.nodes[g_state.map.current_index].completed = true;
+    g_state.map.current_index = -1;
+    map_unlock_next(&g_state.map);
+    game_change_screen(SCREEN_MAP);
+}
+
 void rest_screen_update(void)
 {
     if (mode == REST_CHOICE)
@@ -60,8 +75,19 @@ void rest_screen_update(void)
             if (CheckCollisionPointRec(m, heal_btn))
             {
                 do_heal();
-                mode = REST_HEAL;
-                rest_msg[0] = '\0';
+                rest_healed = true;
+                // Frugal Tome: allow upgrade too
+                if (!g_state.frugal_used_this_floor && relic_has(g_state.relics, g_state.relic_count, RELIC_FRUGAL_TOME)
+                    && deck_browser_has_upgradeable(&g_state.run_deck))
+                {
+                    mode = REST_UPGRADE;
+                    deck_browser_reset(&rest_browser);
+                    rest_msg[0] = '\0';
+                }
+                else
+                {
+                    mode = REST_HEAL_DONE;
+                }
             }
             else if (CheckCollisionPointRec(m, upg_btn))
             {
@@ -87,25 +113,39 @@ void rest_screen_update(void)
         {
             g_state.run_deck.cards[selected].upgraded = true;
             LOG_I(CAT_SCREEN, "Rest: upgraded %s", g_state.run_deck.cards[selected].def->name);
-            mode = REST_HEAL;
+            rest_upgraded = true;
+            // Frugal Tome: auto-heal if not healed yet
+            if (!rest_healed && relic_has(g_state.relics, g_state.relic_count, RELIC_FRUGAL_TOME))
+            {
+                do_heal();
+                rest_healed = true;
+                g_state.frugal_used_this_floor = true;
+            }
+            else if (relic_has(g_state.relics, g_state.relic_count, RELIC_FRUGAL_TOME))
+            {
+                g_state.frugal_used_this_floor = true;
+            }
+            mode = REST_HEAL_DONE;
         }
 
         if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
         {
-            mode = REST_CHOICE;
-            rest_msg[0] = '\0';
+            // If we already healed via Frugal Tome, go to done
+            if (rest_healed)
+            {
+                mode = REST_HEAL_DONE;
+            }
+            else
+            {
+                mode = REST_CHOICE;
+                rest_msg[0] = '\0';
+            }
         }
     }
-    else if (mode == REST_HEAL)
+    else if (mode == REST_HEAL_DONE)
     {
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-        {
-            mode = REST_CHOICE;
-            g_state.map.nodes[g_state.map.current_index].completed = true;
-            g_state.map.current_index = -1;
-            map_unlock_next(&g_state.map);
-            game_change_screen(SCREEN_MAP);
-        }
+            rest_leave();
     }
 }
 
@@ -166,7 +206,7 @@ void rest_screen_draw(void)
             }
         }
     }
-    else if (mode == REST_HEAL)
+    else if (mode == REST_HEAL_DONE)
     {
         DrawText("PARTY RESTED", (VIRT_W / 2) - MeasureText("PARTY RESTED", 18) / 2, 164, 18, (Color){ 100, 220, 120, 255 });
         DrawText("Click to continue.", (VIRT_W / 2) - MeasureText("Click to continue.", 8) / 2, 190, 8, (Color){ 160, 160, 180, 200 });

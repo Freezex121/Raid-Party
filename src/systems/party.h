@@ -34,6 +34,7 @@ typedef struct {
     int count;
 } Party;
 
+bool party_defs_load_json(const char *path);
 void party_create(Party *party, int *class_indices, int count);
 int party_lowest_hp(Party *party);
 int party_highest_aggro(Party *party);
