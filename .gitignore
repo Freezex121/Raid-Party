@@ -1,0 +1,45 @@
+# Folders created by builds
+build/
+bin/
+obj/
+out/
+dist/
+
+# Compiled files
+*.exe
+*.o
+*.obj
+*.a
+*.lib
+*.dll
+*.so
+*.dylib
+
+# Debug files
+*.pdb
+*.ilk
+*.log
+
+# IDE folders
+.vs/
+.vscode/
+.idea/
+
+# CMake generated files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Local secrets or config
+.env
+*.local
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3

@@ -1,0 +1,1148 @@
+#include "combat.h"
+#include "game.h"
+#include "data/card_defs.h"
+#include "ui/floating_text.h"
+#include "util/tween.h"
+#include "util/log.h"
+#include "constants.h"
+#include "raylib.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdarg.h>
+#include <string.h>
+
+static void deal_opening_hand(Deck *deck)
+{
+    for (int i = 0; i < 5; i++)
+        if (deck_draw(deck) < 0) break;
+}
+
+static void calc_enemy_positions(EnemyState *enemies, int count)
+{
+    int space = VIRT_W / (count + 1);
+    for (int i = 0; i < count; i++)
+    {
+        enemies[i].pos_x = space * (i + 1);
+        enemies[i].pos_y = ENEMY_Y;
+    }
+}
+
+static int party_frame_width_for_count(int count)
+{
+    if (count >= 5) return 80;
+    if (count == 4) return 100;
+    return FRAME_W;
+}
+
+static int party_frame_gap_for_count(int count)
+{
+    return count >= 4 ? 4 : FRAME_GAP;
+}
+
+static int party_frame_start_x(Party *party)
+{
+    int fw = party_frame_width_for_count(party->count);
+    int gap = party_frame_gap_for_count(party->count);
+    int tw = party->count * fw + (party->count - 1) * gap;
+    return (VIRT_W - tw) / 2;
+}
+
+static void advance_turn(CombatState *cs);
+static void combat_end_turn_internal(CombatState *cs);
+
+static void combat_feed_add(CombatState *cs, const char *fmt, ...)
+{
+    for (int i = 4; i > 0; i--)
+    {
+        strcpy(cs->action_feed[i], cs->action_feed[i - 1]);
+        cs->action_feed_timer[i] = cs->action_feed_timer[i - 1];
+    }
+
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(cs->action_feed[0], sizeof(cs->action_feed[0]), fmt, args);
+    va_end(args);
+    cs->action_feed_timer[0] = 4.0f;
+}
+
+static void combat_set_turn_banner(CombatState *cs, const char *text)
+{
+    snprintf(cs->turn_banner_text, sizeof(cs->turn_banner_text), "%s", text);
+    cs->turn_banner_timer = 0.9f;
+}
+
+static void combat_flash_played_card(CombatState *cs, const CardDef *card, int target_enemy, int target_ally)
+{
+    if (!card) return;
+
+    snprintf(cs->play_flash_text, sizeof(cs->play_flash_text), "%s", card->name);
+    cs->play_flash_timer = 0.55f;
+
+    if (target_enemy >= 0 && target_enemy < cs->enemy_count)
+    {
+        cs->play_flash_x = (float)(cs->enemies[target_enemy].pos_x - 42);
+        cs->play_flash_y = (float)(cs->enemies[target_enemy].pos_y - 12);
+    }
+    else if (target_ally >= 0 && target_ally < cs->party.count)
+    {
+        int fw = party_frame_width_for_count(cs->party.count);
+        int gap = party_frame_gap_for_count(cs->party.count);
+        int sx = party_frame_start_x(&cs->party);
+        cs->play_flash_x = (float)(sx + target_ally * (fw + gap) + fw / 2 - 42);
+        cs->play_flash_y = 31.0f;
+    }
+    else
+    {
+        cs->play_flash_x = (float)(VIRT_W / 2 - 42);
+        cs->play_flash_y = (float)(VIRT_H / 2);
+    }
+}
+
+// ── Damage / heal / shield / taunt ──────────────────────────
+
+static void apply_damage_to_enemy(CombatState *cs, int enemy_idx, int damage)
+{
+    if (enemy_idx < 0 || enemy_idx >= cs->enemy_count) return;
+    EnemyState *e = &cs->enemies[enemy_idx];
+    if (!e->def || e->hp <= 0) return;
+
+    int dmg = damage;
+    if (e->shield > 0)
+    {
+        int abs = e->shield >= dmg ? dmg : e->shield;
+        e->shield -= abs;
+        dmg -= abs;
+    }
+    e->hp -= dmg;
+    if (e->hp < 0) e->hp = 0;
+
+    char buf[16];
+    snprintf(buf, sizeof(buf), "-%d", damage);
+    ft_spawn_shake((float)(e->pos_x - 7), (float)(e->pos_y - 18), buf, 8, (Color){ 255, 80, 80, 255 });
+    vfx_spawn_burst((float)e->pos_x, (float)e->pos_y, (Color){ 255, 85, 65, 255 }, 6);
+
+    LOG_I(CAT_CARD, "  enemy[%d] %s: %d damage (%d HP)", enemy_idx, e->def->name, damage, e->hp);
+}
+
+static void apply_heal_to_ally(CombatState *cs, int ally_idx, int amount)
+{
+    if (ally_idx < 0 || ally_idx >= cs->party.count) return;
+    PartyMember *pm = &cs->party.members[ally_idx];
+    if (!pm->alive) return;
+    pm->hp += amount;
+    if (pm->hp > pm->max_hp) pm->hp = pm->max_hp;
+
+    char buf[16];
+    snprintf(buf, sizeof(buf), "+%d", amount);
+    int fw = party_frame_width_for_count(cs->party.count);
+    int gap = party_frame_gap_for_count(cs->party.count);
+    int sx = party_frame_start_x(&cs->party);
+    ft_spawn((float)(sx + ally_idx * (fw + gap) + fw / 2), 29.0f, buf, 7, (Color){ 80, 255, 80, 255 });
+    vfx_spawn_burst((float)(sx + ally_idx * (fw + gap) + fw / 2), 22.0f, (Color){ 95, 245, 135, 255 }, 4);
+
+    LOG_I(CAT_CARD, "  ally[%d] %s: +%d HP (%d)", ally_idx, pm->name, amount, pm->hp);
+}
+
+static void apply_shield_to_ally(CombatState *cs, int ally_idx, int amount)
+{
+    if (ally_idx < 0 || ally_idx >= cs->party.count) return;
+    PartyMember *pm = &cs->party.members[ally_idx];
+    if (!pm->alive) return;
+    pm->shield += amount;
+
+    char buf[16];
+    snprintf(buf, sizeof(buf), "+%d", amount);
+    int fw = party_frame_width_for_count(cs->party.count);
+    int gap = party_frame_gap_for_count(cs->party.count);
+    int sx = party_frame_start_x(&cs->party);
+    ft_spawn((float)(sx + ally_idx * (fw + gap) + fw / 2), 29.0f, buf, 7, (Color){ 100, 200, 255, 255 });
+    vfx_spawn_burst((float)(sx + ally_idx * (fw + gap) + fw / 2), 22.0f, (Color){ 115, 190, 255, 255 }, 4);
+
+    LOG_I(CAT_CARD, "  ally[%d] %s: +%d shield (%d)", ally_idx, pm->name, amount, pm->shield);
+}
+
+static void revive_ally(CombatState *cs, int ally_idx)
+{
+    if (ally_idx < 0 || ally_idx >= cs->party.count) return;
+
+    PartyMember *pm = &cs->party.members[ally_idx];
+    if (pm->alive) return;
+
+    pm->alive = true;
+    pm->hp = pm->max_hp / 2;
+    if (pm->hp < 1) pm->hp = 1;
+    pm->shield = 0;
+    pm->aggro = 5;
+    pm->status_count = 0;
+
+    char buf[16];
+    snprintf(buf, sizeof(buf), "+%d", pm->hp);
+    int fw = party_frame_width_for_count(cs->party.count);
+    int gap = party_frame_gap_for_count(cs->party.count);
+    int sx = party_frame_start_x(&cs->party);
+    ft_spawn((float)(sx + ally_idx * (fw + gap) + fw / 2), 29.0f, buf, 8, (Color){ 120, 255, 160, 255 });
+
+    LOG_I(CAT_CARD, "  ally[%d] %s: revived at %d HP", ally_idx, pm->name, pm->hp);
+}
+
+static void apply_damage_to_ally(CombatState *cs, int ally_idx, int damage, const char *source)
+{
+    if (ally_idx < 0 || ally_idx >= cs->party.count) return;
+    PartyMember *pm = &cs->party.members[ally_idx];
+    if (!pm->alive) return;
+
+    int remaining = damage;
+    if (pm->shield > 0)
+    {
+        int absorb = pm->shield >= remaining ? remaining : pm->shield;
+        pm->shield -= absorb;
+        remaining -= absorb;
+    }
+
+    int before = pm->hp;
+    pm->hp -= remaining;
+    if (pm->hp < 0) pm->hp = 0;
+
+    int fw = party_frame_width_for_count(cs->party.count);
+    int gap = party_frame_gap_for_count(cs->party.count);
+    int sx = party_frame_start_x(&cs->party);
+
+    char buf[16];
+    snprintf(buf, sizeof(buf), "-%d", before - pm->hp);
+    ft_spawn_shake((float)(sx + ally_idx * (fw + gap) + fw / 2), 29.0f, buf, 7, (Color){ 255, 90, 90, 255 });
+    vfx_spawn_burst((float)(sx + ally_idx * (fw + gap) + fw / 2), 22.0f, (Color){ 255, 85, 75, 255 }, 5);
+
+    LOG_I(CAT_COMBAT, "%s hits %s for %d (%d -> %d)", source, pm->name, before - pm->hp, before, pm->hp);
+    combat_feed_add(cs, "%s hit %s for %d", source, pm->name, before - pm->hp);
+
+    if (pm->hp <= 0)
+    {
+        pm->alive = false;
+        pm->aggro = 0;
+        pm->shield = 0;
+        LOG_I(CAT_COMBAT, "%s DOWNED! Removing %s cards.", pm->name, class_name(pm->class));
+        combat_feed_add(cs, "%s is downed", pm->name);
+        deck_remove_class_cards(&cs->deck, pm->class);
+        ft_spawn((float)(sx + ally_idx * (fw + gap) + fw / 2 - 13), 35.0f, "DOWNED", 6, (Color){ 240, 80, 80, 255 });
+    }
+}
+
+static void apply_heal_to_enemy(CombatState *cs, int enemy_idx, int amount)
+{
+    if (enemy_idx < 0 || enemy_idx >= cs->enemy_count) return;
+    EnemyState *e = &cs->enemies[enemy_idx];
+    if (!e->def || e->hp <= 0) return;
+
+    int before = e->hp;
+    e->hp += amount;
+    if (e->hp > e->def->max_hp) e->hp = e->def->max_hp;
+
+    char buf[16];
+    snprintf(buf, sizeof(buf), "+%d", e->hp - before);
+    ft_spawn((float)(e->pos_x - 7), (float)(e->pos_y - 18), buf, 7, (Color){ 90, 240, 130, 255 });
+    vfx_spawn_burst((float)e->pos_x, (float)(e->pos_y - 4), (Color){ 95, 240, 130, 255 }, 4);
+    LOG_I(CAT_COMBAT, "Enemy %s heals for %d (%d -> %d)", e->def->name, e->hp - before, before, e->hp);
+    combat_feed_add(cs, "%s healed for %d", e->def->name, e->hp - before);
+}
+
+static void apply_shield_to_enemy(CombatState *cs, int enemy_idx, int amount)
+{
+    if (enemy_idx < 0 || enemy_idx >= cs->enemy_count) return;
+    EnemyState *e = &cs->enemies[enemy_idx];
+    if (!e->def || e->hp <= 0) return;
+
+    e->shield += amount;
+    char buf[16];
+    snprintf(buf, sizeof(buf), "+%d", amount);
+    ft_spawn((float)(e->pos_x - 7), (float)(e->pos_y - 18), buf, 7, (Color){ 100, 180, 255, 255 });
+    vfx_spawn_burst((float)e->pos_x, (float)(e->pos_y - 4), (Color){ 115, 190, 255, 255 }, 4);
+    LOG_I(CAT_COMBAT, "Enemy %s gains %d shield (%d)", e->def->name, amount, e->shield);
+    combat_feed_add(cs, "%s gained %d shield", e->def->name, amount);
+}
+
+static int enemy_lowest_hp(CombatState *cs)
+{
+    int idx = -1;
+    int lowest = 999999;
+    for (int i = 0; i < cs->enemy_count; i++)
+    {
+        EnemyState *e = &cs->enemies[i];
+        if (!e->def || e->hp <= 0) continue;
+        if (e->hp < lowest)
+        {
+            lowest = e->hp;
+            idx = i;
+        }
+    }
+    return idx;
+}
+
+static bool interrupt_enemy(CombatState *cs, int enemy_idx)
+{
+    if (enemy_idx < 0 || enemy_idx >= cs->enemy_count) return false;
+    EnemyState *e = &cs->enemies[enemy_idx];
+    if (!e->def || e->hp <= 0) return false;
+
+    if (e->intent.ability_idx < 0)
+    {
+        ft_spawn((float)(e->pos_x - 14), (float)(e->pos_y - 25), "NO CAST", 6, (Color){ 180, 180, 200, 255 });
+        return false;
+    }
+
+    const EnemyAbility *ab = &e->def->abilities[e->intent.ability_idx];
+    if (ab->is_wipe || ab->intent == INTENT_WIPE)
+    {
+        ft_spawn((float)(e->pos_x - 14), (float)(e->pos_y - 25), "IMMUNE", 6, (Color){ 230, 120, 80, 255 });
+        LOG_I(CAT_CARD, "  %s resisted interrupt on %s", e->def->name, ab->name);
+        return false;
+    }
+
+    LOG_I(CAT_CARD, "  %s interrupted %s", e->def->name, ab->name);
+    combat_feed_add(cs, "%s was interrupted", e->def->name);
+    ft_spawn_shake((float)(e->pos_x - 21), (float)(e->pos_y - 26), "INTERRUPTED", 7, (Color){ 220, 120, 255, 255 });
+    vfx_spawn_burst((float)e->pos_x, (float)(e->pos_y - 15), (Color){ 220, 120, 255, 255 }, 7);
+    e->intent.ability_idx = -1;
+    e->intent.remaining_turns = 0;
+    return true;
+}
+
+static void add_aggro_to_caster(CombatState *cs, ClassType ct, int amount)
+{
+    for (int i = 0; i < cs->party.count; i++)
+        if (cs->party.members[i].class == ct && cs->party.members[i].alive)
+            cs->party.members[i].aggro += amount;
+}
+
+static void find_caster(CombatState *cs, ClassType ct, int *out_idx)
+{
+    *out_idx = -1;
+    for (int i = 0; i < cs->party.count; i++)
+        if (cs->party.members[i].class == ct && cs->party.members[i].alive)
+            { *out_idx = i; return; }
+}
+
+static int find_guardian(CombatState *cs)
+{
+    for (int i = 0; i < cs->party.count; i++)
+        if (cs->party.members[i].class == CLASS_GUARDIAN && cs->party.members[i].alive)
+            return i;
+    return -1;
+}
+
+// ── Card resolver ───────────────────────────────────────────
+
+static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_enemy, int target_ally)
+{
+    if (hand_idx < 0 || hand_idx >= cs->deck.hand_count) return;
+
+    CardInstance *inst = &cs->deck.cards[cs->deck.hand[hand_idx]];
+    const CardDef *card = inst->def;
+    if (!card || !card->name) return;
+
+    bool ug = inst->upgraded;
+
+    int dmg = card_damage(card, ug);
+    int hl  = card_heal(card, ug);
+    int sh  = card_shield(card, ug);
+
+    LOG_I(CAT_CARD, "Playing %s (enemy=%d, ally=%d) upgraded=%d channel=%d", card->name, target_enemy, target_ally, ug, card->channel);
+    combat_flash_played_card(cs, card, target_enemy, target_ally);
+    combat_feed_add(cs, "Played %s", card->name);
+
+    // ── Combo check ─────────────────────────────────────────
+    float combo_mult = 1.0f;
+    if (card->class == CLASS_NONE)
+    {
+        // Utility cards don't affect combo
+    }
+    else if (cs->combo_class == card->class && card->cost > cs->combo_last_cost)
+    {
+        cs->combo_count++;
+        combo_mult = 1.0f + cs->combo_count * 0.10f;
+        // Animate combo UI
+        cs->combo_scale = 1.0f;
+        cs->combo_tween = tween_create(&cs->combo_scale, 1.3f, 0.15f, EASE_OUT_BACK);
+        tween_chain(cs->combo_tween, &cs->combo_scale, 1.0f, 0.3f, EASE_OUT_ELASTIC);
+        cs->combo_shake = 0;
+        tween_create(&cs->combo_shake, 1.0f, 0.08f, EASE_OUT_QUAD);
+        LOG_I(CAT_CARD, "  COMBO x%d (+%d%%)", cs->combo_count + 1, (int)((combo_mult - 1.0f) * 100));
+    }
+    else
+    {
+        cs->combo_count = 0;
+        cs->combo_class = card->class;
+    }
+    if (card->class != CLASS_NONE)
+        cs->combo_last_cost = card->cost;
+
+    // Apply multiplier
+    dmg = (int)(dmg * combo_mult);
+    hl  = (int)(hl * combo_mult);
+    sh  = (int)(sh * combo_mult);
+
+    // ── Utility card effects ────────────────────────────────
+    if (card->class == CLASS_NONE)
+    {
+        if (strcmp(card->id, "util_prep") == 0)
+        {
+            for (int d = 0; d < 2; d++) deck_draw(&cs->deck);
+            LOG_I(CAT_CARD, "  Preparation: drew 2 cards");
+        }
+        else if (strcmp(card->id, "util_energ") == 0)
+        {
+            cs->energy.current += 2;
+            if (cs->energy.current > cs->energy.max) cs->energy.current = cs->energy.max;
+            LOG_I(CAT_CARD, "  Energize: +2 energy (%d/%d)", cs->energy.current, cs->energy.max);
+        }
+        else if (strcmp(card->id, "util_rejuv") == 0)
+        {
+            for (int i = 0; i < cs->party.count; i++)
+                if (cs->party.members[i].alive) apply_heal_to_ally(cs, i, hl);
+        }
+        else if (strcmp(card->id, "util_for") == 0)
+        {
+            for (int i = 0; i < cs->party.count; i++)
+                if (cs->party.members[i].alive) apply_shield_to_ally(cs, i, sh);
+        }
+        if (card->exhaust) deck_exhaust_index(&cs->deck, hand_idx);
+        else deck_discard_index(&cs->deck, hand_idx);
+        return;
+    }
+
+    // Channel cards don't resolve immediately — they start a channel instead
+    if (!card->channel)
+    {
+        if (card->target == TARGET_ALL_ENEMIES)
+        {
+            for (int i = 0; i < cs->enemy_count; i++)
+                if (cs->enemies[i].def && cs->enemies[i].hp > 0)
+                    apply_damage_to_enemy(cs, i, dmg);
+        }
+        else if (dmg > 0 && target_enemy >= 0)
+        {
+            int repeat_hits = 1;
+            if (strcmp(card->id, "mag_missiles") == 0) repeat_hits = 3;
+            if (strcmp(card->id, "shm_fury") == 0) repeat_hits = 2;
+
+            for (int hit = 0; hit < repeat_hits; hit++)
+                apply_damage_to_enemy(cs, target_enemy, dmg);
+        }
+
+    if (card->interrupt && target_enemy >= 0)
+        interrupt_enemy(cs, target_enemy);
+
+    if (strcmp(card->id, "clr_revive") == 0 && target_ally >= 0)
+    {
+        revive_ally(cs, target_ally);
+    }
+    else if (card->target == TARGET_ALL_ALLIES)
+    {
+        for (int i = 0; i < cs->party.count; i++)
+            if (cs->party.members[i].alive)
+            {
+                if (hl > 0) apply_heal_to_ally(cs, i, hl);
+                if (sh > 0) apply_shield_to_ally(cs, i, sh);
+            }
+    }
+    else if (card->target == TARGET_SELF)
+    {
+        int caster = -1;
+        find_caster(cs, card->class, &caster);
+        if (caster >= 0)
+        {
+            if (hl > 0) apply_heal_to_ally(cs, caster, hl);
+            if (sh > 0) apply_shield_to_ally(cs, caster, sh);
+        }
+    }
+    else if (target_ally >= 0)
+    {
+        if (hl > 0) apply_heal_to_ally(cs, target_ally, hl);
+        if (sh > 0) apply_shield_to_ally(cs, target_ally, sh);
+    }
+    else
+    {
+        int caster = -1;
+        find_caster(cs, card->class, &caster);
+        if (caster >= 0)
+        {
+            if (sh > 0) apply_shield_to_ally(cs, caster, sh);
+            if (hl > 0 && card->heal_self) apply_heal_to_ally(cs, caster, hl);
+        }
+    }
+
+    if (card->taunt)
+    {
+        int caster = -1;
+        find_caster(cs, card->class, &caster);
+        if (caster >= 0)
+        {
+            int highest = 0;
+            for (int i = 0; i < cs->party.count; i++)
+                if (cs->party.members[i].alive && cs->party.members[i].aggro > highest)
+                    highest = cs->party.members[i].aggro;
+            cs->party.members[caster].aggro = highest + 30;
+            LOG_I(CAT_CARD, "Taunt: caster aggro set to %d", cs->party.members[caster].aggro);
+        }
+    }
+
+    if (strcmp(card->id, "rog_stealth") == 0)
+    {
+        int caster = -1;
+        find_caster(cs, card->class, &caster);
+        if (caster >= 0)
+        {
+            cs->party.members[caster].aggro = 0;
+            ft_spawn(40.0f, 35.0f, "AGGRO RESET", 6, (Color){ 120, 220, 160, 255 });
+            LOG_I(CAT_CARD, "  Rogue Stealth: aggro reset");
+        }
+    }
+
+    if (strcmp(card->id, "rog_smoke") == 0 && target_ally >= 0)
+    {
+        int guardian = find_guardian(cs);
+        int transfer = cs->party.members[target_ally].aggro;
+        if (guardian >= 0 && guardian != target_ally)
+        {
+            cs->party.members[guardian].aggro += transfer;
+            cs->party.members[target_ally].aggro = 0;
+            ft_spawn(40.0f, 35.0f, "AGGRO TRANSFER", 6, (Color){ 180, 180, 220, 255 });
+            LOG_I(CAT_CARD, "  Smoke Bomb: moved %d aggro to Guardian", transfer);
+        }
+        else
+        {
+            cs->party.members[target_ally].aggro = 0;
+            LOG_I(CAT_CARD, "  Smoke Bomb: reduced ally aggro by %d", transfer);
+        }
+    }
+
+    // Apply burning from burn_stacks (Combustion)
+    if (card->burn_stacks > 0 && target_enemy >= 0 && target_enemy < cs->enemy_count)
+    {
+        if (cs->enemies[target_enemy].def && cs->enemies[target_enemy].hp > 0)
+            status_apply(cs->enemies[target_enemy].statuses, &cs->enemies[target_enemy].status_count,
+                STATUS_BURNING, 3, card->burn_stacks);
+        LOG_I(CAT_CARD, "  enemy[%d]: +%d Burning (3 turns)", target_enemy, card->burn_stacks);
+    }
+
+    // Apply Renew (Heal over time)
+    if (strcmp(card->id, "clr_renew") == 0 && target_ally >= 0)
+    {
+        status_apply(cs->party.members[target_ally].statuses, &cs->party.members[target_ally].status_count,
+            STATUS_RENEW, 3, 5);
+        LOG_I(CAT_CARD, "  ally[%d]: Renew (+5 HP x3 turns)", target_ally);
+    }
+
+    // Apply Healing Totem
+    if (strcmp(card->id, "shm_heal_totem") == 0)
+    {
+        for (int i = 0; i < cs->party.count; i++)
+            if (cs->party.members[i].alive)
+                status_apply(cs->party.members[i].statuses, &cs->party.members[i].status_count,
+                    STATUS_TOTEM_HEAL, 3, 4);
+        LOG_I(CAT_CARD, "  party: Healing Totem (+4 HP x3 turns for all)");
+    }
+
+    // Apply Snare Trap
+    if (strcmp(card->id, "rng_trap") == 0 && target_enemy >= 0 && target_enemy < cs->enemy_count)
+    {
+        status_apply(cs->enemies[target_enemy].statuses, &cs->enemies[target_enemy].status_count,
+            STATUS_TRAP, 2, 4);
+        LOG_I(CAT_CARD, "  enemy[%d]: Snare Trap (-4 damage this turn)", target_enemy);
+    }
+
+    if (card->aggro_self > 0)
+        add_aggro_to_caster(cs, card->class, card->aggro_self);
+
+    if (card->heal2 > 0 && target_ally >= 0)
+    {
+        int second_hp = 99999;
+        int second = -1;
+        for (int i = 0; i < cs->party.count; i++)
+        {
+            if (i != target_ally && cs->party.members[i].alive && cs->party.members[i].hp < second_hp)
+            {
+                second_hp = cs->party.members[i].hp;
+                second = i;
+            }
+        }
+        if (second >= 0) apply_heal_to_ally(cs, second, card->heal2);
+    }
+
+    if (hl > 0 && dmg > 0 && card->target == TARGET_ENEMY && !card->heal_self)
+    {
+        int lowest = party_lowest_hp(&cs->party);
+        if (lowest >= 0) apply_heal_to_ally(cs, lowest, hl);
+    }
+    } // end if(!card->channel)
+
+    if (card->channel)
+    {
+        cs->channel_card = card;
+        cs->channel_remaining = card->channel_turns;
+        cs->channel_class = card->class;
+        deck_exhaust_index(&cs->deck, hand_idx);
+        LOG_I(CAT_CARD, "  %s starts channeling for %d turns!", card->name, card->channel_turns);
+    }
+    else if (card->exhaust)
+        deck_exhaust_index(&cs->deck, hand_idx);
+    else
+        deck_discard_index(&cs->deck, hand_idx);
+}
+
+// ── Check win/loss ──────────────────────────────────────────
+
+static void check_victory(CombatState *cs)
+{
+    for (int i = 0; i < cs->enemy_count; i++)
+        if (cs->enemies[i].def && cs->enemies[i].hp > 0) return;
+    cs->phase = COMBAT_VICTORY;
+    strcpy(cs->result_message, "VICTORY! Click to continue.");
+    combat_feed_add(cs, "Victory");
+
+    // Gold popup immediately on victory
+    if (!cs->gold_spawned)
+    {
+        int gold_gain = g_state.encounter_is_boss ? 50 : (g_state.encounter_is_elite ? 25 : 10);
+        ft_spawn_gold(gold_gain);
+        cs->gold_spawned = true;
+    }
+
+    LOG_I(CAT_COMBAT, "=== VICTORY ===");
+}
+
+static void check_defeat(CombatState *cs)
+{
+    for (int i = 0; i < cs->party.count; i++)
+        if (cs->party.members[i].alive) return;
+    cs->phase = COMBAT_DEFEAT;
+    strcpy(cs->result_message, "Party wiped. Click to continue.");
+    combat_feed_add(cs, "Party wiped");
+    LOG_I(CAT_COMBAT, "=== DEFEAT ===");
+}
+
+// ── Enemy AI ────────────────────────────────────────────────
+
+static void enemy_action(EnemyState *e, CombatState *cs)
+{
+    if (!e->def) return;
+    int ab_idx = e->intent.ability_idx;
+    if (ab_idx < 0 || ab_idx >= e->def->ability_count) return;
+
+    const EnemyAbility *ab = &e->def->abilities[ab_idx];
+    int damage = ab->base_damage;
+
+    // Snare Trap reduces damage
+    int trap_idx = status_find(e->statuses, e->status_count, STATUS_TRAP);
+    if (trap_idx >= 0)
+    {
+        damage -= e->statuses[trap_idx].value;
+        if (damage < 0) damage = 0;
+        LOG_I(CAT_CARD, "  Snare Trap reduces damage by %d", e->statuses[trap_idx].value);
+    }
+
+    if (ab->intent == INTENT_HEAL)
+    {
+        int target = enemy_lowest_hp(cs);
+        if (target >= 0) apply_heal_to_enemy(cs, target, ab->heal_amount);
+        return;
+    }
+
+    if (ab->intent == INTENT_SHIELD || ab->intent == INTENT_BUFF)
+    {
+        apply_shield_to_enemy(cs, (int)(e - cs->enemies), ab->shield_amount);
+        return;
+    }
+
+    if (ab->intent == INTENT_AOE || ab->intent == INTENT_WIPE)
+    {
+        for (int i = 0; i < cs->party.count; i++)
+            apply_damage_to_ally(cs, i, damage, e->def->name);
+        check_defeat(cs);
+        return;
+    }
+
+    int repeats = 1;
+    if (strcmp(ab->name, "Dual Strike") == 0 || strcmp(ab->name, "Rapid Strikes") == 0)
+        repeats = 2;
+
+    for (int hit = 0; hit < repeats; hit++)
+    {
+        int target = party_highest_aggro(&cs->party);
+        if (target < 0) break;
+        apply_damage_to_ally(cs, target, damage, e->def->name);
+    }
+
+    if (ab->shield_amount > 0 && e->hp > 0)
+        apply_shield_to_enemy(cs, (int)(e - cs->enemies), ab->shield_amount);
+
+    if (ab->heal_amount > 0 && e->hp > 0)
+        apply_heal_to_enemy(cs, (int)(e - cs->enemies), ab->heal_amount);
+
+    check_defeat(cs);
+}
+
+static int choose_enemy_intent(EnemyState *e)
+{
+    if (!e->def || e->def->ability_count == 0) return -1;
+    return e->current_ability % e->def->ability_count;
+}
+
+// ── Turn progression ────────────────────────────────────────
+
+static void advance_turn(CombatState *cs)
+{
+    cs->turn++;
+    LOG_I(CAT_COMBAT, "=== Turn %d ===", cs->turn);
+
+    // ── Tick channel ────────────────────────────────────────
+    if (cs->channel_card && cs->channel_remaining > 0)
+    {
+        cs->channel_remaining--;
+        LOG_I(CAT_COMBAT, "  %s channeling: %d turns remaining", cs->channel_card->name, cs->channel_remaining);
+
+        if (cs->channel_remaining <= 0)
+        {
+            const CardDef *cc = cs->channel_card;
+            LOG_I(CAT_CARD, "  Channel complete! Resolving %s...", cc->name);
+            // Resolve channel card effects directly
+            if (cc->damage > 0)
+                for (int ei = 0; ei < cs->enemy_count; ei++)
+                    if (cs->enemies[ei].def && cs->enemies[ei].hp > 0)
+                        apply_damage_to_enemy(cs, ei, card_damage(cc, false));
+            if (cc->heal > 0)
+                for (int i = 0; i < cs->party.count; i++)
+                    if (cs->party.members[i].alive)
+                        apply_heal_to_ally(cs, i, card_heal(cc, false));
+            if (cc->shield > 0)
+                for (int i = 0; i < cs->party.count; i++)
+                    if (cs->party.members[i].alive)
+                        apply_shield_to_ally(cs, i, card_shield(cc, false));
+            cs->channel_card = NULL;
+            cs->channel_class = CLASS_NONE;
+        }
+    }
+
+    // ── Tick status effects ──────────────────────────────────
+    // Burning damage on enemies
+    for (int ei = 0; ei < cs->enemy_count; ei++)
+    {
+        if (!cs->enemies[ei].def || cs->enemies[ei].hp <= 0) continue;
+        int bi = status_find(cs->enemies[ei].statuses, cs->enemies[ei].status_count, STATUS_BURNING);
+        if (bi >= 0)
+        {
+            int burn_dmg = cs->enemies[ei].statuses[bi].value;
+            cs->enemies[ei].hp -= burn_dmg;
+            if (cs->enemies[ei].hp < 0) cs->enemies[ei].hp = 0;
+            char bbuf[16];
+            snprintf(bbuf, sizeof(bbuf), "-%d", burn_dmg);
+            ft_spawn((float)(cs->enemies[ei].pos_x + 4), (float)(cs->enemies[ei].pos_y - 18), bbuf, 7, (Color){ 255, 150, 50, 255 });
+            vfx_spawn_burst((float)cs->enemies[ei].pos_x, (float)(cs->enemies[ei].pos_y - 5), (Color){ 255, 135, 45, 255 }, 4);
+            LOG_I(CAT_CARD, "  enemy[%d] Burning: %d damage", ei, burn_dmg);
+        }
+    }
+
+    // Renew healing on allies
+    for (int i = 0; i < cs->party.count; i++)
+    {
+        if (!cs->party.members[i].alive) continue;
+        int ri = status_find(cs->party.members[i].statuses, cs->party.members[i].status_count, STATUS_RENEW);
+        if (ri >= 0)
+        {
+            int heal = cs->party.members[i].statuses[ri].value;
+            cs->party.members[i].hp += heal;
+            if (cs->party.members[i].hp > cs->party.members[i].max_hp)
+                cs->party.members[i].hp = cs->party.members[i].max_hp;
+            LOG_I(CAT_CARD, "  ally[%d] Renew: +%d HP", i, heal);
+        }
+    }
+
+    // Healing Totem
+    for (int i = 0; i < cs->party.count; i++)
+    {
+        if (!cs->party.members[i].alive) continue;
+        int ti = status_find(cs->party.members[i].statuses, cs->party.members[i].status_count, STATUS_TOTEM_HEAL);
+        if (ti >= 0)
+        {
+            int heal = cs->party.members[i].statuses[ti].value;
+            cs->party.members[i].hp += heal;
+            if (cs->party.members[i].hp > cs->party.members[i].max_hp)
+                cs->party.members[i].hp = cs->party.members[i].max_hp;
+            LOG_I(CAT_CARD, "  ally[%d] Totem: +%d HP", i, heal);
+        }
+    }
+
+    // Tick all statuses down and remove expired
+    for (int ei = 0; ei < cs->enemy_count; ei++)
+        status_tick(cs->enemies[ei].statuses, &cs->enemies[ei].status_count);
+    for (int i = 0; i < cs->party.count; i++)
+        status_tick(cs->party.members[i].statuses, &cs->party.members[i].status_count);
+
+    for (int i = 0; i < cs->party.count; i++)
+        if (cs->party.members[i].alive)
+        {
+            cs->party.members[i].aggro -= 5;
+            if (cs->party.members[i].aggro < 0) cs->party.members[i].aggro = 0;
+        }
+
+    for (int ei = 0; ei < cs->enemy_count; ei++)
+    {
+        EnemyState *e = &cs->enemies[ei];
+        if (!e->def || e->hp <= 0) continue;
+
+        if (e->intent.ability_idx >= 0)
+        {
+            e->intent.remaining_turns--;
+            if (e->intent.remaining_turns <= 0)
+            {
+                enemy_action(e, cs);
+                e->intent.ability_idx = -1;
+            }
+        }
+
+        if (e->intent.ability_idx < 0)
+        {
+            int idx = choose_enemy_intent(e);
+            if (idx >= 0)
+            {
+                e->intent.ability_idx = idx;
+                e->intent.remaining_turns = e->def->abilities[idx].cast_time;
+                e->current_ability++;
+            }
+        }
+    }
+
+    check_defeat(cs);
+    if (cs->phase == COMBAT_DEFEAT) return;
+    check_victory(cs);
+    if (cs->phase == COMBAT_VICTORY) return;
+
+    energy_refresh(&cs->energy);
+    deck_discard_hand(&cs->deck);
+    for (int i = 0; i < 5; i++)
+        if (deck_draw(&cs->deck) < 0) break;
+
+    cs->target_mode = TGT_NONE;
+    cs->phase = COMBAT_PLAYER_TURN;
+    combat_set_turn_banner(cs, "PLAYER TURN");
+}
+
+static void combat_end_turn_internal(CombatState *cs)
+{
+    cs->target_mode = TGT_NONE;
+    cs->phase = COMBAT_ENEMY_TURN;
+    cs->enemy_banner_timer = 0.55f;
+    cs->end_turn_flash = 0.35f;
+    combat_feed_add(cs, "Enemy actions resolve");
+    advance_turn(cs);
+}
+
+// ── Public API ──────────────────────────────────────────────
+
+void combat_start(CombatState *cs, const Party *party, const EncounterDef *encounter)
+{
+    LOG_T("combat_start BEGIN");
+    LOG_T("  party_count=%d encounter_count=%d", party ? party->count : 0, encounter ? encounter->count : 0);
+
+    memset(cs, 0, sizeof(CombatState));
+    LOG_T("  memset done");
+
+    if (party && party->count > 0)
+        memcpy(&cs->party, party, sizeof(Party));
+    else
+    {
+        int fallback_classes[3] = { CLASS_GUARDIAN, CLASS_CLERIC, CLASS_MAGE };
+        party_create(&cs->party, fallback_classes, 3);
+    }
+    LOG_T("  party created: %d members, run_deck has %d cards", cs->party.count, g_state.run_deck.card_count);
+
+    memcpy(&cs->deck, &g_state.run_deck, sizeof(Deck));
+    deck_prepare_for_combat(&cs->deck);
+    for (int i = 0; i < cs->party.count; i++)
+        if (!cs->party.members[i].alive)
+            deck_remove_class_cards(&cs->deck, cs->party.members[i].class);
+    LOG_T("  deck copied: card_count=%d draw_count=%d", cs->deck.card_count, cs->deck.draw_count);
+
+    deal_opening_hand(&cs->deck);
+    LOG_T("  hand dealt: hand_count=%d draw_count=%d", cs->deck.hand_count, cs->deck.draw_count);
+
+    LOG_T("  calling energy_init(%d, %d, %d)", 4, MAX_ENERGY, BASE_REGEN);
+    energy_init(&cs->energy, 4, MAX_ENERGY, BASE_REGEN);
+    LOG_T("  energy: %d/%d regen=%d", cs->energy.current, cs->energy.max, cs->energy.regen);
+
+    cs->turn = 0;
+    cs->hovered_card = -1;
+    cs->target_mode = TGT_NONE;
+    cs->target_hand_idx = -1;
+    cs->hovered_enemy = -1;
+    cs->hovered_ally = -1;
+    cs->gold_spawned = false;
+    cs->channel_card = NULL;
+    cs->channel_remaining = 0;
+    cs->channel_class = CLASS_NONE;
+    cs->target_offset = 0;
+    cs->target_offset_tween = -1;
+    cs->combo_class = CLASS_NONE;
+    cs->combo_last_cost = -1;
+    cs->combo_count = 0;
+    cs->combo_scale = 1.0f;
+    cs->combo_tween = -1;
+    cs->combo_shake = 0;
+    cs->turn_banner_timer = 0.0f;
+    cs->turn_banner_text[0] = '\0';
+    cs->enemy_banner_timer = 0.0f;
+    cs->end_turn_flash = 0.0f;
+    cs->play_flash_timer = 0.0f;
+    cs->play_flash_text[0] = '\0';
+    for (int i = 0; i < 5; i++)
+    {
+        cs->action_feed[i][0] = '\0';
+        cs->action_feed_timer[i] = 0.0f;
+    }
+
+    LOG_T("  setting up enemies");
+
+    cs->enemy_count = (encounter && encounter->count > 0) ? encounter->count : 1;
+    if (cs->enemy_count > MAX_ENEMIES) cs->enemy_count = MAX_ENEMIES;
+
+    for (int i = 0; i < cs->enemy_count; i++)
+    {
+        const EnemyDef *ed = (encounter && encounter->enemies[i]) ? encounter->enemies[i] : &flame_imp;
+        LOG_T("  enemy[%d]: %s HP=%d", i, ed->name, ed->hp);
+        cs->enemies[i].def = ed;
+        cs->enemies[i].hp = ed->hp;
+        cs->enemies[i].shield = 0;
+        cs->enemies[i].current_ability = i * 2;
+        cs->enemies[i].intent.ability_idx = -1;
+        cs->enemies[i].intent.remaining_turns = 0;
+    }
+    calc_enemy_positions(cs->enemies, cs->enemy_count);
+    LOG_T("  enemy positions calculated");
+
+    LOG_T("  calling advance_turn");
+    advance_turn(cs);
+    LOG_T("combat_start END");
+}
+
+void combat_end_turn(CombatState *cs)
+{
+    if (cs->target_mode != TGT_NONE)
+    {
+        cs->target_mode = TGT_NONE;
+        cs->target_hand_idx = -1;
+        return;
+    }
+    combat_end_turn_internal(cs);
+}
+
+// ── Input handling ──────────────────────────────────────────
+
+static void start_targeting(CombatState *cs, int hand_idx, TargetType tt)
+{
+    cs->target_hand_idx = hand_idx;
+    cs->hovered_enemy = -1;
+    cs->hovered_ally = -1;
+
+    // Animate the selected card upward
+    cs->target_offset = 0;
+    cs->target_offset_tween = tween_create(&cs->target_offset, -40.0f, 0.2f, EASE_OUT_BACK);
+
+    switch (tt)
+    {
+        case TARGET_ENEMY:
+        case TARGET_ALL_ENEMIES:
+            cs->target_mode = TGT_SELECT_ENEMY;
+            break;
+        case TARGET_ALLY:
+        case TARGET_ALL_ALLIES:
+            cs->target_mode = TGT_SELECT_ALLY;
+            break;
+        case TARGET_SELF:
+        {
+            int caster = -1;
+            find_caster(cs, cs->deck.cards[cs->deck.hand[hand_idx]].def->class, &caster);
+            resolve_card_on_target(cs, hand_idx, -1, caster >= 0 ? caster : 0);
+            cs->target_mode = TGT_NONE;
+            cs->target_hand_idx = -1;
+            check_victory(cs);
+            if (cs->phase == COMBAT_VICTORY) return;
+            check_defeat(cs);
+            if (cs->phase == COMBAT_DEFEAT) return;
+            if (cs->energy.current <= 0 || cs->deck.hand_count == 0)
+                combat_end_turn_internal(cs);
+            break;
+        }
+        default:
+            cs->target_mode = TGT_NONE;
+            cs->target_hand_idx = -1;
+            break;
+    }
+}
+
+static void handle_card_click(CombatState *cs, int hand_idx)
+{
+    if (hand_idx < 0 || hand_idx >= cs->deck.hand_count) return;
+    const CardDef *card = cs->deck.cards[cs->deck.hand[hand_idx]].def;
+    if (!card || !card->name) return;
+
+    // Block cards from a channeling class
+    if (cs->channel_card && cs->channel_class == card->class)
+    {
+        LOG_D(CAT_CARD, "  Cannot play %s — %s is channeling", card->name, class_name(card->class));
+        return;
+    }
+
+    if (cs->energy.current < card->cost) return;
+
+    energy_spend(&cs->energy, card->cost);
+
+    LOG_D(CAT_CARD, "handle_card_click: card=%s target=%d energy=%d", card->name, (int)card->target, cs->energy.current);
+
+    if (card->target == TARGET_ENEMY || card->target == TARGET_ALLY)
+    {
+        LOG_D(CAT_CARD, "  -> entering targeting mode");
+        start_targeting(cs, hand_idx, card->target);
+    }
+    else
+    {
+        LOG_D(CAT_CARD, "  -> resolving immediately (target=%d)", (int)card->target);
+        resolve_card_on_target(cs, hand_idx, -1, -1);
+        check_victory(cs);
+        if (cs->phase == COMBAT_VICTORY) return;
+        check_defeat(cs);
+        if (cs->phase == COMBAT_DEFEAT) return;
+        if (cs->energy.current <= 0 || cs->deck.hand_count == 0)
+            combat_end_turn_internal(cs);
+    }
+}
+
+static int hit_test_enemies(CombatState *cs, Vector2 mouse)
+{
+    for (int i = 0; i < cs->enemy_count; i++)
+    {
+        if (!cs->enemies[i].def || cs->enemies[i].hp <= 0) continue;
+        int ex = cs->enemies[i].pos_x, ey = cs->enemies[i].pos_y;
+        Rectangle r = { (float)(ex - ENEMY_SIZE / 2 - 4), (float)(ey - ENEMY_SIZE / 2 - 6), (float)(ENEMY_SIZE + 8), (float)(ENEMY_SIZE + 12) };
+        if (CheckCollisionPointRec(mouse, r)) return i;
+    }
+    return -1;
+}
+
+static int hit_test_party(CombatState *cs, Vector2 mouse)
+{
+    int fw = party_frame_width_for_count(cs->party.count);
+    int fh = FRAME_H;
+    int gap = party_frame_gap_for_count(cs->party.count);
+    int sx = party_frame_start_x(&cs->party);
+    for (int i = 0; i < cs->party.count; i++)
+    {
+        Rectangle r = { (float)(sx + i * (fw + gap)), FRAME_Y, (float)fw, (float)fh };
+        if (CheckCollisionPointRec(mouse, r)) return i;
+    }
+    return -1;
+}
+
+static bool card_can_target_ally(const CardDef *card, PartyMember *member)
+{
+    if (!card || !member) return false;
+    if (strcmp(card->id, "clr_revive") == 0)
+        return !member->alive;
+    return member->alive;
+}
+
+void combat_update(CombatState *cs)
+{
+    LOG_T("combat_update: phase=%d hand=%d energy=%d", cs->phase, cs->deck.hand_count, cs->energy.current);
+    float dt = GetFrameTime();
+    if (cs->turn_banner_timer > 0.0f) cs->turn_banner_timer -= dt;
+    if (cs->enemy_banner_timer > 0.0f) cs->enemy_banner_timer -= dt;
+    if (cs->end_turn_flash > 0.0f) cs->end_turn_flash -= dt;
+    if (cs->play_flash_timer > 0.0f) cs->play_flash_timer -= dt;
+    for (int i = 0; i < 5; i++)
+        if (cs->action_feed_timer[i] > 0.0f)
+            cs->action_feed_timer[i] -= dt;
+
+    if (cs->phase == COMBAT_VICTORY || cs->phase == COMBAT_DEFEAT)
+    {
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+            cs->phase = COMBAT_TURN_START;
+        return;
+    }
+
+    if (cs->phase != COMBAT_PLAYER_TURN) { LOG_T("CU: not player turn, returning"); return; }
+
+    LOG_T("CU: getting mouse");
+    Vector2 mouse = GetMousePosition();
+    cs->hovered_card = -1;
+
+    // ── Targeting mode ──────────────────────────────────────
+    if (cs->target_mode == TGT_SELECT_ENEMY)
+    {
+        cs->hovered_enemy = hit_test_enemies(cs, mouse);
+        if (cs->hovered_enemy >= 0 && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+        {
+            resolve_card_on_target(cs, cs->target_hand_idx, cs->hovered_enemy, -1);
+            cs->target_mode = TGT_NONE; cs->target_hand_idx = -1; cs->target_offset = 0;
+            check_victory(cs); if (cs->phase == COMBAT_VICTORY) return;
+            check_defeat(cs);  if (cs->phase == COMBAT_DEFEAT) return;
+            if (cs->energy.current <= 0 || cs->deck.hand_count == 0) combat_end_turn_internal(cs);
+        }
+        else if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
+        {
+            cs->energy.current += cs->deck.cards[cs->deck.hand[cs->target_hand_idx]].def->cost;
+            cs->target_mode = TGT_NONE; cs->target_hand_idx = -1; cs->target_offset = 0;
+        }
+        return;
+    }
+
+    if (cs->target_mode == TGT_SELECT_ALLY)
+    {
+        cs->hovered_ally = hit_test_party(cs, mouse);
+        if (cs->hovered_ally >= 0 && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+        {
+            const CardDef *card = cs->deck.cards[cs->deck.hand[cs->target_hand_idx]].def;
+            if (!card_can_target_ally(card, &cs->party.members[cs->hovered_ally]))
+            {
+                ft_spawn(88.0f, 116.0f, "INVALID TARGET", 6, (Color){ 230, 90, 90, 255 });
+                return;
+            }
+            resolve_card_on_target(cs, cs->target_hand_idx, -1, cs->hovered_ally);
+            cs->target_mode = TGT_NONE; cs->target_hand_idx = -1; cs->target_offset = 0;
+            check_victory(cs); if (cs->phase == COMBAT_VICTORY) return;
+            check_defeat(cs);  if (cs->phase == COMBAT_DEFEAT) return;
+            if (cs->energy.current <= 0 || cs->deck.hand_count == 0) combat_end_turn_internal(cs);
+        }
+        else if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
+        {
+            cs->energy.current += cs->deck.cards[cs->deck.hand[cs->target_hand_idx]].def->cost;
+            cs->target_mode = TGT_NONE; cs->target_hand_idx = -1; cs->target_offset = 0;
+        }
+        return;
+    }
+
+    // ── Normal card interaction ────────────────────────────
+    int cw = HAND_CARD_W, ch = HAND_CARD_H;
+    int gap = HAND_GAP;
+    int tw = cs->deck.hand_count * (cw + gap) - gap;
+    int sx = (VIRT_W - tw) / 2;
+    int cy = HAND_Y;
+
+    for (int i = 0; i < cs->deck.hand_count; i++)
+    {
+        Rectangle r = { (float)(sx + i * (cw + gap)), (float)cy, (float)cw, (float)ch };
+        if (CheckCollisionPointRec(mouse, r))
+        {
+            cs->hovered_card = i;
+            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+                handle_card_click(cs, i);
+            break;
+        }
+    }
+
+    Rectangle end_btn = { (float)(VIRT_W - 43), (float)(VIRT_H - BTN_H - 3), 40.0f, (float)BTN_H };
+    if (CheckCollisionPointRec(mouse, end_btn) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+        combat_end_turn_internal(cs);
+}
+
+
+
+

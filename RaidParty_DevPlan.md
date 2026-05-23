@@ -1,0 +1,321 @@
+# Raid Party Dev Plan
+
+Last updated: 2026-05-22
+
+This plan tracks what the current Raylib prototype already has, what is only partially working, and what should be added next to make the game look and feel polished, readable, and professional.
+
+## Current Direction
+
+Raid Party is a party-based deckbuilding roguelite with MMO-style combat language: party frames, aggro, enemy casts, interrupts, healing, shields, class identity, map routing, shops, rests, and card rewards.
+
+The current codebase is a playable prototype slice, not yet a production-quality vertical slice. The next milestone should be "Polished Vertical Slice v0.2": one complete run path that feels great moment-to-moment before adding more systems.
+
+## Project Status Snapshot
+
+### Done
+
+- C99 + Raylib project builds through CMake.
+- Main loop, 1280x720 window, fixed 60 FPS target, and game state routing exist.
+- Core screens exist: Title, Draft, Map, Combat/Run, Rest, Shop, Card Reward.
+- Title and draft screens have basic tweened entrance/hover motion.
+- Shared tween engine exists in `src/util/tween.c` and is called once per frame from `main.c`.
+- Logging exists with category files under `logs/`.
+- UI helpers exist for buttons, panels, labels, and wrapped text.
+- Draft screen supports 6 classes: Guardian, Cleric, Mage, Rogue, Shaman, Ranger.
+- Current run setup selects 3 party members and builds a shared deck from their class cards.
+- Party system supports HP, max HP, shields, aggro, alive/downed state, and status slots.
+- Deck system supports shuffle, draw, hand, discard, exhaust, card upgrades, adding cards, and removing class cards when a party member goes down.
+- Energy system supports max energy, spend, and per-turn refresh.
+- Combat supports player turns, enemy turns, targeting enemies/allies, end turn, victory, defeat, card rewards, gold rewards, and multiple enemy slots.
+- Run party state now persists across combats, so HP, alive/downed state, and rest healing matter across the run.
+- The game starts with 3 party slots and the code supports a 5-member cap for future slot upgrades.
+- Combat now receives full encounter compositions instead of only the first enemy.
+- Enemy intent execution supports attack, tank buster, AOE, heal, shield, buff/shield, and wipe-style abilities.
+- Interrupt cards cancel interruptible enemy casts and show feedback when a cast is interrupted or immune.
+- Combat UI renders party frames, HP bars, shields, aggro text, enemy blocks, enemy HP, enemy intent cast bars, hand cards, energy, end turn, floating numbers, and screen shake.
+- Enemy shields are displayed.
+- Card data exists in C arrays: Guardian, Cleric, Mage, Rogue, Shaman, Ranger, plus utility cards.
+- Implemented card effect categories include damage, healing, shield, taunt, revive, burn, renew, healing totem, trap damage reduction, channel cards, exhaust, all-enemy targeting, all-ally targeting, and simple combo scaling.
+- Current P0 card audit is complete for known mismatches: interrupt, stealth, smoke bomb, multi-hit cards, Fortify, upgraded rewards, and trap timing now match their text.
+- Enemy definitions exist for Training Dummy, Flame Imp, Rage Knight, Cult Healer, Berserker, Living Armor, Venom Stalker, and Arcane Wisp.
+- Encounter definitions exist for 3 floors, including normal and elite pools.
+- Fixed branching map exists for 3 floors with Start, Combat, Elite, Rest, Shop, and Boss nodes.
+- Rest site supports heal or upgrade.
+- Shop supports upgrade or remove with gold costs.
+- Reward screen generates 3-4 card choices from selected party classes plus utility cards.
+- Upgraded reward cards remain upgraded when added to the run deck.
+- Game over/victory results screen exists with floor reached, bosses defeated, gold, deck size, and final party state.
+- P1 combat feel pass is implemented: target previews, readable intent bars, party-frame smoothing/statuses/target highlight, hand entry/hover motion, disabled-card treatment, turn/action feedback, combo badge, recent action feed, and screen fades.
+- P2 visual polish pass is implemented: shared assets/theme layer, textured tactical background, class/card/node color language, cost gems, effect badges, 64x96 full-card pixel-art template scaled 3x, class portraits, illustrated enemy stand-ins, map icon nodes, deck card previews, combat/reward VFX bursts, burn sparks, and boss danger flash.
+
+### Partially Done Or Risky
+
+- Party growth is designed as 3 starting slots, then 4th/5th slots through upgrades. The upgrade source and UI still need to be built.
+- Content is not JSON-driven yet. Cards, enemies, and encounters are hardcoded in C arrays.
+- Boss encounters now use floor-specific enemy mixes, but named boss identities and multi-phase boss logic are still missing.
+- Upgrade support affects damage/heal/shield numbers, but future special-effect upgrades still need a content/balance audit.
+- Card text/effect audits should continue whenever new cards or effect types are added.
+- Screen changes are instant. The planned fade-out/fade-in transition manager is not implemented.
+- Many visuals use immediate scale/position changes instead of the shared tween system.
+- UI is still primitive-shape placeholder art. There is no asset loader, no sprite/icon pipeline, no custom font pass, and no audio pass.
+- There are no relics, event nodes, meta-progression, persistence, or save/load.
+- No automated tests or repeatable balance test harness exist.
+- Build portability is limited because CMake references a hardcoded local Raylib path.
+
+## Next Milestone: Polished Vertical Slice v0.2
+
+Goal: One complete short run that feels cohesive, satisfying, and trustworthy. Keep scope small, but make every included interaction read clearly.
+
+Recommended scope:
+
+- Start with 3 party slots; later upgrades can unlock slots 4 and 5.
+- 3 floors, fixed maps, current 6 classes allowed.
+- 1 real boss per floor, even if each boss only has 2-3 polished mechanics.
+- Hardcoded C data is acceptable for this milestone, but effects must match card text.
+- No relics, events, meta-progression, or save files until the core loop feels excellent.
+
+Exit criteria:
+
+- A player can Draft -> Map -> Combat -> Reward -> Rest/Shop -> Boss -> next floor -> final victory or defeat.
+- Every visible card does exactly what its text says.
+- Every enemy cast gives the player enough information to make a tactical choice.
+- Damage, healing, shields, aggro, interrupts, deaths, and rewards all have clear visual/audio feedback.
+- No screen looks like a debug placeholder.
+- Text does not overlap or clip at 1280x720.
+- The game can be played without reading logs.
+
+## Priority Work
+
+### P0 - Make The Current Game Correct (Complete)
+
+- [x] Choose party size direction: start with 3 party slots and support growth to 5 through future upgrades.
+- [x] Implement interrupt resolution for Rogue Kick and Shaman Silence.
+- [x] Make uninterruptible/wipe casts reject interrupts with feedback.
+- [x] Complete current enemy ability execution: attack, tank buster, AOE, heal, shield, buff/shield, and wipe-style actions.
+- [x] Wire full encounter compositions through map -> run -> combat.
+- [x] Make party HP/alive state persistent through a run.
+- [x] Make rest healing affect the persistent run party.
+- [x] Preserve upgraded reward cards when they are added to the deck.
+- [x] Audit and fix known current card text/behavior mismatches.
+- [x] Add proper victory/defeat result screen.
+
+### P1 - Make Combat Feel Great (Complete)
+
+- [x] Add target preview before committing a card:
+  - [x] Show projected damage/heal/shield on hovered target.
+  - [x] Show aggro/effect preview where relevant.
+  - [x] Reject and label invalid downed-ally targets unless the card is Revive.
+- [x] Improve enemy intent readability:
+  - [x] Use compact labels for attack, AOE, heal, shield, tank buster, buff, interruptible, and locked casts.
+  - [x] Color-code danger and support intents.
+  - [x] Add hover detail with exact damage/heal/shield and interruptibility.
+- [x] Improve party frames:
+  - [x] Smooth HP/shield changes instead of snapping.
+  - [x] Highlight the current aggro target.
+  - [x] Show statuses as compact labels with turn counts.
+  - [x] Make downed state more dramatic and readable.
+- [x] Improve hand feel:
+  - [x] Cards deal into hand with staggered motion.
+  - [x] Hover lift/scale eases instead of snapping.
+  - [x] Played cards create a short target flash.
+  - [x] Unplayable cards are visually disabled when energy is too low.
+- [x] Improve turn feedback:
+  - [x] Add player-turn banner, enemy-action banner, and end-turn flash.
+  - [x] Show Combo as a proper badge with readable scaling.
+  - [x] Add a short recent-action feed.
+- [x] Add screen transition manager:
+  - [x] Fade out current screen.
+  - [x] Switch state while hidden.
+  - [x] Fade in next screen.
+  - [x] Use it for every `game_change_screen` transition.
+
+### P2 - Make The Game Look Professional (Complete)
+
+- [x] Define an art direction pass:
+  - [x] Dark tactical fantasy table, crisp readable UI, colorful class accents.
+  - [x] Replace the flattest placeholder areas with texture, depth, icons, and consistent spacing.
+- [x] Create a UI style guide in code:
+  - [x] Centralized class, card type, node, and effect colors in `src/ui/theme.c`.
+  - [x] Shared helpers for class portraits, cost gems, effect badges, card art panels, and background treatment.
+- [x] Add asset management:
+  - [x] `src/assets.c/.h` loads/unloads shared visual resources.
+  - [x] Generated texture fallback avoids missing-file failures.
+  - [x] Centralized unload path from `main.c`.
+- [x] Add font foundation:
+  - [x] Shared default font is routed through the assets layer.
+  - [x] Custom font files remain a future art-content upgrade.
+- [x] Add card art/icon treatment:
+  - [x] Class-colored frames.
+  - [x] Card type badges.
+  - [x] Cost gems.
+  - [x] 64x96 full-card source template with point-filtered 3x upscaling.
+  - [x] Effect badges for primary card behavior.
+  - [x] Upgrade star/border treatment.
+- [x] Add enemy and party visuals:
+  - [x] Replace rectangle enemies with illustrated primitive stand-ins.
+  - [x] Add class portrait icons to party frames and draft cards.
+  - [x] Add enemy idle/breathing animation.
+- [x] Add VFX:
+  - [x] Damage impact bursts.
+  - [x] Heal glow bursts.
+  - [x] Shield shimmer bursts.
+  - [x] Burn tick sparks.
+  - [x] Interrupt snap burst.
+  - [x] Boss/tank-buster danger flash.
+  - [x] Reward reveal sparkle.
+- [x] Improve map presentation:
+  - [x] Use node icons instead of text-first circles.
+  - [x] Animate hovered available nodes.
+  - [x] Clearly distinguish available, completed, locked, elite, shop, rest, and boss nodes.
+  - [x] Show floor title and route prompt.
+
+### P3 - Add Audio Polish
+
+- Add audio asset loader.
+- Add SFX for:
+  - Button hover/click.
+  - Card hover/play/discard/exhaust.
+  - Damage, heal, shield, taunt, interrupt, burn tick.
+  - Party member downed/revived.
+  - Enemy cast warning and boss cast warning.
+  - Gold/reward pickup.
+- Add music:
+  - Title/menu loop.
+  - Normal combat loop.
+  - Boss combat loop.
+  - Victory/defeat stingers.
+- Add volume settings for master/music/SFX.
+
+### P4 - Data, Content, And Balance
+
+- Move content to data files when the vertical slice is stable:
+  - `assets/data/cards.json`
+  - `assets/data/enemies.json`
+  - `assets/data/encounters.json`
+  - later: `relics.json`, `events.json`
+- Create a card effect resolver that supports effect chains instead of one-off ID checks.
+- Add a simple content validation step:
+  - No missing names/descriptions.
+  - All effects are supported.
+  - Costs and target types are valid.
+  - Card text can be generated or checked from effect data.
+- Build a balance sheet or script:
+  - Average damage per energy.
+  - Average healing per energy.
+  - Expected incoming damage per floor.
+  - Boss time-to-kill estimates.
+- Add real bosses:
+  - Floor 1 boss: teaches interrupt or AOE mitigation.
+  - Floor 2 boss: tests aggro and healing pressure.
+  - Floor 3 boss: combines channel, adds, and enrage.
+
+### P5 - Run Depth Systems
+
+- Add relic system after the combat loop is satisfying:
+  - Passive modifiers at combat start.
+  - Clear relic tray UI.
+  - Relic reward sources from elites/bosses/shop.
+- Add event nodes:
+  - Short choices with HP, gold, upgrade, remove, curse, or card outcomes.
+  - Keep event UI stylish but compact.
+- Add meta-progression:
+  - Unlock classes, alternate starting cards, cosmetics, or difficulty modifiers.
+  - Unlock party slot 4 and party slot 5 through a clear upgrade path.
+  - Avoid raw stat inflation until balance is proven.
+- Add persistence:
+  - Save meta-progress.
+  - Optional run save/resume.
+
+### P6 - Quality, Testing, And Release
+
+- Add lightweight tests for pure systems:
+  - Deck shuffle/draw/discard/exhaust.
+  - Card effect resolution.
+  - Enemy ability execution.
+  - Map unlock rules.
+  - Reward generation.
+- Add debug tools:
+  - Toggle hitboxes.
+  - Force win/lose combat.
+  - Spawn specific encounter.
+  - Grant gold.
+  - Show deck/discard/exhaust piles.
+- Add release polish:
+  - Portable CMake Raylib discovery instead of hardcoded `C:/raylib/raylib`.
+  - App icon.
+  - Version display.
+  - Crash/log folder cleanup.
+  - Release build instructions.
+
+## Professional Feel Checklist
+
+Use this as a pass before calling any milestone "done."
+
+- First screen has a strong identity: logo/title, readable subtitle, responsive Start button, music/SFX, no placeholder text.
+- Draft screen makes class roles obvious through color, icons, short tooltips, and deck preview.
+- Combat has clear visual hierarchy: party state, enemy intent, hand, energy, and end-turn action are instantly findable.
+- Every important action has anticipation, impact, and recovery:
+  - Anticipation: hover/preview/target highlight.
+  - Impact: animation, VFX, number popup, sound.
+  - Recovery: card leaves hand, state settles, next choice is clear.
+- Enemy casts create tension without confusion.
+- UI uses consistent spacing, typography, colors, and icon language.
+- No important text relies on tiny default font.
+- Buttons and cards have disabled, hover, pressed, selected, and unavailable states.
+- Screen transitions hide loading/state changes.
+- Rewards feel celebratory.
+- Defeat feels fair and informative.
+- Victory feels complete, not like a return to debug state.
+- Logs are available for development but never required to understand gameplay.
+
+## Current Architecture Notes
+
+### Actual Core Files
+
+```text
+src/main.c                 - Raylib setup, loop, screen update/draw, tween update
+src/game.c/.h              - Global game state and screen changes
+src/combat/combat.c/.h     - Combat state, card resolution, turns, enemies
+src/combat/status.c/.h     - Status apply/tick/clear
+src/systems/deck.c/.h      - Shared deck and card instances
+src/systems/party.c/.h     - Party classes, HP, aggro helpers
+src/systems/energy.c/.h    - Energy state
+src/systems/map.c/.h       - Fixed map layouts and node unlocks
+src/data/card_defs.c/.h    - Current hardcoded cards
+src/data/enemy_defs.c/.h   - Current hardcoded enemies
+src/data/encounter_defs.c/.h - Current hardcoded encounter pools
+src/ui/*                   - Buttons, cards, party frames, enemies, cast bars, floating text
+src/screens/*              - Title, draft, map, run, rest, shop, reward
+```
+
+### Important Design Decision
+
+The original plan targeted 4 party members. The current implementation and UI target 3 selected party members. Pick one direction before doing major balance or layout work.
+
+Recommendation: keep 3 party members through the polished vertical slice because it lowers UI density and balance complexity. Revisit 4 members only after the core combat loop feels excellent.
+
+## MVP Scope Update
+
+The old MVP said "no shop," but the current prototype already has shop and rest screens. The new MVP should not remove them; it should polish the existing loop.
+
+MVP v0.2 includes:
+
+- 3-person starting party draft from 6 available classes, with future upgrade path to 5 party slots.
+- 3-floor fixed map.
+- Normal, elite, rest, shop, boss, and reward nodes.
+- Fully functioning combat card text/effects.
+- Fully functioning enemy intents.
+- Run-persistent party HP.
+- Card rewards, upgrades, removes, and gold.
+- Proper title, victory, and defeat screens.
+- Cohesive UI art direction, icons, VFX, and SFX for the included systems.
+
+MVP v0.2 excludes:
+
+- Relics.
+- Events.
+- Meta-progression.
+- Save/load.
+- Large card pool expansion.
+- Procedural maps.
+- Full JSON pipeline, unless hardcoded data starts slowing iteration.
