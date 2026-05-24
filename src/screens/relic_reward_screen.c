@@ -25,12 +25,15 @@ static Rectangle relic_reward_rect(int count, int index)
 
 static void generate_relic_rewards(void)
 {
-    g_state.relic_reward_count = relic_generate_choices(
-        g_state.relics,
-        g_state.relic_count,
-        g_state.relic_reward_choices,
-        RELIC_REWARD_CHOICES
-    );
+    if (g_state.relic_reward_count <= 0)
+    {
+        g_state.relic_reward_count = relic_generate_choices(
+            g_state.relics,
+            g_state.relic_count,
+            g_state.relic_reward_choices,
+            RELIC_REWARD_CHOICES
+        );
+    }
 
     fallback_msg[0] = '\0';
     if (g_state.relic_reward_count <= 0)

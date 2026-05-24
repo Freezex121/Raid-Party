@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "assets" / "data"
 
 CARD_TYPES = {"attack", "skill", "power"}
-CLASSES = {"guardian", "cleric", "mage", "rogue", "shaman", "ranger", "utility", "curse"}
+CLASSES = {"guardian", "cleric", "mage", "rogue", "shaman", "ranger", "paladin", "warlock", "bard", "utility", "curse"}
 TARGETS = {"enemy", "all_enemies", "ally", "all_allies", "self"}
 EFFECTS = {
     "draw_cards",
@@ -24,7 +24,7 @@ EFFECTS = {
     "reset_caster_aggro",
     "transfer_aggro_to_guardian",
 }
-STATUS_EFFECTS = {"burning", "renew", "trap", "totem_heal"}
+STATUS_EFFECTS = {"burning", "renew", "trap", "totem_heal", "bleed", "weakness", "energy_drain"}
 ABILITY_INTENTS = {"attack", "tank_buster", "aoe", "wipe", "buff", "heal", "shield"}
 RELIC_TRIGGERS = {"combat_start", "combat_reward", "card_reward", "combat", "shop", "passive", "rest"}
 EVENT_EFFECTS = {
@@ -186,6 +186,12 @@ def validate_enemies(data: dict, errors: list[str]) -> set[str]:
             require_int(ability, "shield_amount", ability_label, errors)
             if not isinstance(ability.get("is_wipe"), bool):
                 errors.append(f"{ability_label}: is_wipe must be true or false")
+            if "status" in ability and ability.get("status") not in STATUS_EFFECTS:
+                errors.append(f"{ability_label}: unsupported status {ability.get('status')!r}")
+            if "status_amount" in ability:
+                require_int(ability, "status_amount", ability_label, errors)
+            if "status_turns" in ability:
+                require_int(ability, "status_turns", ability_label, errors)
 
     return seen
 
@@ -260,6 +266,8 @@ def validate_relics(data: dict, errors: list[str]) -> set[str]:
             seen.add(relic_id)
         if relic.get("trigger") not in RELIC_TRIGGERS:
             errors.append(f"{label}: unsupported relic trigger {relic.get('trigger')!r}")
+        if "rarity" in relic:
+            require_int(relic, "rarity", label, errors, minimum=1)
     return seen
 
 

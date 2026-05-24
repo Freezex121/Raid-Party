@@ -27,7 +27,7 @@
 
 // Cast bar
 #define CAST_BAR_W 132
-#define CAST_BAR_HEIGHT 14
+#define CAST_BAR_HEIGHT 28
 
 // Reward cards
 #define REWARD_CARD_W 96

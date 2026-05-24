@@ -2,6 +2,7 @@
 #define ENEMY_DEFS_H
 
 #include <stdbool.h>
+#include "combat/status.h"
 
 #define MAX_ENEMIES 3
 
@@ -25,6 +26,9 @@ typedef struct {
     bool is_wipe;
     int heal_amount;
     int shield_amount;
+    StatusType status;
+    int status_amount;
+    int status_turns;
 } EnemyAbility;
 
 typedef struct {

@@ -35,6 +35,9 @@ typedef struct {
     int shield;
     EnemyIntent intent;
     int current_ability;
+    int last_interrupted_ability;
+    int interrupt_cooldown;
+    bool interrupted_recently;
     int phase;
     int pos_x, pos_y;
     StatusEffect statuses[MAX_STATUSES];
@@ -94,6 +97,8 @@ typedef struct {
     char action_feed[5][96];
     float action_feed_timer[5];
     float floor_scale;
+    float enemy_damage_scale;
+    int turn_draw_count;
     bool phoenix_used;
     bool echo_used;
     int mana_gem_bonus;

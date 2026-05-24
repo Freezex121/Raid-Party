@@ -11,6 +11,9 @@
 #define ROGUE_CARD_COUNT 8
 #define SHAMAN_CARD_COUNT 8
 #define RANGER_CARD_COUNT 8
+#define PALADIN_CARD_COUNT 8
+#define WARLOCK_CARD_COUNT 8
+#define BARD_CARD_COUNT 8
 
 extern CardDef guardian_cards[CLASS_CARD_COUNT];
 extern CardDef cleric_cards[CLASS_CARD_COUNT];
@@ -18,6 +21,9 @@ extern CardDef mage_cards[CLASS_CARD_COUNT];
 extern CardDef rogue_cards[CLASS_CARD_COUNT];
 extern CardDef shaman_cards[CLASS_CARD_COUNT];
 extern CardDef ranger_cards[CLASS_CARD_COUNT];
+extern CardDef paladin_cards[CLASS_CARD_COUNT];
+extern CardDef warlock_cards[CLASS_CARD_COUNT];
+extern CardDef bard_cards[CLASS_CARD_COUNT];
 
 extern const CardDef *class_card_sets[CLASS_COUNT];
 extern int class_card_counts[CLASS_COUNT];

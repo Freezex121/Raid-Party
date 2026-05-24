@@ -6,175 +6,200 @@
       "name": "Ward Stone",
       "icon": "WD",
       "description": "At combat start, all allies gain 4 Shield.",
-      "trigger": "combat_start"
+      "trigger": "combat_start",
+      "rarity": 1
     },
     {
       "id": "mending_bead",
       "name": "Mending Bead",
       "icon": "MB",
       "description": "At combat start, heal all allies for 4.",
-      "trigger": "combat_start"
+      "trigger": "combat_start",
+      "rarity": 1
     },
     {
       "id": "battle_drum",
       "name": "Battle Drum",
       "icon": "DR",
       "description": "Start each combat with +1 energy.",
-      "trigger": "combat_start"
+      "trigger": "combat_start",
+      "rarity": 1
     },
     {
       "id": "scouting_map",
       "name": "Scouting Map",
       "icon": "MP",
       "description": "Draw 1 extra card at combat start.",
-      "trigger": "combat_start"
+      "trigger": "combat_start",
+      "rarity": 1
     },
     {
       "id": "gilded_charm",
       "name": "Gilded Charm",
       "icon": "GC",
       "description": "Gain +8 gold after each combat.",
-      "trigger": "combat_reward"
+      "trigger": "combat_reward",
+      "rarity": 1
     },
     {
       "id": "veteran_sigil",
       "name": "Veteran Sigil",
       "icon": "VS",
       "description": "Boss rewards always include an upgraded card.",
-      "trigger": "card_reward"
+      "trigger": "card_reward",
+      "rarity": 2
     },
     {
       "id": "phoenix_feather",
       "name": "Phoenix Feather",
       "icon": "PF",
       "description": "Once per combat, auto-revive the first downed ally at 50% HP.",
-      "trigger": "combat"
+      "trigger": "combat",
+      "rarity": 2
     },
     {
       "id": "thorned_amulet",
       "name": "Thorned Amulet",
       "icon": "TA",
       "description": "When an enemy attacks an ally, deal 2 damage back to that enemy.",
-      "trigger": "combat"
+      "trigger": "combat",
+      "rarity": 2
     },
     {
       "id": "mirror_shield",
       "name": "Mirror Shield",
       "icon": "MS",
       "description": "Whenever an ally gains Shield, they gain 3 more.",
-      "trigger": "combat"
+      "trigger": "combat",
+      "rarity": 2
     },
     {
       "id": "blood_amber",
       "name": "Blood Amber",
       "icon": "BA",
       "description": "When you play a card, lose 1 HP and gain 1 energy.",
-      "trigger": "combat"
+      "trigger": "combat",
+      "rarity": 3
     },
     {
       "id": "poison_fang",
       "name": "Poison Fang",
       "icon": "PO",
       "description": "At combat start, apply 2 Burning to all enemies.",
-      "trigger": "combat_start"
+      "trigger": "combat_start",
+      "rarity": 1
     },
     {
       "id": "spirit_stone",
       "name": "Spirit Stone",
       "icon": "SS",
       "description": "Gain +1 energy per owned relic at combat start (max +3).",
-      "trigger": "combat_start"
+      "trigger": "combat_start",
+      "rarity": 3
     },
     {
       "id": "bandage_roll",
       "name": "Bandage Roll",
       "icon": "BR",
       "description": "After each combat, heal the lowest HP ally for 8.",
-      "trigger": "combat_reward"
+      "trigger": "combat_reward",
+      "rarity": 1
     },
     {
       "id": "explorer_lantern",
       "name": "Explorer's Lantern",
       "icon": "EL",
       "description": "Card rewards offer 1 extra choice.",
-      "trigger": "card_reward"
+      "trigger": "card_reward",
+      "rarity": 2
     },
     {
       "id": "mana_gem",
       "name": "Mana Gem",
       "icon": "MG",
       "description": "Permanently increase max energy by 1.",
-      "trigger": "combat_start"
+      "trigger": "combat_start",
+      "rarity": 2
     },
     {
       "id": "lucky_coin",
       "name": "Lucky Coin",
       "icon": "LC",
       "description": "Gain 10 gold when entering the shop.",
-      "trigger": "shop"
+      "trigger": "shop",
+      "rarity": 1
     },
     {
       "id": "scholar_notes",
       "name": "Scholar's Notes",
       "icon": "SN",
       "description": "Gain 5 gold for each unpicked card in rewards.",
-      "trigger": "card_reward"
+      "trigger": "card_reward",
+      "rarity": 2
     },
     {
       "id": "crystal_ball",
       "name": "Crystal Ball",
       "icon": "CB",
       "description": "At combat start, all enemies have +1 cast time.",
-      "trigger": "combat_start"
+      "trigger": "combat_start",
+      "rarity": 2
     },
     {
       "id": "void_stone",
       "name": "Void Stone",
       "icon": "VS",
       "description": "At combat start, remove all Shield from enemies.",
-      "trigger": "combat_start"
+      "trigger": "combat_start",
+      "rarity": 2
     },
     {
       "id": "titan_heart",
       "name": "Titan Heart",
       "icon": "TH",
       "description": "Party max HP increased by 10 for the rest of the run.",
-      "trigger": "passive"
+      "trigger": "passive",
+      "rarity": 3
     },
     {
       "id": "frugal_tome",
       "name": "Frugal Tome",
       "icon": "FT",
       "description": "Once per floor, use both Heal and Upgrade at rest sites.",
-      "trigger": "rest"
+      "trigger": "rest",
+      "rarity": 3
     },
     {
       "id": "rabbit_foot",
       "name": "Rabbit's Foot",
       "icon": "RF",
       "description": "10% chance to double any gold gained.",
-      "trigger": "combat_reward"
+      "trigger": "combat_reward",
+      "rarity": 3
     },
     {
       "id": "echo_bell",
       "name": "Echo Bell",
       "icon": "EB",
       "description": "First card played each combat that costs 1+ has its effects doubled.",
-      "trigger": "combat"
+      "trigger": "combat",
+      "rarity": 3
     },
     {
       "id": "leech_blade",
       "name": "Leech Blade",
       "icon": "LB",
       "description": "When an enemy dies, heal the lowest HP ally for 5.",
-      "trigger": "combat"
+      "trigger": "combat",
+      "rarity": 3
     },
     {
       "id": "toxic_vial",
       "name": "Toxic Vial",
       "icon": "TV",
       "description": "At combat start, a random enemy gains 3 Burning.",
-      "trigger": "combat_start"
+      "trigger": "combat_start",
+      "rarity": 3
     }
   ]
 }

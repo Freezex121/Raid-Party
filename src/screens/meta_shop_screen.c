@@ -15,10 +15,13 @@ static char shop_msg[128] = "";
 static Rectangle item_rect(int index)
 {
     const float w = 178.0f;
-    const float h = 118.0f;
-    const float gap = 14.0f;
-    float start_x = (VIRT_W - (3.0f * w + 2.0f * gap)) * 0.5f;
-    return (Rectangle){ start_x + index * (w + gap), 102.0f, w, h };
+    const float h = 66.0f;
+    const float gap_x = 14.0f;
+    const float gap_y = 8.0f;
+    int col = index % 3;
+    int row = index / 3;
+    float start_x = (VIRT_W - (3.0f * w + 2.0f * gap_x)) * 0.5f;
+    return (Rectangle){ start_x + col * (w + gap_x), 88.0f + row * (h + gap_y), w, h };
 }
 
 static void init_if_needed(void)
@@ -104,6 +107,41 @@ static void try_buy_travel_fund(void)
     snprintf(shop_msg, sizeof(shop_msg), "Runs now start with %dg.", meta_starting_gold(&g_state.meta));
 }
 
+static void try_buy_legacy(void)
+{
+    if (g_state.meta.starting_relic_rank >= META_LEGACY_MAX_RANK)
+    {
+        snprintf(shop_msg, sizeof(shop_msg), "Legacy is maxed.");
+        return;
+    }
+    int cost = meta_next_legacy_cost(&g_state.meta);
+    if (!spend_renown(cost))
+    {
+        snprintf(shop_msg, sizeof(shop_msg), "Need %d Renown.", cost);
+        return;
+    }
+    g_state.meta.starting_relic_rank++;
+    meta_save(&g_state.meta);
+    snprintf(shop_msg, sizeof(shop_msg), "Legacy rank %d unlocked.", g_state.meta.starting_relic_rank);
+}
+
+static void try_buy_class(int class_index)
+{
+    if (meta_class_unlocked(&g_state.meta, class_index))
+    {
+        snprintf(shop_msg, sizeof(shop_msg), "%s is already unlocked.", class_name((ClassType)class_index));
+        return;
+    }
+    if (!spend_renown(META_CLASS_UNLOCK_COST))
+    {
+        snprintf(shop_msg, sizeof(shop_msg), "Need %d Renown.", META_CLASS_UNLOCK_COST);
+        return;
+    }
+    meta_unlock_class(&g_state.meta, class_index);
+    meta_save(&g_state.meta);
+    snprintf(shop_msg, sizeof(shop_msg), "%s unlocked.", class_name((ClassType)class_index));
+}
+
 void meta_shop_screen_update(void)
 {
     init_if_needed();
@@ -122,6 +160,10 @@ void meta_shop_screen_update(void)
         if (CheckCollisionPointRec(mouse, item_rect(0))) try_buy_slot4();
         else if (CheckCollisionPointRec(mouse, item_rect(1))) try_buy_slot5();
         else if (CheckCollisionPointRec(mouse, item_rect(2))) try_buy_travel_fund();
+        else if (CheckCollisionPointRec(mouse, item_rect(3))) try_buy_legacy();
+        else if (CheckCollisionPointRec(mouse, item_rect(4))) try_buy_class(CLASS_PALADIN);
+        else if (CheckCollisionPointRec(mouse, item_rect(5))) try_buy_class(CLASS_WARLOCK);
+        else if (CheckCollisionPointRec(mouse, item_rect(6))) try_buy_class(CLASS_BARD);
     }
 }
 
@@ -145,7 +187,7 @@ static void draw_item(Rectangle r, const char *title, const char *body, const ch
     DrawText(title, (int)r.x + 9, (int)r.y + 9, 10, title_col);
     draw_text_wrapped(body, (int)r.x + 9, (int)r.y + 29, (int)r.width - 18, 10, 2, body_col);
 
-    Rectangle buy = { r.x + 9.0f, r.y + r.height - 30.0f, r.width - 18.0f, 20.0f };
+    Rectangle buy = { r.x + 9.0f, r.y + r.height - 22.0f, r.width - 18.0f, 16.0f };
     Color buy_bg = complete ? (Color){ 42, 95, 58, 255 } :
                    can_buy ? (Color){ 46, 117, 182, 255 } :
                    (Color){ 38, 39, 50, 255 };
@@ -157,7 +199,7 @@ static void draw_item(Rectangle r, const char *title, const char *body, const ch
     else
         snprintf(label, sizeof(label), "%s  %dR", status, cost);
     Color label_col = can_buy || complete ? RAYWHITE : (Color){ 105, 108, 125, 220 };
-    DrawText(label, snap_i(buy.x + buy.width / 2 - MeasureText(label, 10) / 2), snap_i(buy.y) + 7, 10, label_col);
+    DrawText(label, snap_i(buy.x + buy.width / 2 - MeasureText(label, 10) / 2), snap_i(buy.y) + 4, 10, label_col);
 }
 
 void meta_shop_screen_draw(void)
@@ -167,10 +209,11 @@ void meta_shop_screen_draw(void)
     DrawText("META SHOP", VIRT_W / 2 - MeasureText("META SHOP", 18) / 2, 34, 18, RAYWHITE);
 
     char line[96];
-    snprintf(line, sizeof(line), "Renown: %d    Party max: %d/5    Starting gold: %d",
+    snprintf(line, sizeof(line), "Renown: %d    Party max: %d/5    Gold: %d    Asc max: %d",
         g_state.meta.renown,
         meta_party_slots(&g_state.meta),
-        meta_starting_gold(&g_state.meta));
+        meta_starting_gold(&g_state.meta),
+        g_state.meta.max_ascension_unlocked);
     DrawText(line, VIRT_W / 2 - MeasureText(line, 10) / 2, 62, 10, (Color){ 190, 195, 220, 230 });
 
     bool can_slot4 = !g_state.meta.slot4_unlocked && g_state.meta.renown >= META_SLOT4_COST;
@@ -178,6 +221,9 @@ void meta_shop_screen_draw(void)
     int fund_cost = meta_next_travel_fund_cost(&g_state.meta);
     bool fund_done = g_state.meta.starting_gold_rank >= META_TRAVEL_FUND_MAX_RANK;
     bool can_fund = !fund_done && g_state.meta.renown >= fund_cost;
+    int legacy_cost = meta_next_legacy_cost(&g_state.meta);
+    bool legacy_done = g_state.meta.starting_relic_rank >= META_LEGACY_MAX_RANK;
+    bool can_legacy = !legacy_done && g_state.meta.renown >= legacy_cost;
 
     draw_item(item_rect(0), "Party Slot IV", "Raise the draft cap to four heroes. You can still begin with fewer.", g_state.meta.slot4_unlocked ? "OWNED" : "BUY", META_SLOT4_COST, can_slot4, g_state.meta.slot4_unlocked);
     draw_item(item_rect(1), "Party Slot V", "Raise the draft cap to five heroes for full raid-party chaos.", g_state.meta.slot5_unlocked ? "OWNED" : (g_state.meta.slot4_unlocked ? "BUY" : "LOCKED"), META_SLOT5_COST, can_slot5, g_state.meta.slot5_unlocked);
@@ -188,9 +234,13 @@ void meta_shop_screen_draw(void)
         g_state.meta.starting_gold_rank,
         META_TRAVEL_FUND_MAX_RANK);
     draw_item(item_rect(2), "Travel Fund", fund_body, fund_done ? "MAXED" : "BUY", fund_cost, can_fund, fund_done);
+    draw_item(item_rect(3), "Legacy", "Start runs with relic help. Rank III lets you choose from two.", legacy_done ? "MAXED" : "BUY", legacy_cost, can_legacy, legacy_done);
+    draw_item(item_rect(4), "Paladin", "Unlock hybrid tank/healer class cards.", g_state.meta.paladin_unlocked ? "OWNED" : "BUY", META_CLASS_UNLOCK_COST, !g_state.meta.paladin_unlocked && g_state.meta.renown >= META_CLASS_UNLOCK_COST, g_state.meta.paladin_unlocked);
+    draw_item(item_rect(5), "Warlock", "Unlock DOT and curse class cards.", g_state.meta.warlock_unlocked ? "OWNED" : "BUY", META_CLASS_UNLOCK_COST, !g_state.meta.warlock_unlocked && g_state.meta.renown >= META_CLASS_UNLOCK_COST, g_state.meta.warlock_unlocked);
+    draw_item(item_rect(6), "Bard", "Unlock party buff and draw class cards.", g_state.meta.bard_unlocked ? "OWNED" : "BUY", META_CLASS_UNLOCK_COST, !g_state.meta.bard_unlocked && g_state.meta.renown >= META_CLASS_UNLOCK_COST, g_state.meta.bard_unlocked);
 
     if (shop_msg[0])
-        DrawText(shop_msg, VIRT_W / 2 - MeasureText(shop_msg, 10) / 2, 258, 10, (Color){ 230, 205, 115, 240 });
+        DrawText(shop_msg, VIRT_W / 2 - MeasureText(shop_msg, 10) / 2, 304, 10, (Color){ 230, 205, 115, 240 });
 
     button_draw(&back_btn);
 }

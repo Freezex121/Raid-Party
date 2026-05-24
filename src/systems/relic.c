@@ -100,6 +100,8 @@ bool relic_defs_load_json(const char *path)
         relic_defs[id].name = copy_text(json_string(field(item, "name"), ""));
         relic_defs[id].icon = copy_text(json_string(field(item, "icon"), ""));
         relic_defs[id].description = copy_text(json_string(field(item, "description"), ""));
+        relic_defs[id].rarity = json_int(field(item, "rarity"), 1);
+        if (relic_defs[id].rarity < 1) relic_defs[id].rarity = 1;
         if (!relic_loaded[id])
         {
             relic_loaded[id] = true;
@@ -144,12 +146,17 @@ bool relic_add_unique(RelicId *owned, int *count, RelicId id)
 
 RelicId relic_random_unowned(const RelicId *owned, int count)
 {
+    return relic_random_unowned_by_rarity(owned, count, 99);
+}
+
+RelicId relic_random_unowned_by_rarity(const RelicId *owned, int count, int max_rarity)
+{
     RelicId pool[RELIC_COUNT];
     int pool_count = 0;
     for (int i = 0; i < RELIC_COUNT; i++)
     {
         RelicId id = (RelicId)i;
-        if (relic_loaded[id] && !relic_has(owned, count, id))
+        if (relic_loaded[id] && relic_defs[id].rarity <= max_rarity && !relic_has(owned, count, id))
             pool[pool_count++] = id;
     }
 
@@ -159,6 +166,11 @@ RelicId relic_random_unowned(const RelicId *owned, int count)
 
 int relic_generate_choices(const RelicId *owned, int count, RelicId *out, int max_choices)
 {
+    return relic_generate_choices_by_rarity(owned, count, out, max_choices, 99);
+}
+
+int relic_generate_choices_by_rarity(const RelicId *owned, int count, RelicId *out, int max_choices, int max_rarity)
+{
     if (!out || max_choices <= 0) return 0;
 
     RelicId pool[RELIC_COUNT];
@@ -166,7 +178,7 @@ int relic_generate_choices(const RelicId *owned, int count, RelicId *out, int ma
     for (int i = 0; i < RELIC_COUNT; i++)
     {
         RelicId id = (RelicId)i;
-        if (relic_loaded[id] && !relic_has(owned, count, id))
+        if (relic_loaded[id] && relic_defs[id].rarity <= max_rarity && !relic_has(owned, count, id))
             pool[pool_count++] = id;
     }
 

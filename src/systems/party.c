@@ -31,6 +31,9 @@ static ClassType parse_class_id(const char *text)
     if (text && strcmp(text, "rogue") == 0) return CLASS_ROGUE;
     if (text && strcmp(text, "shaman") == 0) return CLASS_SHAMAN;
     if (text && strcmp(text, "ranger") == 0) return CLASS_RANGER;
+    if (text && strcmp(text, "paladin") == 0) return CLASS_PALADIN;
+    if (text && strcmp(text, "warlock") == 0) return CLASS_WARLOCK;
+    if (text && strcmp(text, "bard") == 0) return CLASS_BARD;
     return CLASS_NONE;
 }
 

@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_JSON_CARDS 128
+#define MAX_JSON_CARDS 192
 #define MAX_CARD_EFFECTS_PER_CARD 8
 
 static CardDef all_cards[MAX_JSON_CARDS];
@@ -17,6 +17,9 @@ CardDef mage_cards[CLASS_CARD_COUNT];
 CardDef rogue_cards[CLASS_CARD_COUNT];
 CardDef shaman_cards[CLASS_CARD_COUNT];
 CardDef ranger_cards[CLASS_CARD_COUNT];
+CardDef paladin_cards[CLASS_CARD_COUNT];
+CardDef warlock_cards[CLASS_CARD_COUNT];
+CardDef bard_cards[CLASS_CARD_COUNT];
 CardDef utility_cards[MAX_UTILITY_CARDS];
 int utility_card_count = 0;
 
@@ -27,6 +30,9 @@ const CardDef *class_card_sets[CLASS_COUNT] = {
     [CLASS_ROGUE]    = rogue_cards,
     [CLASS_SHAMAN]   = shaman_cards,
     [CLASS_RANGER]   = ranger_cards,
+    [CLASS_PALADIN]  = paladin_cards,
+    [CLASS_WARLOCK]  = warlock_cards,
+    [CLASS_BARD]     = bard_cards,
 };
 
 int class_card_counts[CLASS_COUNT] = { 0 };
@@ -61,6 +67,9 @@ static ClassType parse_class(const char *text)
     if (text && strcmp(text, "rogue") == 0) return CLASS_ROGUE;
     if (text && strcmp(text, "shaman") == 0) return CLASS_SHAMAN;
     if (text && strcmp(text, "ranger") == 0) return CLASS_RANGER;
+    if (text && strcmp(text, "paladin") == 0) return CLASS_PALADIN;
+    if (text && strcmp(text, "warlock") == 0) return CLASS_WARLOCK;
+    if (text && strcmp(text, "bard") == 0) return CLASS_BARD;
     return CLASS_NONE;
 }
 
@@ -79,6 +88,9 @@ static StatusType parse_status(const char *text)
     if (text && strcmp(text, "renew") == 0) return STATUS_RENEW;
     if (text && strcmp(text, "trap") == 0) return STATUS_TRAP;
     if (text && strcmp(text, "totem_heal") == 0) return STATUS_TOTEM_HEAL;
+    if (text && strcmp(text, "bleed") == 0) return STATUS_BLEED;
+    if (text && strcmp(text, "weakness") == 0) return STATUS_WEAKNESS;
+    if (text && strcmp(text, "energy_drain") == 0) return STATUS_ENERGY_DRAIN;
     return STATUS_NONE;
 }
 
@@ -105,6 +117,9 @@ static void reset_cards(void)
     memset(rogue_cards, 0, sizeof(rogue_cards));
     memset(shaman_cards, 0, sizeof(shaman_cards));
     memset(ranger_cards, 0, sizeof(ranger_cards));
+    memset(paladin_cards, 0, sizeof(paladin_cards));
+    memset(warlock_cards, 0, sizeof(warlock_cards));
+    memset(bard_cards, 0, sizeof(bard_cards));
     memset(utility_cards, 0, sizeof(utility_cards));
     memset(class_card_counts, 0, sizeof(class_card_counts));
     all_card_count = 0;
@@ -121,6 +136,9 @@ static CardDef *class_storage(ClassType ct)
         case CLASS_ROGUE: return rogue_cards;
         case CLASS_SHAMAN: return shaman_cards;
         case CLASS_RANGER: return ranger_cards;
+        case CLASS_PALADIN: return paladin_cards;
+        case CLASS_WARLOCK: return warlock_cards;
+        case CLASS_BARD: return bard_cards;
         default: return NULL;
     }
 }

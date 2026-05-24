@@ -70,11 +70,16 @@ typedef struct {
     int result_area;
     int result_floor;
     int result_bosses_defeated;
+    int result_achievement_renown;
+    char result_achievement_names[160];
     bool result_recorded;
     int result_unlocked_party_size;
     int result_unlocked_area;
     int result_renown_gained;
     char result_reason[128];
+    int run_deaths;
+    int run_interrupts;
+    int run_best_combat_turns;
 } GameState;
 
 extern GameState g_state;

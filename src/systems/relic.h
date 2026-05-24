@@ -41,6 +41,7 @@ typedef struct {
     const char *name;
     const char *icon;
     const char *description;
+    int rarity;
 } RelicDef;
 
 bool relic_defs_load_json(const char *path);
@@ -49,6 +50,8 @@ int relic_loaded_count(void);
 bool relic_has(const RelicId *owned, int count, RelicId id);
 bool relic_add_unique(RelicId *owned, int *count, RelicId id);
 RelicId relic_random_unowned(const RelicId *owned, int count);
+RelicId relic_random_unowned_by_rarity(const RelicId *owned, int count, int max_rarity);
 int relic_generate_choices(const RelicId *owned, int count, RelicId *out, int max_choices);
+int relic_generate_choices_by_rarity(const RelicId *owned, int count, RelicId *out, int max_choices, int max_rarity);
 
 #endif

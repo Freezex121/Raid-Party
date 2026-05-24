@@ -14,6 +14,8 @@ static Button start_btn;
 static Button shop_btn;
 static Button prev_area_btn;
 static Button next_area_btn;
+static Button asc_down_btn;
+static Button asc_up_btn;
 static float title_y = -24.0f;
 static float subtitle_alpha = 0.0f;
 static float button_y = 0.0f;
@@ -57,6 +59,20 @@ void title_screen_update(void)
             (Color){ 70, 78, 110, 255 },
             WHITE
         );
+        asc_down_btn = button_create(
+            (Rectangle){ 214.0f, 206.0f, 24.0f, 20.0f },
+            "-",
+            (Color){ 42, 48, 70, 255 },
+            (Color){ 70, 78, 110, 255 },
+            WHITE
+        );
+        asc_up_btn = button_create(
+            (Rectangle){ 402.0f, 206.0f, 24.0f, 20.0f },
+            "+",
+            (Color){ 42, 48, 70, 255 },
+            (Color){ 70, 78, 110, 255 },
+            WHITE
+        );
 
         title_tween = tween_create(&title_y, 20.0f, 0.6f, EASE_OUT_BACK);
         subtitle_tween = tween_create(&subtitle_alpha, 1.0f, 0.5f, EASE_OUT_QUAD);
@@ -81,11 +97,26 @@ void title_screen_update(void)
     button_update(&shop_btn);
     button_update(&prev_area_btn);
     button_update(&next_area_btn);
+    if (g_state.meta.max_ascension_unlocked > 0)
+    {
+        button_update(&asc_down_btn);
+        button_update(&asc_up_btn);
+    }
 
     if (prev_area_btn.pressed_this_frame && g_state.selected_area > 0)
         g_state.selected_area--;
     if (next_area_btn.pressed_this_frame && g_state.selected_area < count - 1)
         g_state.selected_area++;
+    if (asc_down_btn.pressed_this_frame && g_state.meta.ascension_level > 0)
+    {
+        g_state.meta.ascension_level--;
+        meta_save(&g_state.meta);
+    }
+    if (asc_up_btn.pressed_this_frame && g_state.meta.ascension_level < g_state.meta.max_ascension_unlocked)
+    {
+        g_state.meta.ascension_level++;
+        meta_save(&g_state.meta);
+    }
 
     if (start_btn.pressed_this_frame)
     {
@@ -107,7 +138,7 @@ void title_screen_draw(void)
 
     for (int i = 0; i < CLASS_COUNT; i++)
     {
-        int x = VIRT_W / 2 - 150 + i * 60;
+        int x = VIRT_W / 2 - 136 + i * 34;
         int y = 232 + (i % 2) * 7;
         theme_draw_class_portrait((ClassType)(i % CLASS_COUNT), x, y, 14, true);
     }
@@ -157,6 +188,16 @@ void title_screen_draw(void)
         g_state.max_party_size);
     game_draw_text(meta, VIRT_W / 2 - game_measure_text(meta, 18) / 2, snap_i(panel.y + panel.height + 10), 18, (Color){ 150, 155, 180, 200 });
 
+    char asc[96];
+    snprintf(asc, sizeof(asc), "ASCENSION %d / %d", g_state.meta.ascension_level, g_state.meta.max_ascension_unlocked);
+    DrawText(asc, VIRT_W / 2 - MeasureText(asc, 10) / 2, 211, 10,
+        g_state.meta.max_ascension_unlocked > 0 ? (Color){ 190, 160, 255, 220 } : (Color){ 110, 112, 135, 180 });
+    if (g_state.meta.max_ascension_unlocked > 0)
+    {
+        button_draw(&asc_down_btn);
+        button_draw(&asc_up_btn);
+    }
+
     if (selected_unlocked)
     {
         button_draw(&start_btn);
@@ -173,6 +214,4 @@ void title_screen_draw(void)
     Color credit_color = { 100, 100, 120, 180 };
     game_draw_text("devlog v0.1", VIRT_W/2 - game_measure_text("devlog v0.1", 10) / 2, VIRT_H - 20, 10, credit_color);
 }
-
-
 

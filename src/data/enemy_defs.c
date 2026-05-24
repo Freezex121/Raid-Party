@@ -36,6 +36,16 @@ static IntentType parse_intent(const char *text)
     return INTENT_NONE;
 }
 
+static StatusType parse_status(const char *text)
+{
+    if (text && strcmp(text, "burning") == 0) return STATUS_BURNING;
+    if (text && strcmp(text, "bleed") == 0) return STATUS_BLEED;
+    if (text && strcmp(text, "weakness") == 0) return STATUS_WEAKNESS;
+    if (text && strcmp(text, "energy_drain") == 0) return STATUS_ENERGY_DRAIN;
+    if (text && strcmp(text, "trap") == 0) return STATUS_TRAP;
+    return STATUS_NONE;
+}
+
 bool enemy_defs_load_json(const char *path)
 {
     char error[192] = "";
@@ -87,6 +97,9 @@ bool enemy_defs_load_json(const char *path)
             out->is_wipe = json_bool(field(ability, "is_wipe"), false);
             out->heal_amount = json_int(field(ability, "heal_amount"), 0);
             out->shield_amount = json_int(field(ability, "shield_amount"), 0);
+            out->status = parse_status(json_string(field(ability, "status"), ""));
+            out->status_amount = json_int(field(ability, "status_amount"), 0);
+            out->status_turns = json_int(field(ability, "status_turns"), 0);
         }
 
         enemy_defs[enemy_count++] = def;

@@ -15,6 +15,9 @@ typedef enum {
     CLASS_ROGUE,
     CLASS_SHAMAN,
     CLASS_RANGER,
+    CLASS_PALADIN,
+    CLASS_WARLOCK,
+    CLASS_BARD,
     CLASS_COUNT
 } ClassType;
 

@@ -305,10 +305,14 @@ void assets_load(void)
         [CLASS_ROGUE] = "rogue_icon.png",
         [CLASS_SHAMAN] = "shaman_icon.png",
         [CLASS_RANGER] = "ranger_icon.png",
+        [CLASS_PALADIN] = "paladin_icon.png",
+        [CLASS_WARLOCK] = "warlock_icon.png",
+        [CLASS_BARD] = "bard_icon.png",
     };
 
     for (int i = 0; i < CLASS_COUNT; i++)
-        g_assets.class_icons[i] = load_art_texture(icon_files[i]);
+        if (icon_files[i])
+            g_assets.class_icons[i] = load_art_texture(icon_files[i]);
 
     load_audio_assets();
 

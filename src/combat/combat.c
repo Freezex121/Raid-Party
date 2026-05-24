@@ -16,10 +16,51 @@
 #include <stdarg.h>
 #include <string.h>
 
-static void deal_opening_hand(Deck *deck)
+static int party_draw_count(int party_count)
 {
-    for (int i = 0; i < 5; i++)
+    if (party_count <= 1) return 3;
+    if (party_count == 2) return 4;
+    if (party_count >= 5) return 6;
+    return 5;
+}
+
+static int party_start_energy(int party_count)
+{
+    if (party_count <= 1) return 2;
+    if (party_count == 2) return 3;
+    if (party_count >= 5) return 5;
+    return 4;
+}
+
+static int party_regen(int party_count)
+{
+    if (party_count <= 2) return 2;
+    if (party_count >= 4) return 4;
+    return BASE_REGEN;
+}
+
+static int active_ascension(void)
+{
+    int level = g_state.meta.ascension_level;
+    if (level < 0) level = 0;
+    if (level > META_ASCENSION_MAX) level = META_ASCENSION_MAX;
+    return level;
+}
+
+static void deal_cards(Deck *deck, int count)
+{
+    if (count < 0) count = 0;
+    for (int i = 0; i < count; i++)
         if (deck_draw(deck) < 0) break;
+}
+
+static void deal_opening_hand(Deck *deck, int party_count, int ascension_level)
+{
+    int draw = party_draw_count(party_count);
+    if (ascension_level >= 8)
+        draw--;
+    if (draw < 1) draw = 1;
+    deal_cards(deck, draw);
 }
 
 static void calc_enemy_positions(EnemyState *enemies, int count)
@@ -213,6 +254,7 @@ static void apply_damage_to_ally(CombatState *cs, int ally_idx, int damage, cons
         else
         {
             pm->alive = false;
+            g_state.run_deaths++;
             pm->aggro = 0;
             pm->shield = 0;
             LOG_I(CAT_COMBAT, "%s DOWNED! Removing %s cards.", pm->name, class_name(pm->class));
@@ -293,12 +335,24 @@ static bool interrupt_enemy(CombatState *cs, int enemy_idx)
         return false;
     }
 
+    if (e->interrupt_cooldown > 0)
+    {
+        ft_spawn((float)(e->pos_x - 14), (float)(e->pos_y - 25), "READYING", 10, (Color){ 185, 185, 210, 255 });
+        LOG_I(CAT_CARD, "  %s resisted repeat interrupt (%d turns)", e->def->name, e->interrupt_cooldown);
+        combat_feed_add(cs, "%s resisted repeat interrupt", e->def->name);
+        return false;
+    }
+
     LOG_I(CAT_CARD, "  %s interrupted %s", e->def->name, ab->name);
     combat_feed_add(cs, "%s was interrupted", e->def->name);
     ft_spawn_shake((float)(e->pos_x - 21), (float)(e->pos_y - 26), "INTERRUPTED", 10, (Color){ 220, 120, 255, 255 });
     vfx_spawn_burst((float)e->pos_x, (float)(e->pos_y - 15), (Color){ 220, 120, 255, 255 }, 7);
+    e->last_interrupted_ability = e->intent.ability_idx;
+    e->interrupt_cooldown = 3;
+    e->interrupted_recently = true;
     e->intent.ability_idx = -1;
     e->intent.remaining_turns = 0;
+    g_state.run_interrupts++;
     return true;
 }
 
@@ -476,6 +530,9 @@ static const char *status_label(StatusType type)
         case STATUS_RENEW:      return "Renew";
         case STATUS_TRAP:       return "Trap";
         case STATUS_TOTEM_HEAL: return "Healing Totem";
+        case STATUS_BLEED:      return "Bleed";
+        case STATUS_WEAKNESS:   return "Weakness";
+        case STATUS_ENERGY_DRAIN: return "Energy Drain";
     }
     return "Status";
 }
@@ -722,6 +779,21 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
     hl  = (int)(hl * echo_mult);
     sh  = (int)(sh * echo_mult);
 
+    int caster_for_debuff = -1;
+    find_caster(cs, card->class, &caster_for_debuff);
+    if (caster_for_debuff >= 0)
+    {
+        int weak_idx = status_find(cs->party.members[caster_for_debuff].statuses, cs->party.members[caster_for_debuff].status_count, STATUS_WEAKNESS);
+        if (weak_idx >= 0 && dmg > 0)
+        {
+            int pct = cs->party.members[caster_for_debuff].statuses[weak_idx].value;
+            if (pct < 0) pct = 0;
+            if (pct > 90) pct = 90;
+            dmg = (dmg * (100 - pct)) / 100;
+            combat_feed_add(cs, "Weakness reduced damage");
+        }
+    }
+
     // ── Utility card effects ────────────────────────────────
     // Channel cards don't resolve immediately — they start a channel instead
     if (!card->channel)
@@ -849,6 +921,8 @@ static void check_victory(CombatState *cs)
     cs->phase = COMBAT_VICTORY;
     strcpy(cs->result_message, "VICTORY! Click to continue.");
     combat_feed_add(cs, "Victory");
+    if (g_state.run_best_combat_turns <= 0 || cs->turn < g_state.run_best_combat_turns)
+        g_state.run_best_combat_turns = cs->turn;
 
     // Gold popup immediately on victory
     if (!cs->gold_spawned)
@@ -894,7 +968,7 @@ static void enemy_action(EnemyState *e, CombatState *cs)
     if (ab_idx < 0 || ab_idx >= e->def->ability_count) return;
 
     const EnemyAbility *ab = &e->def->abilities[ab_idx];
-    int damage = (int)(ab->base_damage * cs->floor_scale);
+    int damage = (int)(ab->base_damage * cs->floor_scale * cs->enemy_damage_scale);
 
     // Snare Trap reduces damage
     int trap_idx = status_find(e->statuses, e->status_count, STATUS_TRAP);
@@ -921,7 +995,11 @@ static void enemy_action(EnemyState *e, CombatState *cs)
     if (ab->intent == INTENT_AOE || ab->intent == INTENT_WIPE)
     {
         for (int i = 0; i < cs->party.count; i++)
+        {
             apply_damage_to_ally(cs, i, damage, e->def->name);
+            if (ab->status != STATUS_NONE && ab->status_turns > 0)
+                apply_status_to_ally(cs, i, ab->status, ab->status_turns, ab->status_amount);
+        }
         if (relic_has(g_state.relics, g_state.relic_count, RELIC_THORNED_AMULET))
             apply_damage_to_enemy(cs, (int)(e - cs->enemies), 2);
         check_defeat(cs);
@@ -937,6 +1015,8 @@ static void enemy_action(EnemyState *e, CombatState *cs)
         int target = party_highest_aggro(&cs->party);
         if (target < 0) break;
         apply_damage_to_ally(cs, target, damage, e->def->name);
+        if (hit == 0 && ab->status != STATUS_NONE && ab->status_turns > 0)
+            apply_status_to_ally(cs, target, ab->status, ab->status_turns, ab->status_amount);
     }
     if (relic_has(g_state.relics, g_state.relic_count, RELIC_THORNED_AMULET) && damage > 0)
         apply_damage_to_enemy(cs, (int)(e - cs->enemies), 2);
@@ -950,10 +1030,76 @@ static void enemy_action(EnemyState *e, CombatState *cs)
     check_defeat(cs);
 }
 
-static int choose_enemy_intent(EnemyState *e)
+static int living_party_count(CombatState *cs)
 {
+    int count = 0;
+    for (int i = 0; i < cs->party.count; i++)
+        if (cs->party.members[i].alive)
+            count++;
+    return count;
+}
+
+static int enemy_cast_time(CombatState *cs, EnemyState *e, int ability_idx)
+{
+    int cast = e->def->abilities[ability_idx].cast_time;
+    int asc = active_ascension();
+    if (asc >= 4)
+        cast--;
+    if (g_state.encounter_is_boss && e->phase >= 1)
+        cast--;
+    if (e->interrupted_recently && e->last_interrupted_ability == ability_idx)
+        cast--;
+    if (cast < 1) cast = 1;
+    return cast;
+}
+
+static int choose_enemy_intent(CombatState *cs, int enemy_index)
+{
+    EnemyState *e = &cs->enemies[enemy_index];
     if (!e->def || e->def->ability_count == 0) return -1;
-    return e->current_ability % e->def->ability_count;
+
+    if (e->interrupted_recently &&
+        e->last_interrupted_ability >= 0 &&
+        e->last_interrupted_ability < e->def->ability_count &&
+        (rand() % 100) < 50)
+    {
+        e->interrupted_recently = false;
+        return e->last_interrupted_ability;
+    }
+    e->interrupted_recently = false;
+
+    int alive_party = living_party_count(cs);
+    bool low_hp = e->hp * 100 <= e->max_hp * 40;
+    int best = -1;
+    int best_score = -9999;
+    int max_abilities = e->def->ability_count;
+    if (g_state.encounter_is_boss && active_ascension() < 7 && max_abilities > 3)
+        max_abilities = 3;
+
+    for (int i = 0; i < max_abilities; i++)
+    {
+        const EnemyAbility *ab = &e->def->abilities[i];
+        int score = (rand() % 8) + i;
+        if (alive_party > 1 && ab->intent == INTENT_AOE)
+            score += 24;
+        if (low_hp && (ab->intent == INTENT_HEAL || ab->intent == INTENT_SHIELD || ab->intent == INTENT_BUFF))
+            score += 28;
+        if (!low_hp && (ab->intent == INTENT_HEAL || ab->intent == INTENT_SHIELD))
+            score -= 10;
+        if (ab->status != STATUS_NONE && alive_party > 0)
+            score += 8;
+        if (ab->intent == INTENT_WIPE && e->phase <= 0)
+            score -= 12;
+        if (score > best_score)
+        {
+            best_score = score;
+            best = i;
+        }
+    }
+
+    if (best < 0)
+        best = e->current_ability % max_abilities;
+    return best;
 }
 
 // ── Turn progression ────────────────────────────────────────
@@ -1010,6 +1156,18 @@ static void advance_turn(CombatState *cs)
         }
     }
 
+    // Bleed damage on allies
+    for (int i = 0; i < cs->party.count; i++)
+    {
+        if (!cs->party.members[i].alive) continue;
+        int bi = status_find(cs->party.members[i].statuses, cs->party.members[i].status_count, STATUS_BLEED);
+        if (bi >= 0)
+        {
+            int bleed_dmg = cs->party.members[i].statuses[bi].value;
+            apply_damage_to_ally(cs, i, bleed_dmg, "Bleed");
+        }
+    }
+
     // Renew healing on allies
     for (int i = 0; i < cs->party.count; i++)
     {
@@ -1058,6 +1216,18 @@ static void advance_turn(CombatState *cs)
         EnemyState *e = &cs->enemies[ei];
         if (!e->def || e->hp <= 0) continue;
 
+        if (e->interrupt_cooldown > 0)
+            e->interrupt_cooldown--;
+
+        if (g_state.encounter_is_boss && e->phase == 0 && e->hp * 2 <= e->max_hp)
+        {
+            e->phase = 1;
+            e->shield += 10;
+            if (e->intent.ability_idx >= 0 && e->intent.remaining_turns > 1)
+                e->intent.remaining_turns--;
+            combat_feed_add(cs, "%s enraged", e->def->name);
+        }
+
         if (e->intent.ability_idx >= 0)
         {
             e->intent.remaining_turns--;
@@ -1070,11 +1240,11 @@ static void advance_turn(CombatState *cs)
 
         if (e->intent.ability_idx < 0)
         {
-            int idx = choose_enemy_intent(e);
+            int idx = choose_enemy_intent(cs, ei);
             if (idx >= 0)
             {
                 e->intent.ability_idx = idx;
-                e->intent.remaining_turns = e->def->abilities[idx].cast_time;
+                e->intent.remaining_turns = enemy_cast_time(cs, e, idx);
                 e->current_ability++;
             }
         }
@@ -1086,9 +1256,22 @@ static void advance_turn(CombatState *cs)
     if (cs->phase == COMBAT_VICTORY) return;
 
     energy_refresh(&cs->energy);
+    int drain = 0;
+    for (int i = 0; i < cs->party.count; i++)
+    {
+        if (!cs->party.members[i].alive) continue;
+        int di = status_find(cs->party.members[i].statuses, cs->party.members[i].status_count, STATUS_ENERGY_DRAIN);
+        if (di >= 0 && cs->party.members[i].statuses[di].value > drain)
+            drain = cs->party.members[i].statuses[di].value;
+    }
+    if (drain > 0)
+    {
+        cs->energy.current -= drain;
+        if (cs->energy.current < 0) cs->energy.current = 0;
+        combat_feed_add(cs, "Energy drain: -%d", drain);
+    }
     deck_discard_hand(&cs->deck);
-    for (int i = 0; i < 5; i++)
-        if (deck_draw(&cs->deck) < 0) break;
+    deal_cards(&cs->deck, cs->turn_draw_count);
 
     cs->target_mode = TGT_NONE;
     cs->phase = COMBAT_PLAYER_TURN;
@@ -1131,11 +1314,21 @@ void combat_start(CombatState *cs, const Party *party, const EncounterDef *encou
             deck_remove_class_cards(&cs->deck, cs->party.members[i].class);
     LOG_T("  deck copied: card_count=%d draw_count=%d", cs->deck.card_count, cs->deck.draw_count);
 
-    deal_opening_hand(&cs->deck);
+    int asc = active_ascension();
+    cs->turn_draw_count = party_draw_count(cs->party.count);
+    if (asc >= 8)
+        cs->turn_draw_count--;
+    if (cs->turn_draw_count < 1) cs->turn_draw_count = 1;
+
+    deal_opening_hand(&cs->deck, cs->party.count, asc);
     LOG_T("  hand dealt: hand_count=%d draw_count=%d", cs->deck.hand_count, cs->deck.draw_count);
 
-    LOG_T("  calling energy_init(%d, %d, %d)", 4, MAX_ENERGY, BASE_REGEN);
-    energy_init(&cs->energy, 4, MAX_ENERGY, BASE_REGEN);
+    int start_energy = party_start_energy(cs->party.count);
+    if (asc >= 2) start_energy--;
+    if (start_energy < 0) start_energy = 0;
+    int regen = party_regen(cs->party.count);
+    LOG_T("  calling energy_init(%d, %d, %d)", start_energy, MAX_ENERGY, regen);
+    energy_init(&cs->energy, start_energy, MAX_ENERGY, regen);
     LOG_T("  energy: %d/%d regen=%d", cs->energy.current, cs->energy.max, cs->energy.regen);
 
     cs->turn = 0;
@@ -1146,6 +1339,12 @@ void combat_start(CombatState *cs, const Party *party, const EncounterDef *encou
     cs->hovered_ally = -1;
     cs->gold_spawned = false;
     cs->floor_scale = area_difficulty_scale(g_state.current_area) * (1.0f + 0.12f * (float)g_state.map.floor);
+    if (asc >= 3)
+        cs->floor_scale *= 1.15f;
+    cs->enemy_damage_scale = 1.0f;
+    if (asc >= 1) cs->enemy_damage_scale += 0.10f;
+    if (asc >= 6) cs->enemy_damage_scale += 0.15f;
+    if (asc >= 10) cs->enemy_damage_scale += 0.25f;
     cs->phoenix_used = false;
     cs->echo_used = false;
     cs->mana_gem_bonus = relic_has(g_state.relics, g_state.relic_count, RELIC_MANA_GEM) ? 1 : 0;
@@ -1177,6 +1376,9 @@ void combat_start(CombatState *cs, const Party *party, const EncounterDef *encou
     LOG_T("  setting up enemies");
 
     cs->enemy_count = (encounter && encounter->count > 0) ? encounter->count : 1;
+    int party_enemy_cap = cs->party.count <= 1 ? 1 : (cs->party.count == 2 ? 2 : MAX_ENEMIES);
+    if (cs->enemy_count > party_enemy_cap)
+        cs->enemy_count = party_enemy_cap;
     if (cs->enemy_count > MAX_ENEMIES) cs->enemy_count = MAX_ENEMIES;
 
     for (int i = 0; i < cs->enemy_count; i++)
@@ -1190,6 +1392,10 @@ void combat_start(CombatState *cs, const Party *party, const EncounterDef *encou
         cs->enemies[i].max_hp = scaled_hp;
         cs->enemies[i].shield = 0;
         cs->enemies[i].current_ability = i * 2;
+        cs->enemies[i].last_interrupted_ability = -1;
+        cs->enemies[i].interrupt_cooldown = 0;
+        cs->enemies[i].interrupted_recently = false;
+        cs->enemies[i].phase = 0;
         cs->enemies[i].intent.ability_idx = -1;
         cs->enemies[i].intent.remaining_turns = 0;
     }

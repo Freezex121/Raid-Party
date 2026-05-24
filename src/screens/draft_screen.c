@@ -3,6 +3,8 @@
 #include "ui/theme.h"
 #include "game.h"
 #include "data/area_defs.h"
+#include "data/card_defs.h"
+#include "systems/relic.h"
 #include "util/tween.h"
 #include "util/text.h"
 #include "util/math_utils.h"
@@ -10,8 +12,6 @@
 #include "constants.h"
 #include "raylib.h"
 #include <string.h>
-
-#define CLASS_COUNT 6
 
 #define CLASS_COLOR(r,g,b) (Color){ r, g, b, 255 }
 
@@ -27,6 +27,9 @@ static const struct {
     { "Rogue",    "Interrupt DPS",  39, 174, 96,   "Clutch saves. Combo attacks." },
     { "Shaman",   "Support",        230, 126, 34,  "Totems. Buffs. Crowd control." },
     { "Ranger",   "Sustained DPS",  70, 190, 120,  "Marks. Traps. Consistent pressure." },
+    { "Paladin",  "Tank / Healer",  240, 210, 95,  "Protective heals. Holy damage." },
+    { "Warlock",  "DOT / Curses",   125, 70, 185,  "Bleeds power from risky curses." },
+    { "Bard",     "Buffer",         235, 95, 155,  "Draw, tempo, and party buffs." },
 };
 
 static Color class_color(int i) { return CLASS_COLOR(class_info[i].cr, class_info[i].cg, class_info[i].cb); }
@@ -45,9 +48,9 @@ static bool initialized = false;
 static Rectangle draft_card_rect_for(int index)
 {
     const float card_w = 180.0f;
-    const float card_h = 92.0f;
+    const float card_h = 70.0f;
     const float gap_x = 14.0f;
-    const float gap_y = 14.0f;
+    const float gap_y = 8.0f;
     int col = index % 3;
     int row = index / 3;
     float start_x = (VIRT_W - (3.0f * card_w + 2.0f * gap_x)) * 0.5f;
@@ -61,6 +64,9 @@ static Rectangle draft_begin_rect(void)
 
 static void card_click_cb(int index)
 {
+    if (!meta_class_unlocked(&g_state.meta, index))
+        return;
+
     if (selected[index])
     {
         selected[index] = false;
@@ -86,7 +92,7 @@ void draft_screen_update(void)
     {
         max_selected = g_state.max_party_size;
         if (max_selected < 1) max_selected = 3;
-        if (max_selected > CLASS_COUNT) max_selected = CLASS_COUNT;
+        if (max_selected > MAX_PARTY_SIZE) max_selected = MAX_PARTY_SIZE;
 
         for (int i = 0; i < CLASS_COUNT; i++)
         {
@@ -127,7 +133,7 @@ void draft_screen_update(void)
         Rectangle card_rect = draft_card_rect_for(i);
 
         bool hovered = CheckCollisionPointRec(mouse, card_rect);
-        if (hovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+        if (hovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && meta_class_unlocked(&g_state.meta, i))
             card_click_cb(i);
     }
 
@@ -162,18 +168,46 @@ void draft_screen_update(void)
             g_state.result_area = g_state.current_area;
             g_state.result_floor = 1;
             g_state.result_bosses_defeated = 0;
+            g_state.result_achievement_renown = 0;
+            g_state.result_achievement_names[0] = '\0';
             g_state.result_recorded = false;
             g_state.result_unlocked_party_size = 0;
             g_state.result_unlocked_area = -1;
             g_state.result_renown_gained = 0;
             g_state.run_won = false;
+            g_state.run_deaths = 0;
+            g_state.run_interrupts = 0;
+            g_state.run_best_combat_turns = 0;
             g_state.result_reason[0] = '\0';
             party_create(&g_state.run_party, g_state.selected_classes, g_state.selected_count);
             g_state.run_party_active = true;
             deck_init_from_classes(&g_state.run_deck, g_state.selected_classes, g_state.selected_count);
+            const CardDef *doubt = card_def_by_id("curse_doubt");
+            int asc = g_state.meta.ascension_level;
+            if (doubt && asc >= 5)
+                deck_add_card(&g_state.run_deck, doubt);
+            if (doubt && asc >= 9)
+                deck_add_card(&g_state.run_deck, doubt);
+
+            if (g_state.meta.starting_relic_rank == 1 || g_state.meta.starting_relic_rank == 2)
+            {
+                RelicId start_relic = relic_random_unowned_by_rarity(g_state.relics, g_state.relic_count, g_state.meta.starting_relic_rank);
+                if (start_relic != RELIC_NONE)
+                    relic_add_unique(g_state.relics, &g_state.relic_count, start_relic);
+            }
+            else if (g_state.meta.starting_relic_rank >= 3)
+            {
+                g_state.relic_reward_count = relic_generate_choices_by_rarity(
+                    g_state.relics,
+                    g_state.relic_count,
+                    g_state.relic_reward_choices,
+                    2,
+                    2);
+                g_state.relic_reward_pending = g_state.relic_reward_count > 0;
+            }
             LOG_I(CAT_SCREEN, "Run deck built: %d cards", g_state.run_deck.card_count);
             initialized = false;
-            game_change_screen(SCREEN_MAP);
+            game_change_screen(g_state.relic_reward_pending ? SCREEN_RELIC_REWARD : SCREEN_MAP);
         }
     }
     else
@@ -213,6 +247,7 @@ void draft_screen_draw(void)
 
         Vector2 mouse = GetMousePosition();
         bool hovered = CheckCollisionPointRec(mouse, card_rect);
+        bool unlocked = meta_class_unlocked(&g_state.meta, i);
 
         Color card_bg = c;
         card_bg.r = (unsigned char)(card_bg.r * 0.2f);
@@ -220,7 +255,7 @@ void draft_screen_draw(void)
         card_bg.b = (unsigned char)(card_bg.b * 0.2f);
         card_bg.a = (unsigned char)(card_alphas[i] * 255);
 
-        if (hovered)
+        if (hovered && unlocked)
         {
             card_bg.r = (unsigned char)(card_bg.r * 1.3f);
             card_bg.g = (unsigned char)(card_bg.g * 1.3f);
@@ -233,11 +268,17 @@ void draft_screen_draw(void)
 
         DrawRectangleRec(draw_rect, card_bg);
 
+        if (!unlocked)
+        {
+            DrawRectangleRec(draw_rect, (Color){ 18, 19, 28, (unsigned char)(card_alphas[i] * 230) });
+            c = (Color){ 95, 95, 115, 255 };
+        }
+
         Color border = selected[i] ? c : (Color){ 60, 60, 80, (unsigned char)(card_alphas[i] * 100) };
         DrawRectangleLinesEx(draw_rect, selected[i] ? 2.0f : 1.0f, border);
 
         int text_x = snap_i(draw_rect.x + 8);
-        Color name_c = RAYWHITE;
+        Color name_c = unlocked ? RAYWHITE : (Color){ 125, 128, 145, 230 };
         name_c.a = (unsigned char)(card_alphas[i] * 255);
         DrawText(class_info[i].name, text_x, snap_i(draw_rect.y + 8), 10, name_c);
 
@@ -247,17 +288,19 @@ void draft_screen_draw(void)
 
         DrawRectangle(text_x, snap_i(draw_rect.y + 38), snap_i(draw_rect.width - 18), 1, (Color){ 60, 60, 80, (unsigned char)(card_alphas[i] * 200) });
 
-        Color tag_c = { 160, 160, 180, (unsigned char)(card_alphas[i] * 200) };
-        draw_text_wrapped(class_info[i].tagline, text_x, snap_i(draw_rect.y + 48), snap_i(draw_rect.width - 56), 10, 2, tag_c);
+        Color tag_c = unlocked ? (Color){ 160, 160, 180, (unsigned char)(card_alphas[i] * 200) } : (Color){ 105, 108, 125, (unsigned char)(card_alphas[i] * 200) };
+        draw_text_wrapped(unlocked ? class_info[i].tagline : "Locked in the Meta Shop.", text_x, snap_i(draw_rect.y + 43), snap_i(draw_rect.width - 56), 10, 1, tag_c);
 
         theme_draw_class_portrait((ClassType)i,
             snap_i(draw_rect.x + draw_rect.width - 28),
             snap_i(draw_rect.y + draw_rect.height - 28),
             13,
-            true);
+            unlocked);
 
         if (selected[i])
             DrawText("SELECTED", snap_i(draw_rect.x + draw_rect.width - 70), snap_i(draw_rect.y + 10), 10, (Color){ 220, 245, 230, 230 });
+        else if (!unlocked)
+            DrawText("LOCKED", snap_i(draw_rect.x + draw_rect.width - 64), snap_i(draw_rect.y + 10), 10, (Color){ 145, 145, 165, 220 });
     }
 
     if (selected_count > 0)

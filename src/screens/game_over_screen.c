@@ -17,7 +17,16 @@ void game_over_screen_update(void)
             g_state.run_won,
             g_state.result_area,
             g_state.result_floor,
-            g_state.result_bosses_defeated);
+            g_state.result_bosses_defeated,
+            g_state.run_party.count,
+            g_state.run_deaths,
+            g_state.relic_count,
+            g_state.run_interrupts,
+            g_state.run_best_combat_turns,
+            area_defs_count(),
+            &g_state.result_achievement_renown,
+            g_state.result_achievement_names,
+            sizeof(g_state.result_achievement_names));
         int area_count = area_defs_count();
         if (area_count > 0 && g_state.meta.highest_area_unlocked >= area_count)
             g_state.meta.highest_area_unlocked = area_count - 1;
@@ -84,6 +93,22 @@ void game_over_screen_draw(void)
     DrawText(line, stats_x, 212, 10, (Color){ 230, 205, 95, 240 });
 
     int unlock_y = 226;
+    if (g_state.result_achievement_renown > 0)
+    {
+        snprintf(line, sizeof(line), "Achievements: +%dR", g_state.result_achievement_renown);
+        DrawText(line, stats_x, unlock_y, 10, (Color){ 230, 205, 95, 255 });
+        unlock_y += 14;
+        DrawText(g_state.result_achievement_names, stats_x, unlock_y, 10, (Color){ 170, 220, 255, 230 });
+        unlock_y += 14;
+    }
+
+    if (g_state.run_won && g_state.meta.max_ascension_unlocked > 0)
+    {
+        snprintf(line, sizeof(line), "Ascension unlocked: %d", g_state.meta.max_ascension_unlocked);
+        DrawText(line, stats_x, unlock_y, 10, (Color){ 185, 150, 255, 240 });
+        unlock_y += 14;
+    }
+
     if (g_state.result_unlocked_area >= 0)
     {
         const AreaDef *next = area_def(g_state.result_unlocked_area);

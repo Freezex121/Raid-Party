@@ -1,7 +1,7 @@
 #ifndef STATUS_H
 #define STATUS_H
 
-#define MAX_STATUSES 4
+#define MAX_STATUSES 8
 
 typedef enum {
     STATUS_NONE = -1,
@@ -9,6 +9,9 @@ typedef enum {
     STATUS_RENEW,
     STATUS_TRAP,
     STATUS_TOTEM_HEAL,
+    STATUS_BLEED,
+    STATUS_WEAKNESS,
+    STATUS_ENERGY_DRAIN,
 } StatusType;
 
 typedef struct {
