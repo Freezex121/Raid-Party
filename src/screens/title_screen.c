@@ -12,6 +12,7 @@
 
 static Button start_btn;
 static Button shop_btn;
+static Button codex_btn;
 static Button prev_area_btn;
 static Button next_area_btn;
 static Button asc_down_btn;
@@ -24,6 +25,24 @@ static int title_tween, subtitle_tween, btn_tween;
 static Rectangle area_panel_rect(void)
 {
     return (Rectangle){ 150.0f, 90.0f, 340.0f, 92.0f };
+}
+
+static const char *ascension_effect_text(int level)
+{
+    switch (level)
+    {
+        case 1: return "A1: enemies deal +10% damage";
+        case 2: return "A2: start combats with -1 energy";
+        case 3: return "A3: enemies have +15% HP";
+        case 4: return "A4: enemy casts are 1 turn faster";
+        case 5: return "A5: add 1 Doubt curse";
+        case 6: return "A6: enemies deal another +15% damage";
+        case 7: return "A7: bosses gain a bonus ability";
+        case 8: return "A8: draw 1 fewer card each turn";
+        case 9: return "A9: add a second Doubt curse";
+        case 10: return "A10: enemies deal another +25% damage";
+        default: return "A0: no ascension modifiers";
+    }
 }
 
 void title_screen_update(void)
@@ -39,8 +58,15 @@ void title_screen_update(void)
             WHITE
         );
         shop_btn = button_create(
-            (Rectangle){ (float)(VIRT_W / 2 - 72), button_y + 28.0f, 144, (float)BTN_H },
+            (Rectangle){ (float)(VIRT_W / 2 - 118), button_y + 28.0f, 112, (float)BTN_H },
             "META SHOP",
+            (Color){ 42, 48, 70, 255 },
+            (Color){ 70, 78, 110, 255 },
+            WHITE
+        );
+        codex_btn = button_create(
+            (Rectangle){ (float)(VIRT_W / 2 + 6), button_y + 28.0f, 112, (float)BTN_H },
+            "COLLECTIVE",
             (Color){ 42, 48, 70, 255 },
             (Color){ 70, 78, 110, 255 },
             WHITE
@@ -88,6 +114,7 @@ void title_screen_update(void)
 
     start_btn.bounds.y = button_y;
     shop_btn.bounds.y = button_y + 28.0f;
+    codex_btn.bounds.y = button_y + 28.0f;
 
     bool selected_unlocked = meta_area_unlocked(&g_state.meta, g_state.selected_area);
     if (selected_unlocked)
@@ -95,6 +122,7 @@ void title_screen_update(void)
     else
         start_btn.pressed_this_frame = false;
     button_update(&shop_btn);
+    button_update(&codex_btn);
     button_update(&prev_area_btn);
     button_update(&next_area_btn);
     if (g_state.meta.max_ascension_unlocked > 0)
@@ -130,6 +158,11 @@ void title_screen_update(void)
         initialized = false;
         game_change_screen(SCREEN_META_SHOP);
     }
+    else if (codex_btn.pressed_this_frame)
+    {
+        initialized = false;
+        game_change_screen(SCREEN_CODEX);
+    }
 }
 
 void title_screen_draw(void)
@@ -143,20 +176,22 @@ void title_screen_draw(void)
             unlocked_class_count++;
     }
 
+    int unlocked_idx = 0;
     for (int i = 0; i < CLASS_COUNT; i++)
     {
         if (!meta_class_unlocked(&g_state.meta, i))
             continue;
 
-        int x = VIRT_W / 2 - (unlocked_class_count * 22) + i * 50;
-        int y = 250 + (i % 2) * 10;
-        theme_draw_class_portrait((ClassType)(i % CLASS_COUNT), x, y, 14, true);
+        int x = VIRT_W / 2 - (unlocked_class_count * 22) + unlocked_idx * 50;
+        int y = 250 + (unlocked_idx % 2) * 10;
+        theme_draw_class_portrait((ClassType)i, x, y, 14, true);
+        unlocked_idx++;
     }
 
     game_draw_text("RAID PARTY", VIRT_W/2 - game_measure_text("RAID PARTY", 40) / 2, snap_i(title_y), 40, RAYWHITE);
 
     Color subtitle_color = { 180, 180, 200, (unsigned char)(subtitle_alpha * 180) };
-    game_draw_text("A deck-building roguelite MMO", VIRT_W/2 - game_measure_text("A deck-building roguelite MMK", 24) / 2, snap_i(title_y + 38), 24, subtitle_color);
+    game_draw_text("A deck-building roguelite MMO", VIRT_W/2 - game_measure_text("A deck-building roguelite MMO", 24) / 2, snap_i(title_y + 38), 24, subtitle_color);
 
     Rectangle panel = area_panel_rect();
     const AreaDef *area = area_def(g_state.selected_area);
@@ -208,6 +243,16 @@ void title_screen_draw(void)
         button_draw(&asc_up_btn);
     }
 
+    Rectangle asc_panel = { 122.0f, 232.0f, 396.0f, 38.0f };
+    DrawRectangleRec(asc_panel, (Color){ 12, 10, 22, 210 });
+    DrawRectangleLinesEx(asc_panel, 1.0f, (Color){ 160, 120, 230, 165 });
+    DrawText("Ascensions are additive: A5 includes A1-A5.", 132, 237, 10, (Color){ 205, 185, 245, 230 });
+    char asc_effect[128];
+    snprintf(asc_effect, sizeof(asc_effect), "%s", ascension_effect_text(g_state.meta.ascension_level));
+    DrawText(asc_effect, 132, 250, 10, (Color){ 230, 225, 245, 235 });
+    draw_text_wrapped("A1 dmg A2 energy A3 HP A4 casts A5/A9 Doubt A7 boss A8 draw A10 dmg",
+        132, 262, 376, 10, 1, (Color){ 145, 150, 175, 215 });
+
     if (selected_unlocked)
     {
         button_draw(&start_btn);
@@ -220,8 +265,8 @@ void title_screen_draw(void)
         game_draw_text("LOCKED", snap_i(r.x + r.width / 2 - game_measure_text("LOCKED", 10) / 2), snap_i(r.y) + 7, 10, (Color){ 110, 113, 130, 230 });
     }
     button_draw(&shop_btn);
+    button_draw(&codex_btn);
 
     Color credit_color = { 100, 100, 120, 180 };
     game_draw_text("devlog v0.1", VIRT_W/2 - game_measure_text("devlog v0.1", 10) / 2, VIRT_H - 20, 10, credit_color);
 }
-

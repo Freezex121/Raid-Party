@@ -37,6 +37,25 @@ static Color class_accent(ClassType ct)
     }
 }
 
+static bool card_is_heal_card(const CardDef *card)
+{
+    if (!card) return false;
+    return card->heal > 0 || card->heal2 > 0 ||
+        card_has_effect(card, CARD_EFFECT_REVIVE_TARGET) ||
+        card_has_effect(card, CARD_EFFECT_APPLY_STATUS_TARGET_ALLY) ||
+        card_has_effect(card, CARD_EFFECT_APPLY_STATUS_ALL_ALLIES);
+}
+
+static int effective_cost(const CardDef *card, ComboPrime combo_prime)
+{
+    if (!card) return 0;
+    if (combo_prime == COMBO_PRIME_SHADOW_DANCE && card_is_heal_card(card))
+        return 0;
+    if (combo_prime == COMBO_PRIME_ELEMENTAL_FURY && card->class == CLASS_MAGE && card->damage > 0)
+        return 0;
+    return card->cost;
+}
+
 static void draw_hand_card(Rectangle card_rect, const CardDef *card, bool upgraded, bool hovered, bool low_energy, bool locked)
 {
     Color accent = theme_class_color(card->class);
@@ -63,7 +82,7 @@ static void draw_hand_card(Rectangle card_rect, const CardDef *card, bool upgrad
     }
 }
 
-void hand_render_draw(Deck *deck, Energy *energy, int hovered_card, ClassType channel_class, int target_idx, float target_offset)
+void hand_render_draw(Deck *deck, Energy *energy, int hovered_card, ClassType channel_class, int target_idx, float target_offset, ComboPrime combo_prime)
 {
     LOG_T("HRD: start");
 
@@ -125,7 +144,7 @@ void hand_render_draw(Deck *deck, Energy *energy, int hovered_card, ClassType ch
         float select_offset = (i == target_idx) ? target_offset : 0.0f;
         float draw_y = base_rect.y + hover_offset + select_offset + deal_offset;
 
-        bool low_energy = !energy_has(energy, card->cost);
+        bool low_energy = energy->current < effective_cost(card, combo_prime);
         int cw = hand_layout.card_w;
         int ch = hand_layout.card_h;
         int cx = x;
@@ -157,7 +176,6 @@ void hand_render_draw(Deck *deck, Energy *energy, int hovered_card, ClassType ch
     }
     LOG_T("HRD: end");
 }
-
 
 
 

@@ -43,6 +43,9 @@ static StatusType parse_status(const char *text)
     if (text && strcmp(text, "weakness") == 0) return STATUS_WEAKNESS;
     if (text && strcmp(text, "energy_drain") == 0) return STATUS_ENERGY_DRAIN;
     if (text && strcmp(text, "trap") == 0) return STATUS_TRAP;
+    if (text && strcmp(text, "marked") == 0) return STATUS_MARKED;
+    if (text && strcmp(text, "conductive") == 0) return STATUS_CONDUCTIVE;
+    if (text && strcmp(text, "blight") == 0) return STATUS_BLIGHT;
     return STATUS_NONE;
 }
 

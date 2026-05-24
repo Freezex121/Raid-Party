@@ -34,6 +34,44 @@ static const struct {
 
 static Color class_color(int i) { return CLASS_COLOR(class_info[i].cr, class_info[i].cg, class_info[i].cb); }
 
+static const char *class_synergy_hint(int index)
+{
+    switch ((ClassType)index)
+    {
+        case CLASS_GUARDIAN: return "Feeds BLIGHT payoffs. Pairs: Mage Molten Armor, Shaman Bulwark.";
+        case CLASS_CLERIC:   return "Consumes MARKED/BLIGHT for recovery. Pairs: Rogue Shadow Mend.";
+        case CLASS_MAGE:     return "Detonates CONDUCTIVE and primes Rogue combos.";
+        case CLASS_ROGUE:    return "Consumes MARKED, applies BLIGHT, chains with Mage and Cleric.";
+        case CLASS_SHAMAN:   return "Applies CONDUCTIVE. Pairs with Mage, Ranger, Guardian.";
+        case CLASS_RANGER:   return "Applies MARKED. Pairs with Rogue Ambush and MARKED payoffs.";
+        case CLASS_PALADIN:  return "Consumes MARKED/BLIGHT for heals and control. Chains with Bard and Warlock.";
+        case CLASS_WARLOCK:  return "Turns CONDUCTIVE into BLIGHT. Chains with Bard and Paladin.";
+        case CLASS_BARD:     return "Applies MARKED/CONDUCTIVE, extends statuses, and amplifies Finale.";
+        default:             return "";
+    }
+}
+
+static Color class_feed_color(int index)
+{
+    switch ((ClassType)index)
+    {
+        case CLASS_MAGE:
+        case CLASS_ROGUE:
+        case CLASS_RANGER:
+        case CLASS_WARLOCK:
+            return (Color){ 220, 75, 80, 230 };
+        case CLASS_GUARDIAN:
+        case CLASS_PALADIN:
+            return (Color){ 90, 165, 245, 230 };
+        case CLASS_CLERIC:
+        case CLASS_SHAMAN:
+        case CLASS_BARD:
+            return (Color){ 235, 205, 85, 230 };
+        default:
+            return (Color){ 180, 110, 230, 230 };
+    }
+}
+
 static bool selected[CLASS_COUNT];
 static int selected_count;
 static int max_selected = 3;
@@ -301,6 +339,23 @@ void draft_screen_draw(void)
             DrawText("SELECTED", snap_i(draw_rect.x + draw_rect.width - 70), snap_i(draw_rect.y + 10), 10, (Color){ 220, 245, 230, 230 });
         else if (!unlocked)
             DrawText("LOCKED", snap_i(draw_rect.x + draw_rect.width - 64), snap_i(draw_rect.y + 10), 10, (Color){ 145, 145, 165, 220 });
+
+        Color feed = class_feed_color(i);
+        DrawRectangle(snap_i(draw_rect.x), snap_i(draw_rect.y + draw_rect.height - 3), snap_i(draw_rect.width), 3, feed);
+    }
+
+    int hover_idx = -1;
+    Vector2 mouse = GetMousePosition();
+    for (int i = 0; i < CLASS_COUNT; i++)
+        if (CheckCollisionPointRec(mouse, draft_card_rect_for(i)))
+            hover_idx = i;
+    if (hover_idx >= 0)
+    {
+        Rectangle hint = { 118.0f, 302.0f, 404.0f, 14.0f };
+        Color c = class_color(hover_idx);
+        DrawRectangleRec(hint, (Color){ 10, 11, 18, 235 });
+        DrawRectangleLinesEx(hint, 1.0f, (Color){ c.r, c.g, c.b, 190 });
+        draw_text_wrapped(class_synergy_hint(hover_idx), (int)hint.x + 6, (int)hint.y + 3, (int)hint.width - 12, 10, 1, (Color){ 215, 220, 240, 235 });
     }
 
     if (selected_count > 0)
@@ -326,7 +381,7 @@ void draft_screen_draw(void)
     }
 
     Color sep = { 60, 60, 80, 120 };
-    DrawRectangle(0, 304, VIRT_W, 1, sep);
+    DrawRectangle(0, 300, VIRT_W, 1, sep);
     Color hint = { 100, 100, 130, 120 };
 }
 

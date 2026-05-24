@@ -51,6 +51,7 @@ int main(void)
             switch (g_state.screen)
             {
                 case SCREEN_TITLE: title_screen_update(); break;
+                case SCREEN_CODEX: codex_screen_update(); break;
                 case SCREEN_META_SHOP: meta_shop_screen_update(); break;
                 case SCREEN_DRAFT: draft_screen_update(); break;
                 case SCREEN_MAP:   map_screen_update();   break;
@@ -78,6 +79,7 @@ int main(void)
         switch (g_state.screen)
         {
             case SCREEN_TITLE: title_screen_draw(); break;
+            case SCREEN_CODEX: codex_screen_draw(); break;
             case SCREEN_META_SHOP: meta_shop_screen_draw(); break;
             case SCREEN_DRAFT: draft_screen_draw(); break;
             case SCREEN_MAP:   map_screen_draw();   break;

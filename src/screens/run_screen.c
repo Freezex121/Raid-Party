@@ -25,9 +25,13 @@ static bool combat_initialized = false;
 
 static float preview_combo_mult(CombatState *cs, const CardDef *card)
 {
-    if (!card || card->class == CLASS_NONE) return 1.0f;
-    if (cs->combo_class == card->class && card->cost > cs->combo_last_cost)
-        return 1.0f + (float)(cs->combo_count + 1) * 0.10f;
+    if (!card) return 1.0f;
+    if (cs->combo_prime == COMBO_PRIME_STORM_VOLLEY && card->target == TARGET_ALL_ENEMIES)
+        return 1.5f;
+    if (cs->combo_prime == COMBO_PRIME_BACKDRAFT && card->damage > 0)
+        return 1.25f;
+    if (cs->combo_prime == COMBO_PRIME_SACRED_CHORUS && card->target == TARGET_ALL_ALLIES)
+        return 1.5f;
     return 1.0f;
 }
 
@@ -124,6 +128,130 @@ static void draw_panel(Rectangle panel, const char *title, Color accent)
         DrawText(title, (int)panel.x + 6, (int)panel.y + 5, 10, accent);
 }
 
+static bool enemy_has_status_for_ui(EnemyState *enemy, StatusType status)
+{
+    if (!enemy || !enemy->def || enemy->hp <= 0) return false;
+    return status_find(enemy->statuses, enemy->status_count, status) >= 0;
+}
+
+static bool any_enemy_has_status(CombatState *cs, StatusType status)
+{
+    for (int i = 0; i < cs->enemy_count; i++)
+        if (enemy_has_status_for_ui(&cs->enemies[i], status))
+            return true;
+    return false;
+}
+
+static Color synergy_status_color(StatusType status)
+{
+    switch (status)
+    {
+        case STATUS_MARKED:     return (Color){ 245, 220, 75, 160 };
+        case STATUS_CONDUCTIVE: return (Color){ 95, 185, 255, 160 };
+        case STATUS_BLIGHT:     return (Color){ 190, 95, 230, 160 };
+        default:                return (Color){ 220, 220, 235, 120 };
+    }
+}
+
+static StatusType card_ready_status(CombatState *cs, const CardDef *card)
+{
+    if (!cs || !card) return STATUS_NONE;
+    bool marked = any_enemy_has_status(cs, STATUS_MARKED);
+    bool conductive = any_enemy_has_status(cs, STATUS_CONDUCTIVE);
+    bool blight = any_enemy_has_status(cs, STATUS_BLIGHT);
+
+    if (marked && (
+        strcmp(card->id, "rog_backstab") == 0 ||
+        strcmp(card->id, "rog_evis") == 0 ||
+        strcmp(card->id, "mag_missiles") == 0 ||
+        strcmp(card->id, "clr_smite") == 0 ||
+        strcmp(card->id, "rng_pounce") == 0 ||
+        strcmp(card->id, "pal_holy_strike") == 0 ||
+        strcmp(card->id, "wlk_drain_life") == 0))
+        return STATUS_MARKED;
+
+    if (conductive && (
+        strcmp(card->id, "mag_fireball") == 0 ||
+        strcmp(card->id, "mag_meteor") == 0 ||
+        strcmp(card->id, "rog_shadow") == 0 ||
+        strcmp(card->id, "wlk_shadow_bolt") == 0))
+        return STATUS_CONDUCTIVE;
+
+    if (blight && (
+        strcmp(card->id, "grd_shield_slam") == 0 ||
+        strcmp(card->id, "clr_holy_fire") == 0 ||
+        strcmp(card->id, "pal_judgment") == 0 ||
+        strcmp(card->id, "wlk_dark_harvest") == 0 ||
+        strcmp(card->id, "wlk_hellfire") == 0 ||
+        strcmp(card->id, "pal_aegis_aura") == 0))
+        return STATUS_BLIGHT;
+
+    if ((marked || conductive || blight) && (
+        strcmp(card->id, "brd_battle_hymn") == 0 ||
+        strcmp(card->id, "brd_finale") == 0))
+        return marked ? STATUS_MARKED : (conductive ? STATUS_CONDUCTIVE : STATUS_BLIGHT);
+
+    return STATUS_NONE;
+}
+
+static void draw_hand_synergy_glows(CombatState *cs)
+{
+    HandLayout hand_layout = layout_hand(cs->deck.hand_count);
+    for (int i = 0; i < cs->deck.hand_count; i++)
+    {
+        CardInstance *inst = &cs->deck.cards[cs->deck.hand[i]];
+        if (!inst->def) continue;
+        StatusType status = card_ready_status(cs, inst->def);
+        if (status == STATUS_NONE) continue;
+        Rectangle r = layout_hand_card_rect(hand_layout, i);
+        if (i == cs->target_hand_idx)
+            r.y += cs->target_offset;
+        else if (i == cs->hovered_card)
+            r.y -= 28.0f;
+        r.x -= 2.0f;
+        r.y -= 2.0f;
+        r.width += 4.0f;
+        r.height += 4.0f;
+        Color c = synergy_status_color(status);
+        float pulse = 0.55f + 0.45f * sinf((float)GetTime() * 7.0f);
+        c.a = (unsigned char)(85 + 75 * pulse);
+        DrawRectangleRec(r, (Color){ c.r, c.g, c.b, 35 });
+        DrawRectangleLinesEx(r, 2.0f, c);
+    }
+}
+
+static void draw_pair_passives(CombatState *cs)
+{
+    const struct { ClassType a, b; const char *label; Color color; } passives[] = {
+        { CLASS_GUARDIAN, CLASS_MAGE, "MOLTEN", { 245, 105, 70, 210 } },
+        { CLASS_ROGUE, CLASS_RANGER, "AMBUSH", { 245, 220, 75, 210 } },
+        { CLASS_CLERIC, CLASS_ROGUE, "MEND", { 120, 245, 170, 210 } },
+        { CLASS_GUARDIAN, CLASS_SHAMAN, "BULWARK", { 95, 185, 255, 210 } },
+        { CLASS_PALADIN, CLASS_WARLOCK, "ABSOLVE", { 230, 205, 95, 210 } },
+    };
+    int x = VIRT_W / 2 - 134;
+    int passive_count = (int)(sizeof(passives) / sizeof(passives[0]));
+    for (int i = 0; i < passive_count; i++)
+    {
+        bool active = false;
+        for (int p = 0; p < cs->party.count; p++)
+            if (cs->party.members[p].alive && cs->party.members[p].class == passives[i].a)
+                active = true;
+        if (!active) continue;
+        active = false;
+        for (int p = 0; p < cs->party.count; p++)
+            if (cs->party.members[p].alive && cs->party.members[p].class == passives[i].b)
+                active = true;
+        if (!active) continue;
+        int w = MeasureText(passives[i].label, 10) + 10;
+        Rectangle pill = { (float)x, 44.0f, (float)w, 12.0f };
+        DrawRectangleRec(pill, (Color){ passives[i].color.r, passives[i].color.g, passives[i].color.b, 45 });
+        DrawRectangleLinesEx(pill, 1.0f, passives[i].color);
+        DrawText(passives[i].label, x + 5, 47, 10, RAYWHITE);
+        x += w + 5;
+    }
+}
+
 static void draw_discard_pile(CombatState *cs)
 {
     Rectangle pile = layout_discard_pile_rect();
@@ -168,6 +296,14 @@ static void draw_combat_feedback(CombatState *cs)
         DrawRectangle(0, 0, VIRT_W, VIRT_H, (Color){ 255, 220, 120, (unsigned char)(35 * a) });
     }
 
+    if (cs->synergy_flash_timer > 0.0f)
+    {
+        float a = cs->synergy_flash_timer / 0.32f;
+        DrawRectangleLinesEx((Rectangle){ 3.0f, 3.0f, (float)VIRT_W - 6.0f, (float)VIRT_H - 6.0f },
+            2.0f,
+            (Color){ 245, 220, 90, (unsigned char)(190 * a) });
+    }
+
     if (cs->enemy_banner_timer > 0.0f)
     {
         float a = cs->enemy_banner_timer / 0.55f;
@@ -191,6 +327,28 @@ static void draw_combat_feedback(CombatState *cs)
         DrawRectangleRec((Rectangle){ cs->play_flash_x, y, 84, 13 }, (Color){ 30, 30, 44, a });
         DrawRectangleLinesEx((Rectangle){ cs->play_flash_x, y, 84, 13 }, 1.0f, (Color){ 230, 215, 120, a });
         DrawText(cs->play_flash_text, (int)cs->play_flash_x + 4, (int)y + 4, 10, (Color){ 245, 235, 190, a });
+    }
+
+    if (cs->synergy_banner_timer > 0.0f && cs->synergy_banner_title[0])
+    {
+        float a = cs->synergy_banner_timer / 1.35f;
+        if (a > 1.0f) a = 1.0f;
+        float scale = cs->combo_scale <= 0.01f ? 1.0f : cs->combo_scale;
+        Rectangle r = { (float)(VIRT_W / 2 - 118), 84.0f, 236.0f, 38.0f };
+        DrawRectangleRec(r, (Color){ 18, 15, 26, (unsigned char)(210 * a) });
+        DrawRectangleLinesEx(r, 1.0f, (Color){ 245, 220, 90, (unsigned char)(220 * a) });
+        int title_size = 18;
+        int tw = MeasureText(cs->synergy_banner_title, title_size);
+        DrawText(cs->synergy_banner_title,
+            VIRT_W / 2 - (int)(tw * scale * 0.5f),
+            91,
+            title_size,
+            (Color){ 255, 235, 120, (unsigned char)(255 * a) });
+        DrawText(cs->synergy_banner_subtitle,
+            VIRT_W / 2 - MeasureText(cs->synergy_banner_subtitle, 10) / 2,
+            110,
+            10,
+            (Color){ 210, 220, 245, (unsigned char)(235 * a) });
     }
 
     Rectangle feed = layout_action_feed_panel();
@@ -309,6 +467,7 @@ void run_screen_draw(void)
     }
 
     party_frames_draw(&cs->party);
+    draw_pair_passives(cs);
 
     bool targeting = cs->target_mode != TGT_NONE;
 
@@ -347,11 +506,10 @@ void run_screen_draw(void)
     draw_target_preview(cs);
     relic_tray_draw(g_state.relics, g_state.relic_count, (Rectangle){ 12.0f, 184.0f, 76.0f, 66.0f });
 
-    if (cs->combo_count > 0)
+    if (cs->combo_prime != COMBO_PRIME_NONE)
     {
         char cb[64];
-        int pct = (cs->combo_count + 1) * 10;
-        snprintf(cb, sizeof(cb), "COMBO x%d  +%d%%  %s", cs->combo_count + 1, pct, class_name(cs->combo_class));
+        snprintf(cb, sizeof(cb), "PRIMED: %s", cs->synergy_banner_title[0] ? cs->synergy_banner_title : "COMBO");
         float scale = cs->combo_scale <= 0.01f ? 1.0f : cs->combo_scale;
         int font = 10;
         int tw = MeasureText(cb, font);
@@ -394,7 +552,8 @@ void run_screen_draw(void)
     }
 
     draw_discard_pile(cs);
-    hand_render_draw(&cs->deck, &cs->energy, cs->hovered_card, cs->channel_class, cs->target_hand_idx, cs->target_offset);
+    draw_hand_synergy_glows(cs);
+    hand_render_draw(&cs->deck, &cs->energy, cs->hovered_card, cs->channel_class, cs->target_hand_idx, cs->target_offset, cs->combo_prime);
     combat_draw_card_throws(cs);
     draw_combat_feedback(cs);
 

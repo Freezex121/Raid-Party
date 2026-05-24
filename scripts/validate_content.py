@@ -24,7 +24,18 @@ EFFECTS = {
     "reset_caster_aggro",
     "transfer_aggro_to_guardian",
 }
-STATUS_EFFECTS = {"burning", "renew", "trap", "totem_heal", "bleed", "weakness", "energy_drain"}
+STATUS_EFFECTS = {
+    "burning",
+    "renew",
+    "trap",
+    "totem_heal",
+    "bleed",
+    "weakness",
+    "energy_drain",
+    "marked",
+    "conductive",
+    "blight",
+}
 ABILITY_INTENTS = {"attack", "tank_buster", "aoe", "wipe", "buff", "heal", "shield"}
 RELIC_TRIGGERS = {"combat_start", "combat_reward", "card_reward", "combat", "shop", "passive", "rest"}
 EVENT_EFFECTS = {

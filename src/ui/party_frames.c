@@ -44,6 +44,12 @@ static const char *status_label(StatusType type)
         case STATUS_RENEW:      return "REN";
         case STATUS_TRAP:       return "TRP";
         case STATUS_TOTEM_HEAL: return "TOT";
+        case STATUS_BLEED:      return "BLD";
+        case STATUS_WEAKNESS:   return "WEK";
+        case STATUS_ENERGY_DRAIN: return "DRN";
+        case STATUS_MARKED:     return "MRK";
+        case STATUS_CONDUCTIVE: return "CND";
+        case STATUS_BLIGHT:     return "BLT";
     }
     return "???";
 }
@@ -56,6 +62,12 @@ static Color status_color(StatusType type)
         case STATUS_RENEW:      return (Color){ 90, 220, 125, 255 };
         case STATUS_TRAP:       return (Color){ 170, 125, 230, 255 };
         case STATUS_TOTEM_HEAL: return (Color){ 90, 190, 230, 255 };
+        case STATUS_BLEED:      return (Color){ 210, 65, 80, 255 };
+        case STATUS_WEAKNESS:   return (Color){ 165, 170, 195, 255 };
+        case STATUS_ENERGY_DRAIN: return (Color){ 245, 210, 85, 255 };
+        case STATUS_MARKED:     return (Color){ 245, 220, 75, 255 };
+        case STATUS_CONDUCTIVE: return (Color){ 95, 185, 255, 255 };
+        case STATUS_BLIGHT:     return (Color){ 190, 95, 230, 255 };
     }
     return (Color){ 150, 150, 170, 255 };
 }

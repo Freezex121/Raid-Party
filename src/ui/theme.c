@@ -97,8 +97,32 @@ static const CardEffect *card_effect(const CardDef *card, CardEffectType type)
     return NULL;
 }
 
+static const char *status_name(StatusType status)
+{
+    switch (status)
+    {
+        case STATUS_BURNING:    return "BURNING";
+        case STATUS_RENEW:      return "RENEW";
+        case STATUS_TRAP:       return "TRAP";
+        case STATUS_TOTEM_HEAL: return "TOTEM";
+        case STATUS_BLEED:      return "BLEED";
+        case STATUS_WEAKNESS:   return "WEAKNESS";
+        case STATUS_ENERGY_DRAIN: return "ENERGY DRAIN";
+        case STATUS_MARKED:     return "MARKED";
+        case STATUS_CONDUCTIVE: return "CONDUCTIVE";
+        case STATUS_BLIGHT:     return "BLIGHT";
+        default:                return "STATUS";
+    }
+}
+
+static bool card_id_is(const CardDef *card, const char *id)
+{
+    return card && card->id && strcmp(card->id, id) == 0;
+}
+
 static const char *target_code(const CardDef *card)
 {
+    if (card_id_is(card, "wlk_dark_harvest")) return "BLIGHT";
     if (card && card->channel && card->target == TARGET_SELF)
     {
         if (card->damage > 0) return "ALL";
@@ -132,6 +156,7 @@ static const char *target_name(TargetType target)
 
 static const char *effect_target_name(const CardDef *card)
 {
+    if (card_id_is(card, "wlk_dark_harvest")) return "all BLIGHTED enemies";
     if (card && card->channel && card->target == TARGET_SELF)
     {
         if (card->damage > 0) return "all enemies";
@@ -181,7 +206,7 @@ static int build_card_tokens(const CardDef *card, bool upgraded, char tokens[][1
     int shield = card_shield(card, upgraded);
     int hits = card_repeat_hits(card);
 
-    if (dmg > 0)
+    if (dmg > 0 && !card_id_is(card, "wlk_dark_harvest"))
     {
         if (hits > 1) count = add_token(tokens, count, max_tokens, "D%dx%d", dmg, hits);
         else count = add_token(tokens, count, max_tokens, "D%d", dmg);
@@ -212,6 +237,9 @@ static int build_card_tokens(const CardDef *card, bool upgraded, char tokens[][1
     if (effect && effect->status == STATUS_TOTEM_HEAL) count = add_token(tokens, count, max_tokens, "TOT%d", effect->turns);
     effect = card_effect(card, CARD_EFFECT_APPLY_STATUS_TARGET_ENEMY);
     if (effect && effect->status == STATUS_TRAP) count = add_token(tokens, count, max_tokens, "TRAP");
+    if (effect && effect->status == STATUS_MARKED) count = add_token(tokens, count, max_tokens, "MARK");
+    if (effect && effect->status == STATUS_CONDUCTIVE) count = add_token(tokens, count, max_tokens, "COND");
+    if (effect && effect->status == STATUS_BLIGHT) count = add_token(tokens, count, max_tokens, "BLGT");
     if (card_effect(card, CARD_EFFECT_RESET_CASTER_AGGRO)) count = add_token(tokens, count, max_tokens, "AG0");
     if (card_effect(card, CARD_EFFECT_TRANSFER_AGGRO_TO_GUARDIAN)) count = add_token(tokens, count, max_tokens, "AG>GD");
 
@@ -282,6 +310,8 @@ static int card_stat_damage(const CardDef *card, bool upgraded)
 static int card_stat_target_count(const CardDef *card)
 {
     if (!card) return 0;
+    if (card_id_is(card, "wlk_dark_harvest"))
+        return MAX_ENEMIES;
 
     if (card->channel && card->target == TARGET_SELF)
     {
@@ -401,6 +431,52 @@ static int build_card_detail_lines(const CardDef *card, bool upgraded, char line
     effect = card_effect(card, CARD_EFFECT_APPLY_STATUS_TARGET_ENEMY);
     if (effect && effect->status == STATUS_TRAP)
         add_detail_line(lines, &count, max_lines, "Trap: target deals -%d damage for %d turns", effect->amount, effect->turns);
+    else if (effect && effect->status == STATUS_MARKED)
+        add_detail_line(lines, &count, max_lines, "Applies MARKED for %d turns", effect->turns);
+    else if (effect && effect->status == STATUS_CONDUCTIVE)
+        add_detail_line(lines, &count, max_lines, "Applies CONDUCTIVE for %d turns", effect->turns);
+    else if (effect && effect->status == STATUS_BLIGHT)
+        add_detail_line(lines, &count, max_lines, "Applies BLIGHT for %d turns", effect->turns);
+    else if (effect && effect->status != STATUS_NONE)
+        add_detail_line(lines, &count, max_lines, "Applies %s for %d turns", status_name(effect->status), effect->turns);
+    if (card_id_is(card, "rog_backstab"))
+        add_detail_line(lines, &count, max_lines, "vs MARKED: refund 1 energy");
+    if (card_id_is(card, "rog_evis"))
+        add_detail_line(lines, &count, max_lines, "vs MARKED: +8 damage, consumes MARKED");
+    if (card_id_is(card, "mag_missiles"))
+        add_detail_line(lines, &count, max_lines, "vs MARKED: draw 1 card");
+    if (card_id_is(card, "clr_smite"))
+        add_detail_line(lines, &count, max_lines, "vs MARKED: +8 lowest ally heal, consumes");
+    if (card_id_is(card, "pal_holy_strike"))
+        add_detail_line(lines, &count, max_lines, "vs MARKED: +6 lowest ally heal, consumes");
+    if (card_id_is(card, "wlk_drain_life"))
+        add_detail_line(lines, &count, max_lines, "vs MARKED: +4 lowest ally heal");
+    if (card_id_is(card, "mag_fireball"))
+        add_detail_line(lines, &count, max_lines, "vs CONDUCTIVE: arcs 50%% to adjacent");
+    if (card_id_is(card, "mag_meteor"))
+        add_detail_line(lines, &count, max_lines, "Consumes CONDUCTIVE: +10 damage each");
+    if (card_id_is(card, "rog_shadow"))
+        add_detail_line(lines, &count, max_lines, "vs CONDUCTIVE: hits all charged enemies");
+    if (card_id_is(card, "wlk_shadow_bolt"))
+        add_detail_line(lines, &count, max_lines, "vs CONDUCTIVE: applies BLIGHT");
+    if (card_id_is(card, "grd_shield_slam"))
+        add_detail_line(lines, &count, max_lines, "vs BLIGHT: gain +6 Shield, consumes");
+    if (card_id_is(card, "clr_holy_fire"))
+        add_detail_line(lines, &count, max_lines, "vs BLIGHT: heal caster 10, consumes");
+    if (card_id_is(card, "pal_judgment"))
+        add_detail_line(lines, &count, max_lines, "vs BLIGHT: apply Trap, consumes");
+    if (card_id_is(card, "pal_aegis_aura"))
+        add_detail_line(lines, &count, max_lines, "BLIGHT: +3 Shield per blighted enemy");
+    if (card_id_is(card, "wlk_hellfire"))
+        add_detail_line(lines, &count, max_lines, "vs BLIGHT: +4 damage to blighted targets");
+    if (card_id_is(card, "wlk_dark_harvest"))
+        add_detail_line(lines, &count, max_lines, "BLIGHT: hit all blighted, heal party");
+    if (card_id_is(card, "brd_dissonance"))
+        add_detail_line(lines, &count, max_lines, "Applies CONDUCTIVE to all enemies hit");
+    if (card_id_is(card, "brd_battle_hymn"))
+        add_detail_line(lines, &count, max_lines, "Extends MARKED/CONDUCTIVE/BLIGHT by 1");
+    if (card_id_is(card, "brd_finale"))
+        add_detail_line(lines, &count, max_lines, "+2 Heal/Shield per active enemy synergy");
     if (card_effect(card, CARD_EFFECT_RESET_CASTER_AGGRO))
         add_detail_line(lines, &count, max_lines, "Reset caster aggro to 0");
     if (card_effect(card, CARD_EFFECT_TRANSFER_AGGRO_TO_GUARDIAN))
@@ -540,6 +616,10 @@ const char *theme_primary_effect_label(const CardDef *card)
     if (card->interrupt) return "INT";
     if (card->taunt) return "TAUNT";
     if (card->burn_stacks > 0) return "BURN";
+    const CardEffect *status_fx = card_effect(card, CARD_EFFECT_APPLY_STATUS_TARGET_ENEMY);
+    if (status_fx && status_fx->status == STATUS_MARKED) return "MARK";
+    if (status_fx && status_fx->status == STATUS_CONDUCTIVE) return "COND";
+    if (status_fx && status_fx->status == STATUS_BLIGHT) return "BLIGHT";
     if (card_has_effect(card, CARD_EFFECT_REVIVE_TARGET)) return "REV";
     if (card_has_effect(card, CARD_EFFECT_DRAW_CARDS)) return "DRAW";
     if (card_has_effect(card, CARD_EFFECT_GAIN_ENERGY)) return "ENER";

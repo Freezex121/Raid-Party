@@ -14,6 +14,7 @@
 
 typedef enum {
     SCREEN_TITLE,
+    SCREEN_CODEX,
     SCREEN_META_SHOP,
     SCREEN_DRAFT,
     SCREEN_MAP,

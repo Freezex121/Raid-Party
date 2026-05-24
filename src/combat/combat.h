@@ -22,6 +22,19 @@ typedef enum {
     TGT_SELECT_ALLY,
 } TargetMode;
 
+typedef enum {
+    COMBO_PRIME_NONE,
+    COMBO_PRIME_SHIELD_OF_FAITH,
+    COMBO_PRIME_ARCANE_ASSAULT,
+    COMBO_PRIME_STORM_VOLLEY,
+    COMBO_PRIME_SHADOW_DANCE,
+    COMBO_PRIME_ELEMENTAL_FURY,
+    COMBO_PRIME_BACKDRAFT,
+    COMBO_PRIME_SACRED_CHORUS,
+    COMBO_PRIME_DARK_REFRAIN,
+    COMBO_PRIME_ABSOLUTION,
+} ComboPrime;
+
 typedef struct {
     int ability_idx;
     int remaining_turns;
@@ -77,6 +90,12 @@ typedef struct {
     ClassType combo_class;
     int combo_last_cost;
     int combo_count;
+    ClassType last_played_class;
+    ComboPrime combo_prime;
+    float synergy_banner_timer;
+    float synergy_flash_timer;
+    char synergy_banner_title[32];
+    char synergy_banner_subtitle[64];
     float combo_scale;
     int combo_tween;
     float combo_shake;
@@ -101,6 +120,9 @@ typedef struct {
     int turn_draw_count;
     bool phoenix_used;
     bool echo_used;
+    bool ambush_used;
+    bool vengeful_active;
+    int vengeful_ally;
     int mana_gem_bonus;
     CardThrowAnim card_throws[MAX_CARD_THROW_ANIMS];
 } CombatState;

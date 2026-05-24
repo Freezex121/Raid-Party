@@ -60,6 +60,61 @@ static Color darken(Color c, float m)
     return c;
 }
 
+static const char *status_icon(StatusType type)
+{
+    switch (type)
+    {
+        case STATUS_BURNING:    return "B";
+        case STATUS_TRAP:       return "T";
+        case STATUS_BLEED:      return "L";
+        case STATUS_WEAKNESS:   return "W";
+        case STATUS_MARKED:     return "M";
+        case STATUS_CONDUCTIVE: return "C";
+        case STATUS_BLIGHT:     return "X";
+        default:                return "?";
+    }
+}
+
+static Color status_icon_color(StatusType type)
+{
+    switch (type)
+    {
+        case STATUS_MARKED:     return (Color){ 245, 220, 75, 255 };
+        case STATUS_CONDUCTIVE: return (Color){ 95, 185, 255, 255 };
+        case STATUS_BLIGHT:     return (Color){ 190, 95, 230, 255 };
+        case STATUS_BURNING:    return (Color){ 245, 120, 55, 255 };
+        case STATUS_TRAP:       return (Color){ 180, 125, 230, 255 };
+        case STATUS_BLEED:      return (Color){ 210, 65, 80, 255 };
+        case STATUS_WEAKNESS:   return (Color){ 165, 170, 195, 255 };
+        default:                return (Color){ 155, 160, 180, 255 };
+    }
+}
+
+static bool status_pulses(StatusType type)
+{
+    return type == STATUS_MARKED || type == STATUS_CONDUCTIVE || type == STATUS_BLIGHT;
+}
+
+static void draw_enemy_statuses(EnemyState *enemy, int cx, int top_y)
+{
+    int count = enemy->status_count;
+    if (count > 5) count = 5;
+    int start_x = cx - (count * 13) / 2;
+    float pulse = 0.55f + 0.45f * sinf((float)GetTime() * 7.0f);
+    for (int i = 0; i < count; i++)
+    {
+        StatusEffect *st = &enemy->statuses[i];
+        Color c = status_icon_color(st->type);
+        unsigned char fill_a = status_pulses(st->type) ? (unsigned char)(65 + 75 * pulse) : 70;
+        Rectangle r = { (float)(start_x + i * 13), (float)top_y, 11.0f, 11.0f };
+        DrawRectangleRec(r, (Color){ c.r, c.g, c.b, fill_a });
+        DrawRectangleLinesEx(r, 1.0f, (Color){ c.r, c.g, c.b, 220 });
+        const char *icon = status_icon(st->type);
+        DrawText(icon, (int)r.x + 3, (int)r.y + 2, 10, RAYWHITE);
+        DrawText(TextFormat("%d", st->turns), (int)r.x + 7, (int)r.y + 6, 10, RAYWHITE);
+    }
+}
+
 void enemy_render_draw(EnemyState *enemy, bool highlighted, bool targeting)
 {
     if (!enemy->def || enemy->hp <= 0) return;
@@ -109,6 +164,8 @@ void enemy_render_draw(EnemyState *enemy, bool highlighted, bool targeting)
     DrawRectangleLinesEx(nameplate, 1.0f, (Color){ accent.r, accent.g, accent.b, 170 });
     int name_size = 10;
     DrawText(enemy->def->name, cx - MeasureText(enemy->def->name, name_size) / 2, (int)nameplate.y + 3, name_size, RAYWHITE);
+    if (enemy->status_count > 0)
+        draw_enemy_statuses(enemy, cx, (int)nameplate.y - 13);
 
     int hp_bar_w = 72;
     int hp_bar_h = 8;

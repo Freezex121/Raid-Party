@@ -5,14 +5,14 @@
 #include "systems/deck.h"
 
 #define CLASS_CARD_COUNT 9
-#define GUARDIAN_CARD_COUNT 8
+#define GUARDIAN_CARD_COUNT 9
 #define CLERIC_CARD_COUNT 8
 #define MAGE_CARD_COUNT 9
 #define ROGUE_CARD_COUNT 8
-#define SHAMAN_CARD_COUNT 8
-#define RANGER_CARD_COUNT 8
+#define SHAMAN_CARD_COUNT 9
+#define RANGER_CARD_COUNT 9
 #define PALADIN_CARD_COUNT 8
-#define WARLOCK_CARD_COUNT 8
+#define WARLOCK_CARD_COUNT 9
 #define BARD_CARD_COUNT 8
 
 extern CardDef guardian_cards[CLASS_CARD_COUNT];

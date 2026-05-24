@@ -4,6 +4,9 @@
 void title_screen_update(void);
 void title_screen_draw(void);
 
+void codex_screen_update(void);
+void codex_screen_draw(void);
+
 void meta_shop_screen_update(void);
 void meta_shop_screen_draw(void);
 

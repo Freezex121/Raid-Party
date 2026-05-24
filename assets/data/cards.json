@@ -47,7 +47,7 @@
       "channel_turns": 0,
       "repeat_hits": 1,
       "effects": [],
-      "description": "Deal damage to an enemy. Gain Shield."
+      "description": "Deal damage. Gain Shield. vs BLIGHT: +6 Shield and consumes BLIGHT."
     },
     {
       "id": "grd_stance",
@@ -294,7 +294,7 @@
       "channel_turns": 0,
       "repeat_hits": 1,
       "effects": [],
-      "description": "Deal damage to an enemy. Heal the lowest HP ally."
+      "description": "Deal damage. Heal lowest HP ally. vs MARKED: +8 heal and consumes MARKED."
     },
     {
       "id": "clr_revive",
@@ -348,7 +348,7 @@
       "channel_turns": 0,
       "repeat_hits": 1,
       "effects": [],
-      "description": "Deal damage to an enemy."
+      "description": "Deal damage. vs BLIGHT: heal caster for 10 and consumes BLIGHT."
     },
     {
       "id": "clr_prayer",
@@ -420,7 +420,7 @@
       "channel_turns": 0,
       "repeat_hits": 1,
       "effects": [],
-      "description": "Deal heavy damage to an enemy."
+      "description": "Deal heavy damage. vs CONDUCTIVE: arcs 50% damage to adjacent enemies."
     },
     {
       "id": "mag_missiles",
@@ -444,7 +444,7 @@
       "channel_turns": 0,
       "repeat_hits": 3,
       "effects": [],
-      "description": "Deal damage to an enemy three times."
+      "description": "Deal damage three times. vs MARKED: draw 1 card."
     },
     {
       "id": "mag_frostbolt",
@@ -619,7 +619,7 @@
       "channel_turns": 0,
       "repeat_hits": 1,
       "effects": [],
-      "description": "Deal immense damage to all enemies."
+      "description": "Deal immense damage to all enemies. Consumes CONDUCTIVE for +10 damage each."
     },
     {
       "id": "rog_backstab",
@@ -643,7 +643,7 @@
       "channel_turns": 0,
       "repeat_hits": 1,
       "effects": [],
-      "description": "Deal damage to an enemy."
+      "description": "Deal damage. vs MARKED: refund 1 energy."
     },
     {
       "id": "rog_kick",
@@ -690,8 +690,15 @@
       "channel": false,
       "channel_turns": 0,
       "repeat_hits": 1,
-      "effects": [],
-      "description": "Deal damage to an enemy."
+      "effects": [
+        {
+          "type": "apply_status_target_enemy",
+          "status": "blight",
+          "amount": 2,
+          "turns": 3
+        }
+      ],
+      "description": "Deal damage. Applies BLIGHT for 3 turns."
     },
     {
       "id": "rog_stealth",
@@ -775,7 +782,7 @@
       "channel_turns": 0,
       "repeat_hits": 1,
       "effects": [],
-      "description": "Deal heavy damage to an enemy."
+      "description": "Deal heavy damage. vs MARKED: +8 damage and consumes MARKED."
     },
     {
       "id": "rog_shadow",
@@ -799,7 +806,7 @@
       "channel_turns": 0,
       "repeat_hits": 1,
       "effects": [],
-      "description": "Deal massive damage to an enemy."
+      "description": "Deal massive damage. vs CONDUCTIVE: also hits charged enemies for half."
     },
     {
       "id": "rog_assass",
@@ -846,8 +853,15 @@
       "channel": false,
       "channel_turns": 0,
       "repeat_hits": 1,
-      "effects": [],
-      "description": "Deal damage to an enemy."
+      "effects": [
+        {
+          "type": "apply_status_target_enemy",
+          "status": "conductive",
+          "amount": 1,
+          "turns": 2
+        }
+      ],
+      "description": "Deal damage. Applies CONDUCTIVE for 2 turns."
     },
     {
       "id": "shm_heal_totem",
@@ -925,8 +939,15 @@
       "channel": false,
       "channel_turns": 0,
       "repeat_hits": 2,
-      "effects": [],
-      "description": "Deal damage to an enemy twice."
+      "effects": [
+        {
+          "type": "apply_status_target_enemy",
+          "status": "conductive",
+          "amount": 1,
+          "turns": 2
+        }
+      ],
+      "description": "Deal damage twice. Applies CONDUCTIVE for 2 turns."
     },
     {
       "id": "shm_chain",
@@ -1074,7 +1095,7 @@
     },
     {
       "id": "rng_trap",
-      "name": "Snare Trap",
+      "name": "Snare Mark",
       "type": "skill",
       "class": "ranger",
       "cost": 1,
@@ -1096,12 +1117,12 @@
       "effects": [
         {
           "type": "apply_status_target_enemy",
-          "status": "trap",
-          "amount": 4,
+          "status": "marked",
+          "amount": 1,
           "turns": 2
         }
       ],
-      "description": "Reduce an enemy's next attack."
+      "description": "Applies MARKED for 2 turns. MARKED enables Rogue, Mage, and Cleric payoffs."
     },
     {
       "id": "rng_aim",
@@ -1489,7 +1510,7 @@
       "channel_turns": 0,
       "repeat_hits": 1,
       "effects": [],
-      "description": "Deal damage to an enemy. Heal self."
+      "description": "Deal damage to an enemy. Heal self. vs MARKED: heal lowest ally 6 and consumes MARKED."
     },
     {
       "id": "pal_guarding_light",
@@ -1609,7 +1630,7 @@
       "channel_turns": 0,
       "repeat_hits": 1,
       "effects": [],
-      "description": "All allies gain Shield."
+      "description": "All allies gain Shield. BLIGHT: +3 Shield per blighted enemy."
     },
     {
       "id": "pal_judgment",
@@ -1632,15 +1653,8 @@
       "channel": false,
       "channel_turns": 0,
       "repeat_hits": 1,
-      "effects": [
-        {
-          "type": "apply_status_target_enemy",
-          "status": "trap",
-          "amount": 3,
-          "turns": 2
-        }
-      ],
-      "description": "Deal damage and reduce the target's next attacks."
+      "effects": [],
+      "description": "Deal damage. vs BLIGHT: apply Trap and consumes BLIGHT."
     },
     {
       "id": "pal_radiance",
@@ -1688,7 +1702,7 @@
       "channel_turns": 0,
       "repeat_hits": 1,
       "effects": [],
-      "description": "Deal damage to an enemy."
+      "description": "Deal damage. vs CONDUCTIVE: apply BLIGHT for 3 turns."
     },
     {
       "id": "wlk_corruption",
@@ -1717,9 +1731,15 @@
           "status": "burning",
           "amount": 4,
           "turns": 3
+        },
+        {
+          "type": "apply_status_target_enemy",
+          "status": "blight",
+          "amount": 2,
+          "turns": 3
         }
       ],
-      "description": "Apply Burning to an enemy."
+      "description": "Apply Burning and BLIGHT for 3 turns."
     },
     {
       "id": "wlk_life_tap",
@@ -1778,7 +1798,7 @@
       "channel_turns": 0,
       "repeat_hits": 1,
       "effects": [],
-      "description": "Deal damage to an enemy. Heal self."
+      "description": "Deal damage to an enemy. Heal self. vs MARKED: heal lowest ally 4."
     },
     {
       "id": "wlk_curse_frailty",
@@ -1833,7 +1853,7 @@
       "channel_turns": 0,
       "repeat_hits": 1,
       "effects": [],
-      "description": "Deal heavy damage to all enemies."
+      "description": "Deal heavy damage to all enemies. vs BLIGHT: +4 damage to blighted targets."
     },
     {
       "id": "wlk_dark_pact",
@@ -1989,8 +2009,15 @@
       "channel": false,
       "channel_turns": 0,
       "repeat_hits": 1,
-      "effects": [],
-      "description": "Deal damage to an enemy."
+      "effects": [
+        {
+          "type": "apply_status_target_enemy",
+          "status": "marked",
+          "amount": 1,
+          "turns": 2
+        }
+      ],
+      "description": "Deal damage to an enemy. Applies MARKED for 2 turns."
     },
     {
       "id": "brd_encore",
@@ -2050,7 +2077,7 @@
           "turns": 0
         }
       ],
-      "description": "All allies gain Shield. Gain 1 energy."
+      "description": "All allies gain Shield. Gain 1 energy. Extends MARKED, CONDUCTIVE, and BLIGHT by 1 turn."
     },
     {
       "id": "brd_dissonance",
@@ -2074,7 +2101,7 @@
       "channel_turns": 0,
       "repeat_hits": 1,
       "effects": [],
-      "description": "Deal damage to all enemies."
+      "description": "Deal damage to all enemies. Applies CONDUCTIVE to all enemies hit."
     },
     {
       "id": "brd_finale",
@@ -2098,7 +2125,121 @@
       "channel_turns": 0,
       "repeat_hits": 1,
       "effects": [],
-      "description": "Heal and shield all allies. Exhaust."
+      "description": "Heal and shield all allies. Gains +2 Heal and +2 Shield per active enemy synergy. Exhaust."
+    },
+    {
+      "id": "rng_pounce",
+      "name": "Pounce",
+      "type": "attack",
+      "class": "ranger",
+      "cost": 1,
+      "target": "enemy",
+      "damage": 8,
+      "heal": 0,
+      "heal2": 0,
+      "heal_self": false,
+      "shield": 0,
+      "burn_stacks": 0,
+      "taunt": false,
+      "taunt_turns": 0,
+      "interrupt": false,
+      "aggro_self": 8,
+      "exhaust": false,
+      "consume": false,
+      "channel": false,
+      "channel_turns": 0,
+      "repeat_hits": 1,
+      "effects": [
+        {
+          "type": "apply_status_target_enemy",
+          "status": "marked",
+          "amount": 1,
+          "turns": 2
+        }
+      ],
+      "description": "Deal 8 damage and apply MARKED. If already MARKED, deal 12 instead."
+    },
+    {
+      "id": "shm_chain_lightning",
+      "name": "Chain Lightning",
+      "type": "attack",
+      "class": "shaman",
+      "cost": 2,
+      "target": "enemy",
+      "damage": 10,
+      "heal": 0,
+      "heal2": 0,
+      "heal_self": false,
+      "shield": 0,
+      "burn_stacks": 0,
+      "taunt": false,
+      "taunt_turns": 0,
+      "interrupt": false,
+      "aggro_self": 12,
+      "exhaust": false,
+      "consume": false,
+      "channel": false,
+      "channel_turns": 0,
+      "repeat_hits": 1,
+      "effects": [
+        {
+          "type": "apply_status_target_enemy",
+          "status": "conductive",
+          "amount": 1,
+          "turns": 2
+        }
+      ],
+      "description": "Deal 10 damage, apply CONDUCTIVE, then jump to two enemies."
+    },
+    {
+      "id": "wlk_dark_harvest",
+      "name": "Dark Harvest",
+      "type": "skill",
+      "class": "warlock",
+      "cost": 2,
+      "target": "self",
+      "damage": 6,
+      "heal": 0,
+      "heal2": 0,
+      "heal_self": false,
+      "shield": 0,
+      "burn_stacks": 0,
+      "taunt": false,
+      "taunt_turns": 0,
+      "interrupt": false,
+      "aggro_self": 10,
+      "exhaust": false,
+      "consume": false,
+      "channel": false,
+      "channel_turns": 0,
+      "repeat_hits": 1,
+      "effects": [],
+      "description": "Deal 6 damage to all BLIGHTED enemies. Heal party for 3 per enemy hit."
+    },
+    {
+      "id": "grd_vengeful_retribution",
+      "name": "Vengeful Retribution",
+      "type": "skill",
+      "class": "guardian",
+      "cost": 1,
+      "target": "self",
+      "damage": 0,
+      "heal": 0,
+      "heal2": 0,
+      "heal_self": false,
+      "shield": 0,
+      "burn_stacks": 0,
+      "taunt": false,
+      "taunt_turns": 0,
+      "interrupt": false,
+      "aggro_self": 0,
+      "exhaust": true,
+      "consume": true,
+      "channel": false,
+      "channel_turns": 0,
+      "repeat_hits": 1,
+      "effects": [],
+      "description": "One-use. When Guardian is healed this turn, deal 8 damage to all enemies."
     }
   ]
 }
