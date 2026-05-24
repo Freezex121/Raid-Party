@@ -50,9 +50,8 @@ static int scaled_y(Rectangle r, float sy)
 
 static int scaled_font(Rectangle r, int source_px)
 {
-    float s = r.width / (float)CARD_ART_SOURCE_W;
-    int f = snap_i(source_px * s);
-    return f < 3 ? 3 : f;
+    (void)r;
+    return source_px >= 5 ? 18 : 10;
 }
 
 static int scaled_len(Rectangle r, float source_px)
@@ -64,7 +63,7 @@ static int scaled_len(Rectangle r, float source_px)
 static void draw_text_fit(const char *text, int x, int y, int max_w, int size, Color color)
 {
     if (!text || max_w <= 0) return;
-    while (size > 3 && MeasureText(text, size) > max_w)
+    while (size > 10 && MeasureText(text, size) > max_w)
         size--;
     if (MeasureText(text, size) <= max_w)
     {
@@ -509,14 +508,14 @@ void theme_draw_cost_gem(int cx, int cy, int cost, bool enabled)
 
     char text[4];
     snprintf(text, sizeof(text), "%d", cost);
-    DrawText(text, cx - MeasureText(text, 14) / 2, cy - 7, 14, RAYWHITE);
+    DrawText(text, cx - MeasureText(text, 18) / 2, cy - 7, 18, RAYWHITE);
 }
 
 void theme_draw_effect_badge(Rectangle bounds, const char *label, Color color)
 {
     DrawRectangleRec(bounds, color_fade_alpha(color, 58));
     DrawRectangleLinesEx(bounds, 1.0f, color_fade_alpha(color, 185));
-    DrawText(label, (int)(bounds.x + bounds.width / 2 - MeasureText(label, 9) / 2), (int)(bounds.y + 5), 9, RAYWHITE);
+    DrawText(label, snap_i(bounds.x + bounds.width / 2 - MeasureText(label, 10) / 2), snap_i(bounds.y + 5), 10, RAYWHITE);
 }
 
 void theme_draw_class_portrait(ClassType ct, int cx, int cy, int radius, bool alive)
@@ -549,8 +548,7 @@ void theme_draw_class_portrait(ClassType ct, int cx, int cy, int radius, bool al
     else
     {
         const char *label = theme_class_abbrev(ct);
-        int font_size = size / 3;
-        if (font_size < 10) font_size = 10;
+        int font_size = 10;
         DrawText(label,
             cx - MeasureText(label, font_size) / 2,
             cy - font_size / 2,
@@ -598,11 +596,11 @@ void theme_draw_card_art(Rectangle bounds, const CardDef *card, bool upgraded)
     int title_x = scaled_x(dest, 4);
     int title_y = scaled_y(dest, 3);
     int title_w = (int)(42 * s);
-    draw_text_fit(card->name, title_x, title_y, title_w, scaled_font(dest, 5), RAYWHITE);
+    draw_text_fit(card->name, title_x, title_y, title_w, 18, RAYWHITE);
 
     char cost[4];
     snprintf(cost, sizeof(cost), "%d", card->cost);
-    int cost_size = scaled_font(dest, 6);
+    int cost_size = 18;
     Rectangle cost_box = {
         (float)scaled_x(dest, 47),
         (float)scaled_y(dest, 1),
@@ -650,13 +648,13 @@ void theme_draw_card_art(Rectangle bounds, const CardDef *card, bool upgraded)
         }
     }
 
-    int info_size = scaled_font(dest, 4);
+    int info_size = 10;
     DrawText(theme_card_type_label(card->type), scaled_x(dest, 5), scaled_y(dest, 39), info_size, type);
     draw_text_fit(target_code(card), scaled_x(dest, 27), scaled_y(dest, 39), (int)(29 * s), info_size, c);
     draw_card_tokens(dest, card, upgraded, c);
 
     if (upgraded)
-        DrawText("UPG", scaled_x(dest, 39), scaled_y(dest, 2), scaled_font(dest, 3), (Color){ 255, 245, 120, 255 });
+        DrawText("UPG", scaled_x(dest, 39), scaled_y(dest, 2), 10, (Color){ 255, 245, 120, 255 });
 }
 
 void theme_draw_card_tooltip(Rectangle bounds, const CardDef *card, bool upgraded)
@@ -683,17 +681,17 @@ void theme_draw_card_tooltip(Rectangle bounds, const CardDef *card, bool upgrade
 
     char cost[16];
     snprintf(cost, sizeof(cost), "E%d", card->cost);
-    DrawText(cost, right - MeasureText(cost, 7), y, 7, (Color){ 255, 235, 120, 255 });
+    DrawText(cost, right - MeasureText(cost, 10), y, 10, (Color){ 255, 235, 120, 255 });
 
-    int title_w = right - x - MeasureText(cost, 7) - 8;
-    draw_text_fit(card->name, x, y, title_w, 8, RAYWHITE);
+    int title_w = right - x - MeasureText(cost, 10) - 8;
+    draw_text_fit(card->name, x, y, title_w, 10, RAYWHITE);
 
     char meta[80];
     snprintf(meta, sizeof(meta), "%s  %s  %s",
         card_class_label(card),
         theme_card_type_label(card->type),
         target_code(card));
-    DrawText(meta, x, (int)bounds.y + 20, 6, type);
+    DrawText(meta, x, (int)bounds.y + 20, 10, type);
 
     char lines[12][80];
     int line_count = build_card_detail_lines(card, upgraded, lines, 12);
@@ -706,11 +704,11 @@ void theme_draw_card_tooltip(Rectangle bounds, const CardDef *card, bool upgrade
     for (int i = 0; i < line_count; i++)
     {
         Color line_color = i == 0 ? RAYWHITE : (Color){ 190, 194, 215, 235 };
-        draw_text_fit(lines[i], x, line_y + i * line_h, (int)bounds.width - 10, 6, line_color);
+        draw_text_fit(lines[i], x, line_y + i * line_h, (int)bounds.width - 10, 10, line_color);
     }
 
     if (upgraded)
-        DrawText("UPG", right - MeasureText("UPG", 6), (int)(bounds.y + bounds.height) - 11, 6, (Color){ 255, 245, 120, 230 });
+        DrawText("UPG", right - MeasureText("UPG", 10), snap_i(bounds.y + bounds.height) - 11, 10, (Color){ 255, 245, 120, 230 });
 }
 
 

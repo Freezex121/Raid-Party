@@ -55,7 +55,7 @@ static void draw_hand_card(Rectangle card_rect, const CardDef *card, bool upgrad
     if (locked)
     {
         DrawRectangleRec(card_rect, (Color){ 40, 20, 22, 165 });
-        DrawText("CHANNELING", cx + cw / 2 - MeasureText("CHANNELING", 7) / 2, cy + ch / 2 - 4, 7, (Color){ 240, 120, 120, 230 });
+        DrawText("CHANNELING", cx + cw / 2 - MeasureText("CHANNELING", 10) / 2, cy + ch / 2 - 4, 10, (Color){ 240, 120, 120, 230 });
         return;
     }
 
@@ -64,7 +64,7 @@ static void draw_hand_card(Rectangle card_rect, const CardDef *card, bool upgrad
         DrawRectangleRec(card_rect, (Color){ 8, 8, 12, 120 });
         DrawRectangle(cx, cy + ch - 9, cw, 9, (Color){ 190, 60, 65, 210 });
         if (hovered)
-            DrawText("Not enough energy", cx + 5, cy + ch - 19, 6, (Color){ 240, 110, 115, 240 });
+            DrawText("Not enough energy", cx + 5, cy + ch - 19, 10, (Color){ 240, 110, 115, 240 });
     }
 }
 

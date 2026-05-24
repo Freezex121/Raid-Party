@@ -119,7 +119,7 @@ void party_frames_draw(Party *party)
         {
             DrawRectangleLinesEx((Rectangle){ (float)(x - 1), (float)(y - 1), (float)(frame_w + 2), (float)(frame_h + 2) },
                 1.0f, (Color){ 245, 165, 65, 220 });
-            DrawText("T", x + frame_w - 8, y + 2, 5, (Color){ 245, 165, 65, 230 });
+            DrawText("T", x + frame_w - 8, y + 2, 10, (Color){ 245, 165, 65, 230 });
         }
 
         Color bar_bg = (Color){ 20, 20, 30, 255 };
@@ -155,17 +155,17 @@ void party_frames_draw(Party *party)
 
         char hp_text[32];
         snprintf(hp_text, sizeof(hp_text), "%d / %d", m->hp, m->max_hp);
-        DrawText(hp_text, x + 36, y + 17, 6, (Color){ 200, 200, 220, 210 });
+        DrawText(hp_text, x + 36, y + 17, 10, (Color){ 200, 200, 220, 210 });
 
         Color aggro_col = (Color){ 220, 160, 60, 200 };
         char agg_text[16];
         snprintf(agg_text, sizeof(agg_text), "A:%d", m->aggro);
-        DrawText(agg_text, x + 36, y + 25, 5, aggro_col);
+        DrawText(agg_text, x + 36, y + 25, 10, aggro_col);
 
         if (!m->alive)
         {
             DrawRectangleRec((Rectangle){ (float)(x + 2), (float)(y + 2), (float)(frame_w - 4), (float)(frame_h - 4) }, (Color){ 80, 10, 18, 120 });
-            DrawText("DOWNED", x + frame_w / 2 - MeasureText("DOWNED", 8) / 2, y + 13, 8, (Color){ 255, 95, 95, 230 });
+            DrawText("DOWNED", x + frame_w / 2 - MeasureText("DOWNED", 10) / 2, y + 13, 10, (Color){ 255, 95, 95, 230 });
         }
 
         int sx = x + frame_w - 54;
@@ -177,8 +177,8 @@ void party_frames_draw(Party *party)
             Rectangle pill = { (float)(sx + s * 18), (float)sy, 16.0f, 8.0f };
             DrawRectangleRec(pill, (Color){ sc.r, sc.g, sc.b, 70 });
             DrawRectangleLinesEx(pill, 1.0f, (Color){ sc.r, sc.g, sc.b, 180 });
-            DrawText(status_label(st->type), (int)pill.x + 1, (int)pill.y + 2, 3, (Color){ 235, 235, 245, 230 });
-            DrawText(TextFormat("%d", st->turns), (int)pill.x + 11, (int)pill.y + 1, 5, RAYWHITE);
+            DrawText(status_label(st->type), (int)pill.x + 1, (int)pill.y + 2, 10, (Color){ 235, 235, 245, 230 });
+            DrawText(TextFormat("%d", st->turns), (int)pill.x + 11, (int)pill.y + 1, 10, RAYWHITE);
         }
     }
 }

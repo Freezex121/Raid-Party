@@ -1,6 +1,7 @@
 #include "deck_browser.h"
 #include "constants.h"
 #include "ui/theme.h"
+#include "util/math_utils.h"
 #include <string.h>
 
 #define BROWSER_GAP_X DECK_GAP
@@ -195,14 +196,14 @@ void deck_browser_draw(DeckBrowser *browser, Deck *deck, bool require_unupgraded
         DrawRectangleLinesEx(r, hovered && !disabled ? 2.0f : 1.0f, border);
 
         if (disabled)
-            DrawText("UPG", (int)(r.x + r.width - MeasureText("UPG", 5) - 3), (int)r.y + 4, 5, (Color){ 190, 190, 205, 210 });
+            DrawText("UPG", snap_i(r.x + r.width - MeasureText("UPG", 10) - 3), snap_i(r.y) + 4, 10, (Color){ 190, 190, 205, 210 });
 
     }
 
     draw_scrollbar(browser);
 
     if (count == 0)
-        DrawText("No cards", (int)(browser->viewport.x + browser->viewport.width / 2 - MeasureText("No cards", 7) / 2),
-            (int)(browser->viewport.y + browser->viewport.height / 2 - 4), 7, (Color){ 160, 160, 180, 220 });
+        DrawText("No cards", snap_i(browser->viewport.x + browser->viewport.width / 2 - MeasureText("No cards", 10) / 2),
+            snap_i(browser->viewport.y + browser->viewport.height / 2 - 4), 10, (Color){ 160, 160, 180, 220 });
 
 }

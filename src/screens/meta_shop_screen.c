@@ -4,6 +4,7 @@
 #include "ui/theme.h"
 #include "ui/ui.h"
 #include "util/text.h"
+#include "util/math_utils.h"
 #include "raylib.h"
 #include <stdio.h>
 
@@ -142,7 +143,7 @@ static void draw_item(Rectangle r, const char *title, const char *body, const ch
     DrawRectangleRec(r, bg);
     DrawRectangleLinesEx(r, hover && can_buy ? 2.0f : 1.0f, border);
     DrawText(title, (int)r.x + 9, (int)r.y + 9, 10, title_col);
-    draw_text_wrapped(body, (int)r.x + 9, (int)r.y + 29, (int)r.width - 18, 7, 2, body_col);
+    draw_text_wrapped(body, (int)r.x + 9, (int)r.y + 29, (int)r.width - 18, 10, 2, body_col);
 
     Rectangle buy = { r.x + 9.0f, r.y + r.height - 30.0f, r.width - 18.0f, 20.0f };
     Color buy_bg = complete ? (Color){ 42, 95, 58, 255 } :
@@ -156,7 +157,7 @@ static void draw_item(Rectangle r, const char *title, const char *body, const ch
     else
         snprintf(label, sizeof(label), "%s  %dR", status, cost);
     Color label_col = can_buy || complete ? RAYWHITE : (Color){ 105, 108, 125, 220 };
-    DrawText(label, (int)(buy.x + buy.width / 2 - MeasureText(label, 7) / 2), (int)buy.y + 7, 7, label_col);
+    DrawText(label, snap_i(buy.x + buy.width / 2 - MeasureText(label, 10) / 2), snap_i(buy.y) + 7, 10, label_col);
 }
 
 void meta_shop_screen_draw(void)
@@ -170,7 +171,7 @@ void meta_shop_screen_draw(void)
         g_state.meta.renown,
         meta_party_slots(&g_state.meta),
         meta_starting_gold(&g_state.meta));
-    DrawText(line, VIRT_W / 2 - MeasureText(line, 8) / 2, 62, 8, (Color){ 190, 195, 220, 230 });
+    DrawText(line, VIRT_W / 2 - MeasureText(line, 10) / 2, 62, 10, (Color){ 190, 195, 220, 230 });
 
     bool can_slot4 = !g_state.meta.slot4_unlocked && g_state.meta.renown >= META_SLOT4_COST;
     bool can_slot5 = g_state.meta.slot4_unlocked && !g_state.meta.slot5_unlocked && g_state.meta.renown >= META_SLOT5_COST;
@@ -189,7 +190,7 @@ void meta_shop_screen_draw(void)
     draw_item(item_rect(2), "Travel Fund", fund_body, fund_done ? "MAXED" : "BUY", fund_cost, can_fund, fund_done);
 
     if (shop_msg[0])
-        DrawText(shop_msg, VIRT_W / 2 - MeasureText(shop_msg, 8) / 2, 258, 8, (Color){ 230, 205, 115, 240 });
+        DrawText(shop_msg, VIRT_W / 2 - MeasureText(shop_msg, 10) / 2, 258, 10, (Color){ 230, 205, 115, 240 });
 
     button_draw(&back_btn);
 }

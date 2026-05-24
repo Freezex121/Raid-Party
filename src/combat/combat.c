@@ -107,7 +107,7 @@ static void apply_damage_to_enemy(CombatState *cs, int enemy_idx, int damage)
 
     char buf[16];
     snprintf(buf, sizeof(buf), "-%d", damage);
-    ft_spawn_shake((float)(e->pos_x - 7), (float)(e->pos_y - 18), buf, 8, (Color){ 255, 80, 80, 255 });
+    ft_spawn_shake((float)(e->pos_x - 7), (float)(e->pos_y - 18), buf, 10, (Color){ 255, 80, 80, 255 });
     vfx_spawn_burst((float)e->pos_x, (float)e->pos_y, (Color){ 255, 85, 65, 255 }, 6);
 
     LOG_I(CAT_CARD, "  enemy[%d] %s: %d damage (%d HP)", enemy_idx, e->def->name, damage, e->hp);
@@ -124,7 +124,7 @@ static void apply_heal_to_ally(CombatState *cs, int ally_idx, int amount)
     char buf[16];
     snprintf(buf, sizeof(buf), "+%d", amount);
     Vector2 p = party_feedback_pos(cs, ally_idx);
-    ft_spawn(p.x, p.y, buf, 8, (Color){ 80, 255, 80, 255 });
+    ft_spawn(p.x, p.y, buf, 10, (Color){ 80, 255, 80, 255 });
     vfx_spawn_burst(p.x, p.y - 8.0f, (Color){ 95, 245, 135, 255 }, 4);
 
     LOG_I(CAT_CARD, "  ally[%d] %s: +%d HP (%d)", ally_idx, pm->name, amount, pm->hp);
@@ -142,7 +142,7 @@ static void apply_shield_to_ally(CombatState *cs, int ally_idx, int amount)
     char buf[16];
     snprintf(buf, sizeof(buf), "+%d", amount);
     Vector2 p = party_feedback_pos(cs, ally_idx);
-    ft_spawn(p.x, p.y, buf, 8, (Color){ 100, 200, 255, 255 });
+    ft_spawn(p.x, p.y, buf, 10, (Color){ 100, 200, 255, 255 });
     vfx_spawn_burst(p.x, p.y - 8.0f, (Color){ 115, 190, 255, 255 }, 4);
 
     LOG_I(CAT_CARD, "  ally[%d] %s: +%d shield (%d)", ally_idx, pm->name, amount, pm->shield);
@@ -165,7 +165,7 @@ static void revive_ally(CombatState *cs, int ally_idx)
     char buf[16];
     snprintf(buf, sizeof(buf), "+%d", pm->hp);
     Vector2 p = party_feedback_pos(cs, ally_idx);
-    ft_spawn(p.x, p.y, buf, 9, (Color){ 120, 255, 160, 255 });
+    ft_spawn(p.x, p.y, buf, 10, (Color){ 120, 255, 160, 255 });
 
     LOG_I(CAT_CARD, "  ally[%d] %s: revived at %d HP", ally_idx, pm->name, pm->hp);
 }
@@ -192,7 +192,7 @@ static void apply_damage_to_ally(CombatState *cs, int ally_idx, int damage, cons
 
     char buf[16];
     snprintf(buf, sizeof(buf), "-%d", before - pm->hp);
-    ft_spawn_shake(p.x, p.y, buf, 8, (Color){ 255, 90, 90, 255 });
+    ft_spawn_shake(p.x, p.y, buf, 10, (Color){ 255, 90, 90, 255 });
     vfx_spawn_burst(p.x, p.y - 8.0f, (Color){ 255, 85, 75, 255 }, 5);
 
     LOG_I(CAT_COMBAT, "%s hits %s for %d (%d -> %d)", source, pm->name, before - pm->hp, before, pm->hp);
@@ -208,7 +208,7 @@ static void apply_damage_to_ally(CombatState *cs, int ally_idx, int damage, cons
             pm->shield = 0;
             LOG_I(CAT_COMBAT, "%s saved by Phoenix Feather!", pm->name);
             combat_feed_add(cs, "Phoenix Feather saved %s", pm->name);
-            ft_spawn(p.x - 18.0f, p.y + 7.0f, "REVIVED", 7, (Color){ 255, 150, 50, 255 });
+            ft_spawn(p.x - 18.0f, p.y + 7.0f, "REVIVED", 10, (Color){ 255, 150, 50, 255 });
         }
         else
         {
@@ -218,7 +218,7 @@ static void apply_damage_to_ally(CombatState *cs, int ally_idx, int damage, cons
             LOG_I(CAT_COMBAT, "%s DOWNED! Removing %s cards.", pm->name, class_name(pm->class));
             combat_feed_add(cs, "%s is downed", pm->name);
             deck_remove_class_cards(&cs->deck, pm->class);
-            ft_spawn(p.x - 18.0f, p.y + 7.0f, "DOWNED", 8, (Color){ 240, 80, 80, 255 });
+            ft_spawn(p.x - 18.0f, p.y + 7.0f, "DOWNED", 10, (Color){ 240, 80, 80, 255 });
         }
     }
 }
@@ -235,7 +235,7 @@ static void apply_heal_to_enemy(CombatState *cs, int enemy_idx, int amount)
 
     char buf[16];
     snprintf(buf, sizeof(buf), "+%d", e->hp - before);
-    ft_spawn((float)(e->pos_x - 7), (float)(e->pos_y - 18), buf, 7, (Color){ 90, 240, 130, 255 });
+    ft_spawn((float)(e->pos_x - 7), (float)(e->pos_y - 18), buf, 10, (Color){ 90, 240, 130, 255 });
     vfx_spawn_burst((float)e->pos_x, (float)(e->pos_y - 4), (Color){ 95, 240, 130, 255 }, 4);
     LOG_I(CAT_COMBAT, "Enemy %s heals for %d (%d -> %d)", e->def->name, e->hp - before, before, e->hp);
     combat_feed_add(cs, "%s healed for %d", e->def->name, e->hp - before);
@@ -250,7 +250,7 @@ static void apply_shield_to_enemy(CombatState *cs, int enemy_idx, int amount)
     e->shield += amount;
     char buf[16];
     snprintf(buf, sizeof(buf), "+%d", amount);
-    ft_spawn((float)(e->pos_x - 7), (float)(e->pos_y - 18), buf, 7, (Color){ 100, 180, 255, 255 });
+    ft_spawn((float)(e->pos_x - 7), (float)(e->pos_y - 18), buf, 10, (Color){ 100, 180, 255, 255 });
     vfx_spawn_burst((float)e->pos_x, (float)(e->pos_y - 4), (Color){ 115, 190, 255, 255 }, 4);
     LOG_I(CAT_COMBAT, "Enemy %s gains %d shield (%d)", e->def->name, amount, e->shield);
     combat_feed_add(cs, "%s gained %d shield", e->def->name, amount);
@@ -281,21 +281,21 @@ static bool interrupt_enemy(CombatState *cs, int enemy_idx)
 
     if (e->intent.ability_idx < 0)
     {
-        ft_spawn((float)(e->pos_x - 14), (float)(e->pos_y - 25), "NO CAST", 6, (Color){ 180, 180, 200, 255 });
+        ft_spawn((float)(e->pos_x - 14), (float)(e->pos_y - 25), "NO CAST", 10, (Color){ 180, 180, 200, 255 });
         return false;
     }
 
     const EnemyAbility *ab = &e->def->abilities[e->intent.ability_idx];
     if (ab->is_wipe || ab->intent == INTENT_WIPE)
     {
-        ft_spawn((float)(e->pos_x - 14), (float)(e->pos_y - 25), "IMMUNE", 6, (Color){ 230, 120, 80, 255 });
+        ft_spawn((float)(e->pos_x - 14), (float)(e->pos_y - 25), "IMMUNE", 10, (Color){ 230, 120, 80, 255 });
         LOG_I(CAT_CARD, "  %s resisted interrupt on %s", e->def->name, ab->name);
         return false;
     }
 
     LOG_I(CAT_CARD, "  %s interrupted %s", e->def->name, ab->name);
     combat_feed_add(cs, "%s was interrupted", e->def->name);
-    ft_spawn_shake((float)(e->pos_x - 21), (float)(e->pos_y - 26), "INTERRUPTED", 7, (Color){ 220, 120, 255, 255 });
+    ft_spawn_shake((float)(e->pos_x - 21), (float)(e->pos_y - 26), "INTERRUPTED", 10, (Color){ 220, 120, 255, 255 });
     vfx_spawn_burst((float)e->pos_x, (float)(e->pos_y - 15), (Color){ 220, 120, 255, 255 }, 7);
     e->intent.ability_idx = -1;
     e->intent.remaining_turns = 0;
@@ -548,7 +548,7 @@ static void apply_card_effect(CombatState *cs, const CardDef *card, const CardEf
             if (caster >= 0)
             {
                 cs->party.members[caster].aggro = 0;
-                ft_spawn(22.0f, 176.0f, "AGGRO RESET", 8, (Color){ 120, 220, 160, 255 });
+                ft_spawn(22.0f, 176.0f, "AGGRO RESET", 10, (Color){ 120, 220, 160, 255 });
                 LOG_I(CAT_CARD, "  %s: aggro reset", card->name);
                 combat_feed_add(cs, "%s reset aggro", cs->party.members[caster].name);
             }
@@ -564,7 +564,7 @@ static void apply_card_effect(CombatState *cs, const CardDef *card, const CardEf
             {
                 cs->party.members[guardian].aggro += transfer;
                 cs->party.members[target_ally].aggro = 0;
-                ft_spawn(22.0f, 176.0f, "AGGRO TRANSFER", 8, (Color){ 180, 180, 220, 255 });
+                ft_spawn(22.0f, 176.0f, "AGGRO TRANSFER", 10, (Color){ 180, 180, 220, 255 });
                 LOG_I(CAT_CARD, "  %s: moved %d aggro to Guardian", card->name, transfer);
                 combat_feed_add(cs, "Aggro moved to Guardian");
             }
@@ -1005,7 +1005,7 @@ static void advance_turn(CombatState *cs)
             if (cs->enemies[ei].hp < 0) cs->enemies[ei].hp = 0;
             char bbuf[16];
             snprintf(bbuf, sizeof(bbuf), "-%d", burn_dmg);
-            ft_spawn((float)(cs->enemies[ei].pos_x + 4), (float)(cs->enemies[ei].pos_y - 18), bbuf, 7, (Color){ 255, 150, 50, 255 });
+            ft_spawn((float)(cs->enemies[ei].pos_x + 4), (float)(cs->enemies[ei].pos_y - 18), bbuf, 10, (Color){ 255, 150, 50, 255 });
             vfx_spawn_burst((float)cs->enemies[ei].pos_x, (float)(cs->enemies[ei].pos_y - 5), (Color){ 255, 135, 45, 255 }, 4);
             LOG_I(CAT_CARD, "  enemy[%d] Burning: %d damage", ei, burn_dmg);
         }
@@ -1436,7 +1436,7 @@ void combat_update(CombatState *cs)
             const CardDef *card = cs->deck.cards[cs->deck.hand[cs->target_hand_idx]].def;
             if (!card_can_target_ally(card, &cs->party.members[cs->hovered_ally]))
             {
-                ft_spawn(244.0f, 222.0f, "INVALID TARGET", 8, (Color){ 230, 90, 90, 255 });
+                ft_spawn(244.0f, 222.0f, "INVALID TARGET", 10, (Color){ 230, 90, 90, 255 });
                 return;
             }
             resolve_card_on_target(cs, cs->target_hand_idx, -1, cs->hovered_ally);

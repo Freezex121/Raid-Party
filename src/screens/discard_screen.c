@@ -2,6 +2,7 @@
 #include "game.h"
 #include "ui/theme.h"
 #include "util/log.h"
+#include "util/math_utils.h"
 #include "constants.h"
 #include "raylib.h"
 #include <stdio.h>
@@ -116,16 +117,16 @@ void discard_screen_draw(void)
 
     const char *title = g_state.discard_count == 2 ? "BOSS REWARD: Discard 2 Cards" : "ELITE REWARD: Discard 1 Card";
     Color title_col = g_state.discard_count == 2 ? (Color){ 220, 180, 50, 255 } : (Color){ 200, 100, 220, 255 };
-    DrawText(title, (VIRT_W / 2) - MeasureText(title, 12) / 2, 18, 12, title_col);
+    DrawText(title, (VIRT_W / 2) - MeasureText(title, 18) / 2, 18, 18, title_col);
 
     char hint[64];
     snprintf(hint, sizeof(hint), "Select %d card%s to remove from your deck", g_state.discard_count, g_state.discard_count > 1 ? "s" : "");
-    DrawText(hint, (VIRT_W / 2) - MeasureText(hint, 8) / 2, 40, 8, (Color){ 160, 160, 180, 200 });
+    DrawText(hint, (VIRT_W / 2) - MeasureText(hint, 10) / 2, 40, 10, (Color){ 160, 160, 180, 200 });
 
     char sel[32];
     snprintf(sel, sizeof(sel), "Selected: %d / %d", g_state.discard_selected, g_state.discard_count);
     Color sel_col = g_state.discard_selected >= g_state.discard_count ? (Color){ 100, 255, 130, 255 } : (Color){ 200, 200, 220, 200 };
-    DrawText(sel, (VIRT_W / 2) - MeasureText(sel, 8) / 2, 56, 8, sel_col);
+    DrawText(sel, (VIRT_W / 2) - MeasureText(sel, 10) / 2, 56, 10, sel_col);
 
     Deck *deck = &g_state.run_deck;
     int cards_per_row = 4;
@@ -172,7 +173,7 @@ void discard_screen_draw(void)
     Color skip_col = skip_hover ? (Color){ 100, 100, 130, 255 } : (Color){ 60, 60, 85, 255 };
     DrawRectangleRec(skip_btn, skip_col);
     DrawRectangleLinesEx(skip_btn, 1.0f, (Color){ 110, 110, 140, 200 });
-    DrawText("Skip", (int)(skip_btn.x + skip_btn.width / 2 - MeasureText("Skip", 8) / 2), (int)(skip_btn.y + 7), 8, RAYWHITE);
+    DrawText("Skip", snap_i(skip_btn.x + skip_btn.width / 2 - MeasureText("Skip", 10) / 2), snap_i(skip_btn.y + 7), 10, RAYWHITE);
 
     // Confirm button
     if (g_state.discard_selected >= g_state.discard_count)
@@ -182,6 +183,6 @@ void discard_screen_draw(void)
         Color btn_col = hover ? (Color){ 70, 180, 90, 255 } : (Color){ 45, 120, 60, 255 };
         DrawRectangleRec(confirm_btn, btn_col);
         DrawRectangleLinesEx(confirm_btn, 1.0f, (Color){ 100, 220, 120, 220 });
-        DrawText("Confirm", (int)(confirm_btn.x + confirm_btn.width / 2 - MeasureText("Confirm", 8) / 2), (int)(confirm_btn.y + 7), 8, RAYWHITE);
+        DrawText("Confirm", snap_i(confirm_btn.x + confirm_btn.width / 2 - MeasureText("Confirm", 10) / 2), snap_i(confirm_btn.y + 7), 10, RAYWHITE);
     }
 }

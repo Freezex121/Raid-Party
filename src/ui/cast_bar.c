@@ -81,13 +81,13 @@ void cast_bar_draw_ability_tooltip(const EnemyAbility *ability, Rectangle bounds
     DrawRectangleRec((Rectangle){ (float)x, (float)y, (float)w, (float)h }, (Color){ 18, 18, 28, 245 });
     DrawRectangleLinesEx((Rectangle){ (float)x, (float)y, (float)w, (float)h }, 1.0f, (Color){ 100, 100, 130, 220 });
 
-    draw_text_fit(ability->name, x + 5, y + 5, w - 10, 7, RAYWHITE);
-    draw_text_wrapped(ability->description, x + 5, y + 17, w - 10, 5, 1, (Color){ 220, 220, 235, 240 });
+    draw_text_fit(ability->name, x + 5, y + 5, w - 10, 10, RAYWHITE);
+    draw_text_wrapped(ability->description, x + 5, y + 17, w - 10, 10, 1, (Color){ 220, 220, 235, 240 });
 
     char details[96];
     snprintf(details, sizeof(details), "Dmg %d   Heal %d   Shield %d", ability->base_damage, ability->heal_amount, ability->shield_amount);
-    DrawText(details, x + 5, y + 39, 6, (Color){ 170, 170, 200, 230 });
-    DrawText((ability->is_wipe || ability->intent == INTENT_WIPE) ? "Locked cast" : "Interruptible", x + 5, y + 50, 6,
+    DrawText(details, x + 5, y + 39, 10, (Color){ 170, 170, 200, 230 });
+    DrawText((ability->is_wipe || ability->intent == INTENT_WIPE) ? "Locked cast" : "Interruptible", x + 5, y + 50, 10,
         (ability->is_wipe || ability->intent == INTENT_WIPE) ? (Color){ 230, 110, 80, 240 } : (Color){ 140, 220, 160, 240 });
 }
 
@@ -107,16 +107,16 @@ void cast_bar_draw_ex(const char *ability_name, int remaining_turns, int total_t
 
     DrawRectangleLinesEx((Rectangle){ (float)bar_x, (float)bar_y, (float)bar_w, (float)bar_h }, 1.0f, (Color){ 60, 60, 80, 200 });
 
-    DrawText(ability_name, bar_x + 4, bar_y + 3, 6, RAYWHITE);
+    DrawText(ability_name, bar_x + 4, bar_y + 3, 10, RAYWHITE);
 
     char turns_text[16];
     snprintf(turns_text, sizeof(turns_text), "%dT", remaining_turns);
-    int tw = MeasureText(turns_text, 6);
-    DrawText(turns_text, bar_x + bar_w - tw - 4, bar_y + 3, 6, (Color){ 200, 200, 220, 200 });
+    int tw = MeasureText(turns_text, 10);
+    DrawText(turns_text, bar_x + bar_w - tw - 4, bar_y + 3, 10, (Color){ 200, 200, 220, 200 });
 
     if (is_wipe)
     {
-        DrawText("WIPE!", bar_x + bar_w / 2 - MeasureText("WIPE!", 7) / 2, bar_y - 9, 7, (Color){ 255, 60, 60, 255 });
+        DrawText("WIPE!", bar_x + bar_w / 2 - MeasureText("WIPE!", 10) / 2, bar_y - 11, 10, (Color){ 255, 60, 60, 255 });
     }
 }
 
@@ -140,7 +140,7 @@ void cast_bar_draw_ability(const EnemyAbility *ability, int remaining_turns, int
 
     const char *icon = intent_icon(ability->intent, ability->is_wipe);
     DrawRectangleRec((Rectangle){ (float)(bar_x + 1), (float)(bar_y + 1), 21.0f, (float)(bar_h - 2) }, (Color){ bar_color.r, bar_color.g, bar_color.b, 120 });
-    draw_text_fit(icon, bar_x + 4, bar_y + 4, 16, 5, RAYWHITE);
+    draw_text_fit(icon, bar_x + 4, bar_y + 4, 16, 10, RAYWHITE);
 
     char amount[48];
     if (ability->heal_amount > 0)
@@ -152,18 +152,18 @@ void cast_bar_draw_ability(const EnemyAbility *ability, int remaining_turns, int
 
     char turns_text[20];
     snprintf(turns_text, sizeof(turns_text), "%dT", remaining_turns);
-    int turns_w = MeasureText(turns_text, 6);
-    DrawText(turns_text, bar_x + bar_w - turns_w - 4, bar_y + 3, 6, (Color){ 230, 230, 245, 235 });
+    int turns_w = MeasureText(turns_text, 10);
+    DrawText(turns_text, bar_x + bar_w - turns_w - 4, bar_y + 3, 10, (Color){ 230, 230, 245, 235 });
 
     int amount_x = bar_x + bar_w - turns_w - 29;
-    draw_text_fit(amount, amount_x, bar_y + 4, 22, 5, (Color){ 220, 220, 235, 230 });
+    draw_text_fit(amount, amount_x, bar_y + 4, 22, 10, (Color){ 220, 220, 235, 230 });
 
     int name_x = bar_x + 25;
     int name_w = amount_x - name_x - 3;
-    draw_text_fit(ability->name, name_x, bar_y + 4, name_w, 6, RAYWHITE);
+    draw_text_fit(ability->name, name_x, bar_y + 4, name_w, 10, RAYWHITE);
 
     if (locked)
-        DrawText("!", bar_x + bar_w - turns_w - 41, bar_y + 3, 6, (Color){ 250, 105, 80, 240 });
+        DrawText("!", bar_x + bar_w - turns_w - 41, bar_y + 3, 10, (Color){ 250, 105, 80, 240 });
 }
 
 

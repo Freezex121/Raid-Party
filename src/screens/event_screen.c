@@ -370,8 +370,8 @@ void event_screen_draw(void)
 
     if (mode == EVENT_REMOVE_CARD)
     {
-        DrawText("TRAVEL LIGHT", (VIRT_W / 2) - MeasureText("TRAVEL LIGHT", 12) / 2, 16, 12, RAYWHITE);
-        DrawText("Pick a card to remove. Right-click cancels.", (VIRT_W / 2) - MeasureText("Pick a card to remove. Right-click cancels.", 6) / 2, 34, 6, (Color){ 160, 160, 180, 180 });
+        DrawText("TRAVEL LIGHT", (VIRT_W / 2) - MeasureText("TRAVEL LIGHT", 18) / 2, 16, 18, RAYWHITE);
+        DrawText("Pick a card to remove. Right-click cancels.", (VIRT_W / 2) - MeasureText("Pick a card to remove. Right-click cancels.", 10) / 2, 34, 10, (Color){ 160, 160, 180, 180 });
         deck_browser_draw(&event_browser, &g_state.run_deck, false, (Color){ 255, 115, 115, 255 });
         if (hovered_deck >= 0 && g_state.run_deck.cards[hovered_deck].def)
             theme_draw_card_tooltip(layout_deck_inspector_panel(), g_state.run_deck.cards[hovered_deck].def, g_state.run_deck.cards[hovered_deck].upgraded);
@@ -380,9 +380,9 @@ void event_screen_draw(void)
 
     const EventDef *event = active_event_def();
     const char *title = event ? event->name : "EVENT";
-    DrawText(title, (VIRT_W / 2) - MeasureText(title, 17) / 2, 66, 17, (Color){ 130, 225, 235, 255 });
+    DrawText(title, (VIRT_W / 2) - MeasureText(title, 18) / 2, 66, 18, (Color){ 130, 225, 235, 255 });
     const char *body = event ? event->body : "";
-    DrawText(body, (VIRT_W / 2) - MeasureText(body, 8) / 2, 98, 8, (Color){ 185, 190, 215, 225 });
+    DrawText(body, (VIRT_W / 2) - MeasureText(body, 10) / 2, 98, 10, (Color){ 185, 190, 215, 225 });
 
     if (mode == EVENT_CHOICE)
     {
@@ -401,16 +401,16 @@ void event_screen_draw(void)
             Color desc_col = available ? (Color){ 180, 190, 210, 225 } : (Color){ 100, 102, 120, 205 };
             DrawRectangleRec(r, bg);
             DrawRectangleLinesEx(r, hover && available ? 2.0f : 1.0f, border);
-            DrawText(event->choices[i].label, (int)r.x + 9, (int)r.y + 10, 9, title_col);
-            draw_text_wrapped(event->choices[i].description, (int)r.x + 9, (int)r.y + 31, (int)r.width - 18, 7, 2, desc_col);
+            DrawText(event->choices[i].label, (int)r.x + 9, (int)r.y + 10, 10, title_col);
+            draw_text_wrapped(event->choices[i].description, (int)r.x + 9, (int)r.y + 31, (int)r.width - 18, 10, 2, desc_col);
         }
 
         if (event_msg[0])
-            DrawText(event_msg, (VIRT_W / 2) - MeasureText(event_msg, 8) / 2, 238, 8, (Color){ 210, 165, 105, 230 });
+            DrawText(event_msg, (VIRT_W / 2) - MeasureText(event_msg, 10) / 2, 238, 10, (Color){ 210, 165, 105, 230 });
     }
     else
     {
         DrawText(event_msg, (VIRT_W / 2) - MeasureText(event_msg, 10) / 2, 158, 10, RAYWHITE);
-        DrawText("Click to continue.", (VIRT_W / 2) - MeasureText("Click to continue.", 8) / 2, 186, 8, (Color){ 160, 160, 190, 220 });
+        DrawText("Click to continue.", (VIRT_W / 2) - MeasureText("Click to continue.", 10) / 2, 186, 10, (Color){ 160, 160, 190, 220 });
     }
 }

@@ -102,14 +102,12 @@ void enemy_render_draw(EnemyState *enemy, bool highlighted, bool targeting)
     DrawCircle(cx + 4, draw_y - 16, 2, (Color){ 255, 235, 170, 255 });
 
     const char *mark = enemy_mark(enemy->def->id);
-    DrawText(mark, cx - MeasureText(mark, 8) / 2, draw_y + 8, 8, RAYWHITE);
+    DrawText(mark, cx - MeasureText(mark, 10) / 2, draw_y + 8, 10, RAYWHITE);
 
     Rectangle nameplate = { (float)(cx - 42), (float)(draw_y - size / 2 - 22), 84.0f, 14.0f };
     DrawRectangleRec(nameplate, (Color){ 18, 18, 28, 220 });
     DrawRectangleLinesEx(nameplate, 1.0f, (Color){ accent.r, accent.g, accent.b, 170 });
-    int name_size = 8;
-    while (name_size > 5 && MeasureText(enemy->def->name, name_size) > (int)nameplate.width - 6)
-        name_size--;
+    int name_size = 10;
     DrawText(enemy->def->name, cx - MeasureText(enemy->def->name, name_size) / 2, (int)nameplate.y + 3, name_size, RAYWHITE);
 
     int hp_bar_w = 72;
@@ -131,13 +129,13 @@ void enemy_render_draw(EnemyState *enemy, bool highlighted, bool targeting)
 
     char hp_text[32];
     snprintf(hp_text, sizeof(hp_text), "%d / %d", enemy->hp, enemy->max_hp);
-    DrawText(hp_text, cx - MeasureText(hp_text, 6) / 2, hp_y + 1, 6, RAYWHITE);
+    DrawText(hp_text, cx - MeasureText(hp_text, 10) / 2, hp_y + 1, 10, RAYWHITE);
 
     if (enemy->shield > 0)
     {
         char shield_text[24];
         snprintf(shield_text, sizeof(shield_text), "S%d", enemy->shield);
-        DrawText(shield_text, cx - MeasureText(shield_text, 6) / 2, hp_y + 11, 6, (Color){ 130, 200, 255, 235 });
+        DrawText(shield_text, cx - MeasureText(shield_text, 10) / 2, hp_y + 11, 10, (Color){ 130, 200, 255, 235 });
     }
 }
 

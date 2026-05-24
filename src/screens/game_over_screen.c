@@ -48,11 +48,11 @@ void game_over_screen_draw(void)
     const char *title = g_state.run_won ? "VICTORY" : "PARTY WIPED";
     Color title_col = g_state.run_won ? (Color){ 90, 230, 140, 255 } : (Color){ 230, 80, 80, 255 };
 
-    DrawText(title, (VIRT_W / 2) - MeasureText(title, 26) / 2, 58, 26, title_col);
+    DrawText(title, (VIRT_W / 2) - MeasureText(title, 18) / 2, 58, 18, title_col);
 
     const char *reason = g_state.result_reason[0] ? g_state.result_reason :
         (g_state.run_won ? "The raid is complete." : "The run has ended.");
-    DrawText(reason, (VIRT_W / 2) - MeasureText(reason, 9) / 2, 92, 9, (Color){ 190, 190, 215, 230 });
+    DrawText(reason, (VIRT_W / 2) - MeasureText(reason, 10) / 2, 92, 10, (Color){ 190, 190, 215, 230 });
 
     char line[96];
     const AreaDef *area = area_def(g_state.result_area);
@@ -62,45 +62,45 @@ void game_over_screen_draw(void)
         area_floors = loaded_floors;
     snprintf(line, sizeof(line), "Area: %s", area ? area->name : "Unknown Area");
     int stats_x = (VIRT_W / 2) - 86;
-    DrawText(line, stats_x, 132, 9, RAYWHITE);
+    DrawText(line, stats_x, 132, 10, RAYWHITE);
 
     snprintf(line, sizeof(line), "Floor reached: %d/%d", g_state.result_floor, area_floors);
-    DrawText(line, stats_x, 148, 9, RAYWHITE);
+    DrawText(line, stats_x, 148, 10, RAYWHITE);
 
     snprintf(line, sizeof(line), "Bosses defeated: %d", g_state.result_bosses_defeated);
-    DrawText(line, stats_x, 164, 9, RAYWHITE);
+    DrawText(line, stats_x, 164, 10, RAYWHITE);
 
     snprintf(line, sizeof(line), "Gold earned: %d", g_state.gold);
-    DrawText(line, stats_x, 180, 9, (Color){ 230, 200, 80, 255 });
+    DrawText(line, stats_x, 180, 10, (Color){ 230, 200, 80, 255 });
 
     int valid_cards = 0;
     for (int i = 0; i < g_state.run_deck.card_count; i++)
         if (g_state.run_deck.cards[i].def)
             valid_cards++;
     snprintf(line, sizeof(line), "Deck size: %d", valid_cards);
-    DrawText(line, stats_x, 196, 9, RAYWHITE);
+    DrawText(line, stats_x, 196, 10, RAYWHITE);
 
     snprintf(line, sizeof(line), "Renown: +%d  Total %d", g_state.result_renown_gained, g_state.meta.renown);
-    DrawText(line, stats_x, 212, 8, (Color){ 230, 205, 95, 240 });
+    DrawText(line, stats_x, 212, 10, (Color){ 230, 205, 95, 240 });
 
     int unlock_y = 226;
     if (g_state.result_unlocked_area >= 0)
     {
         const AreaDef *next = area_def(g_state.result_unlocked_area);
         snprintf(line, sizeof(line), "Unlocked area: %s", next ? next->name : "Next Area");
-        DrawText(line, stats_x, unlock_y, 8, (Color){ 120, 220, 255, 245 });
-        unlock_y += 12;
+        DrawText(line, stats_x, unlock_y, 10, (Color){ 120, 220, 255, 245 });
+        unlock_y += 14;
     }
 
     if (g_state.result_unlocked_party_size > 0)
     {
         snprintf(line, sizeof(line), "Unlocked %d-party drafts!", g_state.result_unlocked_party_size);
-        DrawText(line, stats_x, unlock_y, 8, (Color){ 230, 205, 95, 255 });
-        unlock_y += 12;
+        DrawText(line, stats_x, unlock_y, 10, (Color){ 230, 205, 95, 255 });
+        unlock_y += 14;
     }
 
     int y = unlock_y + 4;
-    DrawText("Final party", stats_x, y, 8, (Color){ 160, 160, 190, 220 });
+    DrawText("Final party", stats_x, y, 10, (Color){ 160, 160, 190, 220 });
     y += 16;
 
     for (int i = 0; i < g_state.run_party.count; i++)
@@ -108,12 +108,12 @@ void game_over_screen_draw(void)
         PartyMember *pm = &g_state.run_party.members[i];
         snprintf(line, sizeof(line), "%s  %d/%d HP%s", pm->name, pm->hp, pm->max_hp, pm->alive ? "" : "  DOWNED");
         Color c = pm->alive ? RAYWHITE : (Color){ 230, 90, 90, 230 };
-        DrawText(line, stats_x, y, 7, c);
-        y += 13;
+        DrawText(line, stats_x, y, 10, c);
+        y += 14;
     }
 
     const char *hint = "Click to return to title";
-    DrawText(hint, (VIRT_W / 2) - MeasureText(hint, 8) / 2, VIRT_H - 28, 8, (Color){ 160, 160, 190, 220 });
+    DrawText(hint, (VIRT_W / 2) - MeasureText(hint, 10) / 2, VIRT_H - 28, 10, (Color){ 160, 160, 190, 220 });
 }
 
 

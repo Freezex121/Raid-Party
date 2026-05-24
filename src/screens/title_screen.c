@@ -105,17 +105,17 @@ void title_screen_draw(void)
 {
     theme_draw_background();
 
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; i < CLASS_COUNT; i++)
     {
-        int x = VIRT_W / 2 - 120 + i * 60;
+        int x = VIRT_W / 2 - 150 + i * 60;
         int y = 232 + (i % 2) * 7;
         theme_draw_class_portrait((ClassType)(i % CLASS_COUNT), x, y, 14, true);
     }
 
-    DrawText("RAID PARTY", VIRT_W/2 - MeasureText("RAID PARTY", 40) / 2, snap_i(title_y), 40, RAYWHITE);
+    game_draw_text("RAID PARTY", VIRT_W/2 - game_measure_text("RAID PARTY", 40) / 2, snap_i(title_y), 40, RAYWHITE);
 
     Color subtitle_color = { 180, 180, 200, (unsigned char)(subtitle_alpha * 180) };
-    DrawText("A deck-building roguelite MMO", VIRT_W/2 - MeasureText("A deck-building roguelite MMO", 24) / 2, snap_i(title_y + 38), 24, subtitle_color);
+    game_draw_text("A deck-building roguelite MMO", VIRT_W/2 - game_measure_text("A deck-building roguelite MMO", 24) / 2, snap_i(title_y + 38), 24, subtitle_color);
 
     Rectangle panel = area_panel_rect();
     const AreaDef *area = area_def(g_state.selected_area);
@@ -127,14 +127,14 @@ void title_screen_draw(void)
     if (area_count <= 0) area_count = 1;
     char area_num[48];
     snprintf(area_num, sizeof(area_num), "AREA %d/%d", g_state.selected_area + 1, area_count);
-    DrawText(area_num, (int)panel.x + 10, (int)panel.y + 8, 6, (Color){ 145, 155, 190, 220 });
+    game_draw_text(area_num, snap_i(panel.x + 10), snap_i(panel.y + 8), 10, (Color){ 145, 155, 190, 220 });
 
     const char *area_name = area ? area->name : "Unknown Area";
     Color name_col = selected_unlocked ? RAYWHITE : (Color){ 130, 132, 150, 230 };
-    DrawText(area_name, (int)panel.x + 10, (int)panel.y + 20, 14, name_col);
+    game_draw_text(area_name, (int)panel.x + 10, (int)panel.y + 20, 10, name_col);
 
     if (area)
-        draw_text_wrapped(area->description, (int)panel.x + 10, (int)panel.y + 36, (int)panel.width - 20, 16, 0, (Color){ 170, 176, 205, 220 });
+        draw_text_wrapped(area->description, (int)panel.x + 10, (int)panel.y + 36, (int)panel.width - 25, 10, 0, (Color){ 170, 176, 205, 220 });
 
     char area_stats[96];
     snprintf(area_stats, sizeof(area_stats), "%d floors  Difficulty %d%%  %s",
@@ -142,7 +142,7 @@ void title_screen_draw(void)
         area ? area->difficulty_percent : 100,
         selected_unlocked ? "Unlocked" : "Locked");
     Color stat_col = selected_unlocked ? (Color){ 230, 205, 95, 235 } : (Color){ 125, 128, 145, 220 };
-    DrawText(area_stats, (int)panel.x + 10, (int)panel.y + 74, 16, stat_col);
+    game_draw_text(area_stats, (int)panel.x + 10, (int)panel.y + 74, 10, stat_col);
 
     if (g_state.selected_area > 0)
         button_draw(&prev_area_btn);
@@ -155,7 +155,7 @@ void title_screen_draw(void)
         g_state.meta.wins,
         g_state.meta.renown,
         g_state.max_party_size);
-    DrawText(meta, VIRT_W / 2 - MeasureText(meta, 16) / 2, snap_i(panel.y + panel.height + 10), 16, (Color){ 150, 155, 180, 200 });
+    game_draw_text(meta, VIRT_W / 2 - game_measure_text(meta, 18) / 2, snap_i(panel.y + panel.height + 10), 18, (Color){ 150, 155, 180, 200 });
 
     if (selected_unlocked)
     {
@@ -166,12 +166,12 @@ void title_screen_draw(void)
         Rectangle r = start_btn.bounds;
         DrawRectangleRec(r, (Color){ 35, 36, 48, 220 });
         DrawRectangleLinesEx(r, 1.0f, (Color){ 75, 78, 95, 180 });
-        DrawText("LOCKED", snap_i(r.x + r.width / 2 - MeasureText("LOCKED", 16) / 2), snap_i(r.y) + 7, 16, (Color){ 110, 113, 130, 230 });
+        game_draw_text("LOCKED", snap_i(r.x + r.width / 2 - game_measure_text("LOCKED", 10) / 2), snap_i(r.y) + 7, 10, (Color){ 110, 113, 130, 230 });
     }
     button_draw(&shop_btn);
 
     Color credit_color = { 100, 100, 120, 180 };
-    DrawText("devlog v0.1", VIRT_W/2 - MeasureText("devlog v0.1", 16) / 2, VIRT_H - 20, 16, credit_color);
+    game_draw_text("devlog v0.1", VIRT_W/2 - game_measure_text("devlog v0.1", 10) / 2, VIRT_H - 20, 10, credit_color);
 }
 
 

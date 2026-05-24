@@ -1,5 +1,6 @@
 #include "floating_text.h"
 #include "constants.h"
+#include "util/math_utils.h"
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
@@ -82,7 +83,7 @@ void ft_spawn_gold(int amount)
 {
     char buf[16];
     snprintf(buf, sizeof(buf), "+%dG", amount);
-    ft_spawn((float)((VIRT_W / 2) - 12), 58.0f, buf, 9, (Color){ 255, 220, 60, 255 });
+    ft_spawn((float)((VIRT_W / 2) - 12), 58.0f, buf, 10, (Color){ 255, 220, 60, 255 });
 }
 
 void vfx_spawn_burst(float x, float y, Color color, int count)
@@ -155,8 +156,8 @@ void ft_draw(void)
         Color c = pool[i].color;
         c.a = (unsigned char)(alpha * 255);
 
-        int fs = (int)(pool[i].font_size * scale);
-        DrawText(pool[i].text, (int)pool[i].x, (int)pool[i].y, fs, c);
+        int fs = snap_i(pool[i].font_size * scale);
+        DrawText(pool[i].text, snap_i(pool[i].x), snap_i(pool[i].y), fs, c);
     }
 
     for (int i = 0; i < MAX_VFX; i++)

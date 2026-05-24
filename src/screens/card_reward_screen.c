@@ -144,10 +144,10 @@ void reward_screen_draw(void)
                         g_state.encounter_is_elite ? "ELITE REWARD" : "CARD REWARD";
     Color title_col = g_state.encounter_is_boss ? (Color){ 220, 180, 50, 255 } :
                       g_state.encounter_is_elite ? (Color){ 200, 100, 220, 255 } : RAYWHITE;
-    DrawText(title, (VIRT_W / 2) - MeasureText(title, 16) / 2, 18, 16, title_col);
+    DrawText(title, (VIRT_W / 2) - MeasureText(title, 18) / 2, 18, 18, title_col);
     char pick_label[48];
     snprintf(pick_label, sizeof(pick_label), "Choose %d card%s", g_state.reward_picks_remaining, g_state.reward_picks_remaining > 1 ? "s" : "");
-    DrawText(pick_label, (VIRT_W / 2) - MeasureText(pick_label, 8) / 2, 40, 8, (Color){ 160, 160, 180, 200 });
+    DrawText(pick_label, (VIRT_W / 2) - MeasureText(pick_label, 10) / 2, 40, 10, (Color){ 160, 160, 180, 200 });
 
     for (int i = 0; i < g_state.reward_count; i++)
     {

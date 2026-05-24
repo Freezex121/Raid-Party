@@ -1,6 +1,7 @@
 #include "relic_tray.h"
 #include "constants.h"
 #include "util/text.h"
+#include "util/math_utils.h"
 
 static void draw_tooltip(Rectangle icon_rect, const RelicDef *def)
 {
@@ -20,19 +21,19 @@ static void draw_tooltip(Rectangle icon_rect, const RelicDef *def)
 
     DrawRectangleRec(tip, (Color){ 9, 10, 17, 245 });
     DrawRectangleLinesEx(tip, 1.0f, (Color){ 210, 190, 95, 230 });
-    DrawText(def->name, (int)tip.x + 6, (int)tip.y + 5, 8, (Color){ 235, 215, 120, 255 });
-    draw_text_wrapped(def->description, (int)tip.x + 6, (int)tip.y + 20, (int)tip.width - 12, 6, 1, (Color){ 190, 194, 215, 235 });
+    DrawText(def->name, (int)tip.x + 6, (int)tip.y + 5, 10, (Color){ 235, 215, 120, 255 });
+    draw_text_wrapped(def->description, (int)tip.x + 6, (int)tip.y + 20, (int)tip.width - 12, 10, 1, (Color){ 190, 194, 215, 235 });
 }
 
 void relic_tray_draw(const RelicId *relics, int count, Rectangle bounds)
 {
     DrawRectangleRec(bounds, (Color){ 9, 10, 17, 205 });
     DrawRectangleLinesEx(bounds, 1.0f, (Color){ 120, 118, 82, 175 });
-    DrawText("RELICS", (int)bounds.x + 5, (int)bounds.y + 4, 6, (Color){ 210, 190, 95, 225 });
+    DrawText("RELICS", (int)bounds.x + 5, (int)bounds.y + 4, 10, (Color){ 210, 190, 95, 225 });
 
     if (count <= 0)
     {
-        DrawText("none", (int)bounds.x + 6, (int)bounds.y + 17, 6, (Color){ 120, 124, 150, 190 });
+        DrawText("none", (int)bounds.x + 6, (int)bounds.y + 17, 10, (Color){ 120, 124, 150, 190 });
         return;
     }
 
@@ -65,7 +66,7 @@ void relic_tray_draw(const RelicId *relics, int count, Rectangle bounds)
         bool hover = CheckCollisionPointRec(mouse, r);
         DrawRectangleRec(r, hover ? (Color){ 90, 82, 42, 255 } : (Color){ 48, 42, 28, 255 });
         DrawRectangleLinesEx(r, hover ? 2.0f : 1.0f, (Color){ 225, 205, 105, hover ? 255 : 185 });
-        DrawText(def->icon, (int)(r.x + r.width * 0.5f - MeasureText(def->icon, 6) / 2), (int)r.y + 6, 6, RAYWHITE);
+        DrawText(def->icon, snap_i(r.x + r.width * 0.5f - MeasureText(def->icon, 10) / 2), snap_i(r.y) + 6, 10, RAYWHITE);
 
         if (hover)
         {

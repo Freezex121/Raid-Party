@@ -1,7 +1,60 @@
 #include "assets.h"
+#include "raylib.h"
 #include <stdio.h>
 
 GameAssets g_assets;
+
+static void make_font_bitmap(Font *font)
+{
+    if (font->texture.id == 0) return;
+    Image img = LoadImageFromTexture(font->texture);
+    if (img.data == NULL || img.width == 0 || img.height == 0) return;
+
+    int count = img.width * img.height;
+
+    if (img.format == PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA)
+    {
+        unsigned char *pixels = (unsigned char *)img.data;
+        for (int i = 0; i < count; i++)
+        {
+            int a = pixels[i * 2 + 1];
+            if (a > 127)
+            {
+                pixels[i * 2] = 255;
+                pixels[i * 2 + 1] = 255;
+            }
+            else
+            {
+                pixels[i * 2] = 0;
+                pixels[i * 2 + 1] = 0;
+            }
+        }
+    }
+    else
+    {
+        Color *colors = LoadImageColors(img);
+        if (colors != NULL)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                colors[i].a = colors[i].a > 127 ? 255 : 0;
+                if (colors[i].a == 0)
+                    colors[i] = (Color){ 0, 0, 0, 0 };
+                else
+                    colors[i] = (Color){ 255, 255, 255, 255 };
+            }
+            for (int y = 0; y < img.height; y++)
+                for (int x = 0; x < img.width; x++)
+                    ImageDrawPixel(&img, x, y, colors[y * img.width + x]);
+            UnloadImageColors(colors);
+        }
+    }
+
+    UnloadTexture(font->texture);
+    font->texture = LoadTextureFromImage(img);
+    SetTextureFilter(font->texture, TEXTURE_FILTER_POINT);
+    UnloadImage(img);
+}
 
 static Texture2D make_card_template_fallback(void)
 {
@@ -131,34 +184,59 @@ void assets_load(void)
     {
         g_assets.ui_fonts[i] = (Font){0};
         g_assets.ui_font_sizes_loaded[i] = false;
+        g_assets.ui_font_scales[i] = 1.0f;
     }
 
-    const char *font_paths[] = {
+    const char *pixel_paths[] = {
+        "assets/fonts/5x5_pixel.ttf",
+        "../assets/fonts/5x5_pixel.ttf",
+        "../../assets/fonts/5x5_pixel.ttf",
+    };
+
+    const char *cobble_paths[] = {
         "assets/fonts/Cobblestone.ttf",
         "../assets/fonts/Cobblestone.ttf",
         "../../assets/fonts/Cobblestone.ttf",
     };
 
-    const char *font_path = NULL;
-    for (int i = 0; i < 3; i++)
+    const char *pixel_font = NULL;
+    const char *cobble_font = NULL;
+    for (int i = 0; i < 3 && (!pixel_font || !cobble_font); i++)
     {
-        if (FileExists(font_paths[i]))
-        {
-            font_path = font_paths[i];
-            break;
-        }
+        if (!pixel_font && FileExists(pixel_paths[i])) pixel_font = pixel_paths[i];
+        if (!cobble_font && FileExists(cobble_paths[i])) cobble_font = cobble_paths[i];
     }
 
-    if (font_path)
+    if (pixel_font)
     {
-        for (int size = UI_FONT_MIN_SIZE; size <= UI_FONT_MAX_SIZE; size++)
+        for (int size = UI_FONT_MIN_SIZE; size <= PIXEL_FONT_MAX_SIZE; size++)
         {
-            Font font = LoadFontEx(font_path, size, NULL, 0);
+            Font font = LoadFontEx(pixel_font, size, NULL, 0);
             if (font.texture.id != 0)
             {
                 SetTextureFilter(font.texture, TEXTURE_FILTER_POINT);
                 g_assets.ui_fonts[size] = font;
                 g_assets.ui_font_sizes_loaded[size] = true;
+                g_assets.ui_font_scales[size] = PIXEL_FONT_SCALE;
+                if (size == 16)
+                    g_assets.ui_font = font;
+                g_assets.ui_font_loaded = true;
+            }
+        }
+    }
+
+    if (cobble_font)
+    {
+        for (int size = PIXEL_FONT_MAX_SIZE + 1; size <= UI_FONT_MAX_SIZE; size++)
+        {
+            Font font = LoadFontEx(cobble_font, size, NULL, 0);
+            if (font.texture.id != 0)
+            {
+                make_font_bitmap(&font);
+                SetTextureFilter(font.texture, TEXTURE_FILTER_POINT);
+                g_assets.ui_fonts[size] = font;
+                g_assets.ui_font_sizes_loaded[size] = true;
+                g_assets.ui_font_scales[size] = COBBLESTONE_FONT_SCALE;
                 if (size == 16)
                     g_assets.ui_font = font;
                 g_assets.ui_font_loaded = true;

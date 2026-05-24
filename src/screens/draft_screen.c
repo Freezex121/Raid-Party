@@ -5,6 +5,7 @@
 #include "data/area_defs.h"
 #include "util/tween.h"
 #include "util/text.h"
+#include "util/math_utils.h"
 #include "util/log.h"
 #include "constants.h"
 #include "raylib.h"
@@ -188,19 +189,19 @@ void draft_screen_draw(void)
 {
     theme_draw_background();
 
-    DrawText("ASSEMBLE YOUR PARTY", VIRT_W/2 - MeasureText("ASSEMBLE YOUR PARTY", 16) / 2, (int)title_y, 16, RAYWHITE);
+    DrawText("ASSEMBLE YOUR PARTY", VIRT_W/2 - MeasureText("ASSEMBLE YOUR PARTY", 18) / 2, (int)title_y, 18, RAYWHITE);
 
     char counter[64];
     snprintf(counter, sizeof(counter), "%d / %d selected", selected_count, max_selected);
     Color counter_color = selected_count > 0 ? (Color){ 70, 220, 120, 255 } : (Color){ 160, 160, 180, 255 };
-    DrawText(counter, VIRT_W/2 - MeasureText(counter, 8) / 2, (int)title_y + 21, 8, counter_color);
+    DrawText(counter, VIRT_W/2 - MeasureText(counter, 10) / 2, (int)title_y + 21, 10, counter_color);
 
     const AreaDef *area = area_def(g_state.current_area);
     if (area)
     {
         char area_line[96];
         snprintf(area_line, sizeof(area_line), "%s  Floor set: %d", area->name, area->floor_count);
-        DrawText(area_line, VIRT_W / 2 - MeasureText(area_line, 7) / 2, (int)title_y + 34, 7, (Color){ 150, 155, 180, 200 });
+        DrawText(area_line, VIRT_W / 2 - MeasureText(area_line, 10) / 2, (int)title_y + 34, 10, (Color){ 150, 155, 180, 200 });
     }
 
     for (int i = 0; i < CLASS_COUNT; i++)
@@ -235,28 +236,28 @@ void draft_screen_draw(void)
         Color border = selected[i] ? c : (Color){ 60, 60, 80, (unsigned char)(card_alphas[i] * 100) };
         DrawRectangleLinesEx(draw_rect, selected[i] ? 2.0f : 1.0f, border);
 
-        int text_x = (int)(draw_rect.x + 8);
+        int text_x = snap_i(draw_rect.x + 8);
         Color name_c = RAYWHITE;
         name_c.a = (unsigned char)(card_alphas[i] * 255);
-        DrawText(class_info[i].name, text_x, (int)(draw_rect.y + 8), 12, name_c);
+        DrawText(class_info[i].name, text_x, snap_i(draw_rect.y + 8), 10, name_c);
 
         Color role_c = c;
         role_c.a = (unsigned char)(card_alphas[i] * 200);
-        DrawText(class_info[i].role, text_x, (int)(draw_rect.y + 24), 7, role_c);
+        DrawText(class_info[i].role, text_x, snap_i(draw_rect.y + 24), 10, role_c);
 
-        DrawRectangle(text_x, (int)(draw_rect.y + 38), (int)draw_rect.width - 18, 1, (Color){ 60, 60, 80, (unsigned char)(card_alphas[i] * 200) });
+        DrawRectangle(text_x, snap_i(draw_rect.y + 38), snap_i(draw_rect.width - 18), 1, (Color){ 60, 60, 80, (unsigned char)(card_alphas[i] * 200) });
 
         Color tag_c = { 160, 160, 180, (unsigned char)(card_alphas[i] * 200) };
-        draw_text_wrapped(class_info[i].tagline, text_x, (int)(draw_rect.y + 48), (int)(draw_rect.width - 56), 8, 2, tag_c);
+        draw_text_wrapped(class_info[i].tagline, text_x, snap_i(draw_rect.y + 48), snap_i(draw_rect.width - 56), 10, 2, tag_c);
 
         theme_draw_class_portrait((ClassType)i,
-            (int)(draw_rect.x + draw_rect.width - 28),
-            (int)(draw_rect.y + draw_rect.height - 28),
+            snap_i(draw_rect.x + draw_rect.width - 28),
+            snap_i(draw_rect.y + draw_rect.height - 28),
             13,
             true);
 
         if (selected[i])
-            DrawText("SELECTED", (int)(draw_rect.x + draw_rect.width - 70), (int)(draw_rect.y + 10), 6, (Color){ 220, 245, 230, 230 });
+            DrawText("SELECTED", snap_i(draw_rect.x + draw_rect.width - 70), snap_i(draw_rect.y + 10), 10, (Color){ 220, 245, 230, 230 });
     }
 
     if (selected_count > 0)
@@ -266,7 +267,7 @@ void draft_screen_draw(void)
         {
             char warn[96];
             snprintf(warn, sizeof(warn), "Party not full: %d/%d selected", selected_count, max_selected);
-            DrawText(warn, VIRT_W / 2 - MeasureText(warn, 7) / 2, 344, 7, (Color){ 230, 205, 95, 220 });
+            DrawText(warn, VIRT_W / 2 - MeasureText(warn, 10) / 2, 344, 10, (Color){ 230, 205, 95, 220 });
         }
     }
     else
@@ -277,8 +278,8 @@ void draft_screen_draw(void)
         DrawRectangleRec(btn_rect, bg);
         DrawRectangleLinesEx(btn_rect, 1.0f, border);
         Color txt = { 160, 160, 180, (unsigned char)(begin_btn_alpha * 100) };
-        int tw = MeasureText(begin_btn.text, 8);
-        DrawText(begin_btn.text, VIRT_W/2 - tw / 2, (int)btn_rect.y + 7, 8, txt);
+        int tw = MeasureText(begin_btn.text, 10);
+        DrawText(begin_btn.text, VIRT_W/2 - tw / 2, (int)btn_rect.y + 7, 10, txt);
     }
 
     Color sep = { 60, 60, 80, 120 };

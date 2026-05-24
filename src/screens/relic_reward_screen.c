@@ -5,6 +5,7 @@
 #include "ui/relic_tray.h"
 #include "ui/theme.h"
 #include "util/text.h"
+#include "util/math_utils.h"
 #include "raylib.h"
 #include <stdio.h>
 
@@ -83,12 +84,12 @@ void relic_reward_screen_draw(void)
     theme_draw_background();
 
     DrawText("RELIC REWARD", (VIRT_W / 2) - MeasureText("RELIC REWARD", 18) / 2, 54, 18, (Color){ 230, 205, 95, 255 });
-    DrawText("Choose one passive for this run", (VIRT_W / 2) - MeasureText("Choose one passive for this run", 8) / 2, 82, 8, (Color){ 170, 174, 200, 220 });
+    DrawText("Choose one passive for this run", (VIRT_W / 2) - MeasureText("Choose one passive for this run", 10) / 2, 82, 10, (Color){ 170, 174, 200, 220 });
 
     if (g_state.relic_reward_count <= 0)
     {
         DrawText(fallback_msg, (VIRT_W / 2) - MeasureText(fallback_msg, 10) / 2, 160, 10, RAYWHITE);
-        DrawText("Click to continue.", (VIRT_W / 2) - MeasureText("Click to continue.", 8) / 2, 188, 8, (Color){ 160, 160, 190, 220 });
+        DrawText("Click to continue.", (VIRT_W / 2) - MeasureText("Click to continue.", 10) / 2, 188, 10, (Color){ 160, 160, 190, 220 });
         return;
     }
 
@@ -104,9 +105,9 @@ void relic_reward_screen_draw(void)
         DrawRectangleLinesEx(r, hover ? 2.0f : 1.0f, hover ? RAYWHITE : (Color){ 225, 205, 105, 190 });
         DrawRectangleRec((Rectangle){ r.x + 12.0f, r.y + 12.0f, 30.0f, 30.0f }, (Color){ 55, 47, 28, 255 });
         DrawRectangleLinesEx((Rectangle){ r.x + 12.0f, r.y + 12.0f, 30.0f, 30.0f }, 1.0f, (Color){ 225, 205, 105, 220 });
-        DrawText(def->icon, (int)(r.x + 27.0f - MeasureText(def->icon, 9) / 2), (int)r.y + 23, 9, RAYWHITE);
-        DrawText(def->name, (int)r.x + 52, (int)r.y + 14, 9, RAYWHITE);
-        draw_text_wrapped(def->description, (int)r.x + 12, (int)r.y + 54, (int)r.width - 24, 6, 2, (Color){ 190, 194, 215, 235 });
+        DrawText(def->icon, snap_i(r.x + 27.0f - MeasureText(def->icon, 10) / 2), snap_i(r.y) + 23, 10, RAYWHITE);
+        DrawText(def->name, (int)r.x + 52, (int)r.y + 14, 10, RAYWHITE);
+        draw_text_wrapped(def->description, (int)r.x + 12, (int)r.y + 54, (int)r.width - 24, 10, 2, (Color){ 190, 194, 215, 235 });
     }
 
     relic_tray_draw(g_state.relics, g_state.relic_count, (Rectangle){ 206.0f, 258.0f, 228.0f, 44.0f });

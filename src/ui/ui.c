@@ -1,6 +1,7 @@
 #include "ui.h"
 #include "util/tween.h"
 #include "util/text.h"
+#include "util/math_utils.h"
 #include <string.h>
 
 Button button_create(Rectangle bounds, const char *text, Color bg, Color hover, Color text_col)
@@ -55,25 +56,22 @@ void button_draw(Button *btn)
     if (btn->border_color.a > 0)
         DrawRectangleLinesEx(btn->bounds, 2.0f, btn->border_color);
 
-    int font_size = (btn->bounds.height <= 18.0f) ? 7 : 20;
-    if (btn->bounds.height > 18.0f && btn->bounds.height < 36.0f)
-        font_size = (int)(btn->bounds.height - 8.0f);
-    if (font_size < 6) font_size = 6;
+    int font_size = 10;
 
     int text_w = MeasureText(btn->text, font_size);
-    int btn_center_x = (int)(btn->bounds.x + btn->bounds.width / 2.0f);
+    int btn_center_x = snap_i(btn->bounds.x + btn->bounds.width / 2.0f);
     if (text_w > btn->bounds.width - 8)
     {
         draw_text_wrapped(btn->text,
-            (int)(btn->bounds.x + 4),
-            (int)(btn->bounds.y + 3),
-            (int)(btn->bounds.width - 8), font_size, 2, btn->text_color);
+            snap_i(btn->bounds.x + 4),
+            snap_i(btn->bounds.y + 3),
+            snap_i(btn->bounds.width - 8), font_size, 2, btn->text_color);
     }
     else
     {
         DrawText(btn->text,
             btn_center_x - text_w / 2,
-            (int)(btn->bounds.y + btn->bounds.height / 2.0f - font_size / 2.0f),
+            snap_i(btn->bounds.y + btn->bounds.height / 2.0f - font_size / 2.0f),
             font_size, btn->text_color);
     }
 }
@@ -93,6 +91,6 @@ void draw_panel(Rectangle bounds, Color bg, float corner_radius, Color border)
 
 void draw_label(const char *text, Vector2 pos, int size, Color color)
 {
-    DrawText(text, (int)pos.x, (int)pos.y, size, color);
+    DrawText(text, snap_i(pos.x), snap_i(pos.y), size, color);
 }
 

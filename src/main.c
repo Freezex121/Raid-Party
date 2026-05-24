@@ -98,6 +98,7 @@ int main(void)
 
         BeginDrawing();
         ClearBackground(BLACK);
+        SetTextureFilter(target.texture, TEXTURE_FILTER_POINT);
         DrawTexturePro(
             target.texture,
             (Rectangle){ 0.0f, 0.0f, (float)VIRT_W, (float)-VIRT_H },

@@ -6,6 +6,7 @@
 #include "ui/deck_browser.h"
 #include "ui/theme.h"
 #include "ui/layout.h"
+#include "util/math_utils.h"
 #include "raylib.h"
 #include <stdio.h>
 
@@ -142,7 +143,7 @@ void shop_screen_draw(void)
 
     char gold_text[32];
     snprintf(gold_text, sizeof(gold_text), "Gold: %d", g_state.gold);
-    DrawText(gold_text, (VIRT_W / 2) - MeasureText(gold_text, 9) / 2, 100, 9, (Color){ 220, 200, 60, 220 });
+    DrawText(gold_text, (VIRT_W / 2) - MeasureText(gold_text, 10) / 2, 100, 10, (Color){ 220, 200, 60, 220 });
 
     if (mode == SHOP_MAIN)
     {
@@ -161,31 +162,31 @@ void shop_screen_draw(void)
 
         DrawRectangleRec(upg_btn, uc);
         char ul[64]; snprintf(ul, sizeof(ul), "UPGRADE (%dg)", UPGRADE_COST);
-        DrawText(ul, (int)(upg_btn.x + upg_btn.width / 2 - MeasureText(ul, 8) / 2), (int)upg_btn.y + 11, 8, can_upg ? RAYWHITE : (Color){ 100, 100, 120, 200 });
+        DrawText(ul, snap_i(upg_btn.x + upg_btn.width / 2 - MeasureText(ul, 10) / 2), snap_i(upg_btn.y) + 11, 10, can_upg ? RAYWHITE : (Color){ 100, 100, 120, 200 });
 
         DrawRectangleRec(rem_btn, rc);
         char rl[64]; snprintf(rl, sizeof(rl), "REMOVE (%dg)", REMOVE_COST);
-        DrawText(rl, (int)(rem_btn.x + rem_btn.width / 2 - MeasureText(rl, 8) / 2), (int)rem_btn.y + 11, 8, can_rem ? RAYWHITE : (Color){ 100, 100, 120, 200 });
+        DrawText(rl, snap_i(rem_btn.x + rem_btn.width / 2 - MeasureText(rl, 10) / 2), snap_i(rem_btn.y) + 11, 10, can_rem ? RAYWHITE : (Color){ 100, 100, 120, 200 });
 
         if (msg[0])
-            DrawText(msg, (VIRT_W / 2) - MeasureText(msg, 8) / 2, 224, 8, (Color){ 200, 150, 100, 220 });
+            DrawText(msg, (VIRT_W / 2) - MeasureText(msg, 10) / 2, 224, 10, (Color){ 200, 150, 100, 220 });
     }
     else if (mode == SHOP_UPGRADE)
     {
-        DrawText("PICK A CARD TO UPGRADE", (VIRT_W / 2) - MeasureText("PICK A CARD TO UPGRADE", 12) / 2, 16, 12, RAYWHITE);
+        DrawText("PICK A CARD TO UPGRADE", (VIRT_W / 2) - MeasureText("PICK A CARD TO UPGRADE", 18) / 2, 16, 18, RAYWHITE);
         char hint[80];
         snprintf(hint, sizeof(hint), "%d cards  |  wheel scroll  |  right-click cancel", g_state.run_deck.card_count);
-        DrawText(hint, (VIRT_W / 2) - MeasureText(hint, 6) / 2, 34, 6, (Color){ 160, 160, 180, 180 });
+        DrawText(hint, (VIRT_W / 2) - MeasureText(hint, 10) / 2, 34, 10, (Color){ 160, 160, 180, 180 });
         deck_browser_draw(&shop_browser, &g_state.run_deck, true, RAYWHITE);
         if (hovered_deck >= 0 && g_state.run_deck.cards[hovered_deck].def)
             theme_draw_card_tooltip(layout_deck_inspector_panel(), g_state.run_deck.cards[hovered_deck].def, g_state.run_deck.cards[hovered_deck].upgraded);
     }
     else if (mode == SHOP_REMOVE)
     {
-        DrawText("PICK A CARD TO REMOVE", (VIRT_W / 2) - MeasureText("PICK A CARD TO REMOVE", 12) / 2, 16, 12, (Color){ 220, 120, 120, 255 });
+        DrawText("PICK A CARD TO REMOVE", (VIRT_W / 2) - MeasureText("PICK A CARD TO REMOVE", 18) / 2, 16, 18, (Color){ 220, 120, 120, 255 });
         char hint[80];
         snprintf(hint, sizeof(hint), "%d cards  |  wheel scroll  |  right-click cancel", g_state.run_deck.card_count);
-        DrawText(hint, (VIRT_W / 2) - MeasureText(hint, 6) / 2, 34, 6, (Color){ 160, 160, 180, 180 });
+        DrawText(hint, (VIRT_W / 2) - MeasureText(hint, 10) / 2, 34, 10, (Color){ 160, 160, 180, 180 });
         deck_browser_draw(&shop_browser, &g_state.run_deck, false, (Color){ 255, 100, 100, 255 });
         if (hovered_deck >= 0 && g_state.run_deck.cards[hovered_deck].def)
             theme_draw_card_tooltip(layout_deck_inspector_panel(), g_state.run_deck.cards[hovered_deck].def, g_state.run_deck.cards[hovered_deck].upgraded);
@@ -193,8 +194,8 @@ void shop_screen_draw(void)
     else if (mode == SHOP_DONE)
     {
         Color c = (Color){ 100, 220, 120, 255 };
-        DrawText(msg, (VIRT_W / 2) - MeasureText(msg, 16) / 2, 164, 16, c);
-        DrawText("Click to continue.", (VIRT_W / 2) - MeasureText("Click to continue.", 8) / 2, 190, 8, (Color){ 160, 160, 180, 200 });
+        DrawText(msg, (VIRT_W / 2) - MeasureText(msg, 18) / 2, 164, 18, c);
+        DrawText("Click to continue.", (VIRT_W / 2) - MeasureText("Click to continue.", 10) / 2, 190, 10, (Color){ 160, 160, 180, 200 });
     }
 }
 

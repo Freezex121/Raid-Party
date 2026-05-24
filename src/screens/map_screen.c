@@ -181,13 +181,13 @@ void map_screen_draw(void)
 
     char title[96];
     snprintf(title, sizeof(title), "%s", area ? area->name : "Area");
-    DrawText(title, (VIRT_W / 2) - MeasureText(title, 16) / 2, 14, 16, RAYWHITE);
+    DrawText(title, (VIRT_W / 2) - MeasureText(title, 18) / 2, 14, 18, RAYWHITE);
     char subtitle[96];
     snprintf(subtitle, sizeof(subtitle), "Area %d  Floor %d/%d  Choose your route",
         g_state.current_area + 1,
         g_state.map.floor + 1,
         floor_count);
-    DrawText(subtitle, (VIRT_W / 2) - MeasureText(subtitle, 8) / 2, 36, 8, (Color){ 150, 155, 180, 210 });
+    DrawText(subtitle, (VIRT_W / 2) - MeasureText(subtitle, 10) / 2, 36, 10, (Color){ 150, 155, 180, 210 });
     relic_tray_draw(g_state.relics, g_state.relic_count, (Rectangle){ 482.0f, 10.0f, 146.0f, 42.0f });
 
     MapState *map = &g_state.map;
@@ -228,11 +228,11 @@ void map_screen_draw(void)
         {
             DrawCircle(sx, sy, (float)r, (Color){ 28, 29, 42, 255 });
             DrawCircleLines(sx, sy, (float)r, (Color){ 58, 58, 78, 120 });
-            int locked_size = n->type == NODE_BOSS ? 11 : 9;
+            int locked_size = n->type == NODE_BOSS ? 18 : 10;
             Color dim = c;
             dim.a = 128;
             DrawText(icon, sx - MeasureText(icon, locked_size) / 2, sy - locked_size / 2, locked_size, dim);
-            DrawText(name, sx - MeasureText(name, 6) / 2, sy + r + 5, 6, dim);
+            DrawText(name, sx - MeasureText(name, 10) / 2, sy + r + 5, 10, dim);
             continue;
         }
 
@@ -240,7 +240,7 @@ void map_screen_draw(void)
         {
             DrawCircle(sx, sy, (float)r, (Color){ 48, 52, 68, 255 });
             DrawCircle(sx, sy, r - 3, (Color){ 70, 200, 115, 150 });
-            DrawText("OK", sx - MeasureText("OK", 5) / 2, sy - 3, 5, (Color){ 190, 255, 205, 230 });
+            DrawText("OK", sx - MeasureText("OK", 10) / 2, sy - 3, 10, (Color){ 190, 255, 205, 230 });
         }
         else if (i == hovered_node)
         {
@@ -256,9 +256,9 @@ void map_screen_draw(void)
             DrawCircle(sx, sy, r - 3, (Color){ 0, 0, 0, 60 });
         }
 
-        int icon_size = n->type == NODE_BOSS ? 11 : 9;
+        int icon_size = n->type == NODE_BOSS ? 18 : 10;
         DrawText(icon, sx - MeasureText(icon, icon_size) / 2, sy - icon_size / 2, icon_size, RAYWHITE);
-        DrawText(name, sx - MeasureText(name, 6) / 2, sy + r + 5, 6, c);
+        DrawText(name, sx - MeasureText(name, 10) / 2, sy + r + 5, 10, c);
     }
 
     EndScissorMode();
@@ -267,7 +267,7 @@ void map_screen_draw(void)
     if (bounds.height > VIRT_H - 52 || bounds.width > VIRT_W)
     {
         const char *hint = "Wheel scrolls map  |  Shift+wheel pans";
-        DrawText(hint, VIRT_W / 2 - MeasureText(hint, 6) / 2, VIRT_H - 12, 6, (Color){ 150, 155, 180, 185 });
+        DrawText(hint, VIRT_W / 2 - MeasureText(hint, 10) / 2, VIRT_H - 12, 10, (Color){ 150, 155, 180, 185 });
     }
 
     if (hovered_node >= 0 && map->nodes[hovered_node].available && !map->nodes[hovered_node].completed)
@@ -276,8 +276,8 @@ void map_screen_draw(void)
         Rectangle tip = { (float)((VIRT_W / 2) - 70), (float)(VIRT_H - 38), 140.0f, 26.0f };
         DrawRectangleRec(tip, (Color){ 20, 21, 32, 230 });
         DrawRectangleLinesEx(tip, 1.0f, (Color){ 95, 100, 130, 220 });
-        DrawText(theme_node_name(n->type), (VIRT_W / 2) - MeasureText(theme_node_name(n->type), 8) / 2, (int)tip.y + 4, 8, theme_node_color(n->type));
-        DrawText("Click to travel", (VIRT_W / 2) - MeasureText("Click to travel", 6) / 2, (int)tip.y + 16, 6, (Color){ 175, 178, 205, 220 });
+        DrawText(theme_node_name(n->type), (VIRT_W / 2) - MeasureText(theme_node_name(n->type), 10) / 2, (int)tip.y + 4, 10, theme_node_color(n->type));
+        DrawText("Click to travel", (VIRT_W / 2) - MeasureText("Click to travel", 10) / 2, (int)tip.y + 16, 10, (Color){ 175, 178, 205, 220 });
     }
 }
 
