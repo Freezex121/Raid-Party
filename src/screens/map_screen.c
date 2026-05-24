@@ -240,7 +240,6 @@ void map_screen_draw(void)
         {
             DrawCircle(sx, sy, (float)r, (Color){ 48, 52, 68, 255 });
             DrawCircle(sx, sy, r - 3, (Color){ 70, 200, 115, 150 });
-            DrawText("OK", sx - MeasureText("OK", 10) / 2, sy - 3, 10, (Color){ 190, 255, 205, 230 });
         }
         else if (i == hovered_node)
         {

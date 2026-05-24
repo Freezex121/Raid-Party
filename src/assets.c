@@ -262,6 +262,8 @@ void assets_load(void)
     };
 
     g_assets.card_template = (Texture2D){0};
+    g_assets.card_template_upgraded = (Texture2D){0};
+    g_assets.relic_template = (Texture2D){0};
     for (int i = 0; i < 3; i++)
     {
         if (FileExists(card_paths[i]))
@@ -275,6 +277,26 @@ void assets_load(void)
         g_assets.card_template = make_card_template_fallback();
 
     SetTextureFilter(g_assets.card_template, TEXTURE_FILTER_POINT);
+
+    const char *upgraded_card_paths[] = {
+        "assets/art/card_template_upgraded.png",
+        "../assets/art/card_template_upgraded.png",
+        "../../assets/art/card_template_upgraded.png",
+    };
+
+    for (int i = 0; i < 3; i++)
+    {
+        if (FileExists(upgraded_card_paths[i]))
+        {
+            g_assets.card_template_upgraded = LoadTexture(upgraded_card_paths[i]);
+            break;
+        }
+    }
+
+    if (g_assets.card_template_upgraded.id != 0)
+        SetTextureFilter(g_assets.card_template_upgraded, TEXTURE_FILTER_POINT);
+
+    g_assets.relic_template = load_art_texture("relic_template.png");
 
     const char *icon_files[CLASS_COUNT] = {
         [CLASS_GUARDIAN] = "guardian_icon.png",
@@ -321,6 +343,10 @@ void assets_unload(void)
     }
     UnloadTexture(g_assets.paper_texture);
     UnloadTexture(g_assets.card_template);
+    if (g_assets.card_template_upgraded.id != 0)
+        UnloadTexture(g_assets.card_template_upgraded);
+    if (g_assets.relic_template.id != 0)
+        UnloadTexture(g_assets.relic_template);
     for (int i = 0; i < CLASS_COUNT; i++)
         if (g_assets.class_icons[i].id != 0)
             UnloadTexture(g_assets.class_icons[i]);

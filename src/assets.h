@@ -50,6 +50,8 @@ typedef struct {
     float ui_font_scales[UI_FONT_MAX_SIZE + 1];
     Texture2D paper_texture;
     Texture2D card_template;
+    Texture2D card_template_upgraded;
+    Texture2D relic_template;
     Texture2D class_icons[CLASS_COUNT];
     Sound sfx[SFX_COUNT];
     bool sfx_loaded[SFX_COUNT];

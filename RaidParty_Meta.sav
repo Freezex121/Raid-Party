@@ -1,9 +1,9 @@
-runs_completed=2
-wins=1
-best_floor=3
-bosses_defeated_total=3
-renown=11
-highest_area_unlocked=1
-starting_gold_rank=0
-slot4_unlocked=0
+runs_completed=6
+wins=3
+best_floor=4
+bosses_defeated_total=13
+renown=20
+highest_area_unlocked=2
+starting_gold_rank=3
+slot4_unlocked=1
 slot5_unlocked=0

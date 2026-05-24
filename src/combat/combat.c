@@ -456,7 +456,6 @@ void combat_draw_card_throws(CombatState *cs)
             (float)anim->height
         };
         theme_draw_card_art(r, anim->card, anim->upgraded);
-        DrawRectangleLinesEx(r, 1.0f, (Color){ 255, 245, 190, 220 });
     }
 }
 

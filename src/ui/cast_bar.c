@@ -71,7 +71,7 @@ void cast_bar_draw_ability_tooltip(const EnemyAbility *ability, Rectangle bounds
     if (!CheckCollisionPointRec(mouse, bounds)) return;
 
     int w = 176;
-    int h = 58;
+    int h = 80;
     int x = (int)(bounds.x + bounds.width / 2.0f - w / 2.0f);
     int y = (int)(bounds.y - h - 5);
     if (x + w > VIRT_W - 2) x = VIRT_W - w - 2;

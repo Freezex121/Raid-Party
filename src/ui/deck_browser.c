@@ -166,6 +166,8 @@ int deck_browser_update(DeckBrowser *browser, Deck *deck, Rectangle viewport, bo
 void deck_browser_draw(DeckBrowser *browser, Deck *deck, bool require_unupgraded, Color highlight)
 {
     if (!browser || !deck) return;
+    (void)require_unupgraded;
+    (void)highlight;
 
     int indices[MAX_DECK_SIZE];
     int count = build_sorted_indices(deck, indices, MAX_DECK_SIZE);
@@ -184,20 +186,8 @@ void deck_browser_draw(DeckBrowser *browser, Deck *deck, bool require_unupgraded
         int visible_pos = pos - first_pos;
         CardInstance *inst = &deck->cards[deck_index];
         Rectangle r = card_rect_for(browser, visible_pos);
-        bool disabled = require_unupgraded && inst->upgraded;
-        bool hovered = deck_index == browser->hovered_deck_index;
 
         theme_draw_card_art(r, inst->def, inst->upgraded);
-        if (disabled)
-            DrawRectangleRec(r, (Color){ 8, 8, 12, 145 });
-
-        Color border = hovered && !disabled ? highlight : (Color){ 60, 60, 80, 200 };
-        if (disabled) border = (Color){ 70, 72, 86, 180 };
-        DrawRectangleLinesEx(r, hovered && !disabled ? 2.0f : 1.0f, border);
-
-        if (disabled)
-            DrawText("UPG", snap_i(r.x + r.width - MeasureText("UPG", 10) - 3), snap_i(r.y) + 4, 10, (Color){ 190, 190, 205, 210 });
-
     }
 
     draw_scrollbar(browser);

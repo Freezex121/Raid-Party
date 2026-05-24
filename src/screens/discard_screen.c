@@ -37,12 +37,12 @@ void discard_screen_update(void)
     if (scroll_offset < 0) scroll_offset = 0;
 
     int cards_per_row = 4;
-    int card_w = 60;
-    int card_h = 84;
-    int gap = 6;
+    int card_w = DISCARD_CARD_W;
+    int card_h = DISCARD_CARD_H;
+    int gap = DISCARD_GAP;
     int total_w = cards_per_row * (card_w + gap) - gap;
     int start_x = (VIRT_W - total_w) / 2;
-    int start_y = 80;
+    int start_y = DISCARD_Y;
 
     Deck *deck = &g_state.run_deck;
 
@@ -130,12 +130,12 @@ void discard_screen_draw(void)
 
     Deck *deck = &g_state.run_deck;
     int cards_per_row = 4;
-    int card_w = 60;
-    int card_h = 84;
-    int gap = 6;
+    int card_w = DISCARD_CARD_W;
+    int card_h = DISCARD_CARD_H;
+    int gap = DISCARD_GAP;
     int total_w = cards_per_row * (card_w + gap) - gap;
     int start_x = (VIRT_W - total_w) / 2;
-    int start_y = 80;
+    int start_y = DISCARD_Y;
 
     for (int i = 0; i < deck->card_count; i++)
     {
@@ -158,11 +158,6 @@ void discard_screen_draw(void)
         if (selected)
         {
             DrawRectangleRec(r, (Color){ 255, 80, 80, 50 });
-            DrawRectangleLinesEx(r, 2.0f, (Color){ 255, 80, 80, 255 });
-        }
-        else if (i == hovered_card)
-        {
-            DrawRectangleLinesEx(r, 2.0f, RAYWHITE);
         }
     }
 

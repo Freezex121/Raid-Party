@@ -46,11 +46,6 @@ static void draw_hand_card(Rectangle card_rect, const CardDef *card, bool upgrad
     int ch = (int)card_rect.height;
 
     theme_draw_card_art(card_rect, card, upgraded);
-    DrawRectangleLinesEx(card_rect, hovered ? 2.0f : 1.0f,
-        low_energy ? (Color){ 95, 90, 105, 210 } : (hovered ? RAYWHITE : accent));
-    if (upgraded)
-        DrawRectangleLinesEx((Rectangle){ card_rect.x + 1.0f, card_rect.y + 1.0f, card_rect.width - 2.0f, card_rect.height - 2.0f },
-            2.0f, (Color){ 255, 224, 86, 245 });
 
     if (locked)
     {

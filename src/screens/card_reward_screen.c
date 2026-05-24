@@ -155,12 +155,7 @@ void reward_screen_draw(void)
 
         const CardDef *card = g_state.reward_cards[i];
         Rectangle card_rect = layout_reward_card_rect(g_state.reward_count, i);
-        if (i == hovered_reward)
-            DrawRectangleRec((Rectangle){ card_rect.x - 2, card_rect.y - 2, card_rect.width + 4, card_rect.height + 4 },
-                (Color){ 255, 255, 255, 35 });
         theme_draw_card_art(card_rect, card, g_state.reward_upgraded[i]);
-        if (i == hovered_reward)
-            DrawRectangleLinesEx(card_rect, 2.0f, RAYWHITE);
     }
 
     if (hovered_reward >= 0 && hovered_reward < g_state.reward_count && !g_state.reward_picked[hovered_reward])

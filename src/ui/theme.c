@@ -1,6 +1,7 @@
 #include "theme.h"
 #include "assets.h"
 #include "util/math_utils.h"
+#include "util/text.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -253,6 +254,76 @@ static void draw_card_tokens(Rectangle dest, const CardDef *card, bool upgraded,
     }
 }
 
+static int card_stat_heal(const CardDef *card, bool upgraded)
+{
+    int heal = card_heal(card, upgraded);
+    if (card && card->heal2 > 0)
+        heal += card->heal2;
+
+    if (heal > 0)
+        return heal;
+
+    const CardEffect *effect = card_effect(card, CARD_EFFECT_APPLY_STATUS_TARGET_ALLY);
+    if (effect && effect->status == STATUS_RENEW)
+        return effect->amount;
+
+    effect = card_effect(card, CARD_EFFECT_APPLY_STATUS_ALL_ALLIES);
+    if (effect && effect->status == STATUS_TOTEM_HEAL)
+        return effect->amount;
+
+    return 0;
+}
+
+static int card_stat_damage(const CardDef *card, bool upgraded)
+{
+    return card_damage(card, upgraded) * card_repeat_hits(card);
+}
+
+static int card_stat_target_count(const CardDef *card)
+{
+    if (!card) return 0;
+
+    if (card->channel && card->target == TARGET_SELF)
+    {
+        if (card->damage > 0)
+            return MAX_ENEMIES;
+        if (card->heal > 0 || card->shield > 0 || card_effect(card, CARD_EFFECT_APPLY_STATUS_ALL_ALLIES))
+            return MAX_PARTY_SIZE;
+    }
+
+    if (card_effect(card, CARD_EFFECT_APPLY_STATUS_ALL_ALLIES))
+        return MAX_PARTY_SIZE;
+
+    switch (card->target)
+    {
+        case TARGET_ALL_ENEMIES: return MAX_ENEMIES;
+        case TARGET_ALL_ALLIES:  return MAX_PARTY_SIZE;
+        case TARGET_ENEMY:
+        case TARGET_ALLY:
+        case TARGET_SELF:
+            return 1;
+    }
+    return 0;
+}
+
+static void draw_card_stat_number(Rectangle dest, int row, int value, Color color)
+{
+    static const int row_y[5] = { 34, 52, 70, 88, 106 };
+    if (row < 0 || row >= 5) return;
+
+    char text[8];
+    snprintf(text, sizeof(text), "%d", value);
+
+    int size = 10;
+    int x = scaled_x(dest, 13);
+    int y = scaled_y(dest, (float)row_y[row]);
+    int max_w = scaled_len(dest, 17);
+    while (size > 6 && MeasureText(text, size) > max_w)
+        size--;
+
+    DrawText(text, x + max_w - MeasureText(text, size), y, size, color);
+}
+
 static void add_detail_line(char lines[][80], int *count, int max_lines, const char *fmt, ...)
 {
     if (*count >= max_lines) return;
@@ -357,12 +428,12 @@ Color theme_class_color(ClassType ct)
 {
     switch (ct)
     {
-        case CLASS_GUARDIAN: return (Color){ 74, 144, 217, 255 };
-        case CLASS_CLERIC:   return (Color){ 225, 170, 50, 255 };
-        case CLASS_MAGE:     return (Color){ 155, 89, 182, 255 };
-        case CLASS_ROGUE:    return (Color){ 39, 174, 96, 255 };
-        case CLASS_SHAMAN:   return (Color){ 230, 126, 34, 255 };
-        case CLASS_RANGER:   return (Color){ 70, 190, 120, 255 };
+        case CLASS_GUARDIAN: return (Color){ 0, 0, 255, 255 };
+        case CLASS_CLERIC:   return (Color){ 255, 255, 255, 255 };
+        case CLASS_MAGE:     return (Color){ 255, 0, 0, 255 };
+        case CLASS_ROGUE:    return (Color){ 0, 255, 0, 255 };
+        case CLASS_SHAMAN:   return (Color){ 0, 0, 157, 255 };
+        case CLASS_RANGER:   return (Color){ 0, 157, 0, 255 };
         default:             return (Color){ 130, 135, 160, 255 };
     }
 }
@@ -559,18 +630,20 @@ void theme_draw_class_portrait(ClassType ct, int cx, int cy, int radius, bool al
 
 void theme_draw_card_art(Rectangle bounds, const CardDef *card, bool upgraded)
 {
-    Color c = theme_class_color(card ? card->class : CLASS_NONE);
-    Color type = card ? theme_card_type_color(card->type) : (Color){ 130, 135, 160, 255 };
-
     bounds = snap_rect(bounds);
 
-    if (g_assets.card_template.id != 0)
+    Texture2D template = upgraded && g_assets.card_template_upgraded.id != 0
+        ? g_assets.card_template_upgraded
+        : g_assets.card_template;
+
+    if (template.id != 0)
     {
-        DrawTexturePro(g_assets.card_template,
-            (Rectangle){ 0.0f, 0.0f, (float)g_assets.card_template.width, (float)g_assets.card_template.height },
+        DrawTexturePro(template,
+            (Rectangle){ 0.0f, 0.0f, (float)template.width, (float)template.height },
             bounds,
             (Vector2){ 0.0f, 0.0f },
-            0.0f, WHITE);
+            0.0f,
+            WHITE);
     }
     else
     {
@@ -579,108 +652,48 @@ void theme_draw_card_art(Rectangle bounds, const CardDef *card, bool upgraded)
 
     Rectangle dest = fit_card_art_rect(bounds);
 
-    int pad2 = scaled_len(dest, 2);
-    int pad4 = scaled_len(dest, 4);
-    int pad6 = scaled_len(dest, 6);
-
-    // Header strip: class-colored top bar
-    int header_h = scaled_len(dest, 22);
-    DrawRectangleRec((Rectangle){
-        dest.x + (float)pad2, dest.y + (float)pad2,
-        dest.width - (float)pad4, (float)header_h
-    }, color_fade_alpha(theme_class_dark(card ? card->class : CLASS_NONE), 0));
-
-    // Bottom info strip: dark panel
-    int bottom_h = scaled_len(dest, 42);
-    DrawRectangleRec((Rectangle){
-        dest.x + (float)pad2,
-        dest.y + dest.height - (float)bottom_h - (float)pad2,
-        dest.width - (float)pad4, (float)bottom_h
-    }, (Color){ 13, 15, 24, 255 });
-
-    float s = dest.width / (float)CARD_ART_SOURCE_W;
-    DrawRectangleLinesEx(dest, s >= 3.0f ? 3.0f : 1.0f, color_fade_alpha(c, 0));
-
-    if (upgraded)
-    {
-        Color gold = (Color){ 255, 224, 86, 255 };
-        DrawRectangleLinesEx(dest, s >= 2.0f ? 2.0f : 1.0f, gold);
-        DrawRectangleLinesEx((Rectangle){ dest.x + 2.0f, dest.y + 2.0f, dest.width - 4.0f, dest.height - 4.0f }, 1.0f, (Color){ 255, 245, 150, 210 });
-        DrawRectangleRec((Rectangle){ dest.x + 3.0f, dest.y + dest.height - 6.0f, dest.width - 6.0f, 3.0f }, (Color){ 255, 224, 86, 180 });
-    }
-
     if (!card) return;
 
-    int lx = scaled_x(dest, 6);
-    int top_y = scaled_y(dest, 5);
+    int name_x = scaled_x(dest, 4);
+    int name_w = scaled_len(dest, 88);
+    int name_size = 10;
+    int name_lines = MeasureText(card->name, name_size) > name_w ? 2 : 1;
+    int name_h = name_lines * name_size;
+    int name_y = scaled_y(dest, 2) + (scaled_len(dest, 26) - name_h) / 2;
+    draw_text_wrapped(card->name, name_x, name_y, name_w, name_size, 0, RAYWHITE);
 
-    // Card name (font 10, no scaling)
-    draw_text_wrapped(card->name, lx, top_y, 80, 10, 0, RAYWHITE);
+    draw_card_stat_number(dest, 0, card->cost, (Color){ 255, 255, 0, 255 });
+    draw_card_stat_number(dest, 1, card_stat_heal(card, upgraded), (Color){ 255, 255, 255, 255 });
+    draw_card_stat_number(dest, 2, card_stat_damage(card, upgraded), (Color){ 200, 0, 0, 255 });
+    draw_card_stat_number(dest, 3, card_shield(card, upgraded), (Color){ 0, 0, 255, 255 });
+    draw_card_stat_number(dest, 4, card_stat_target_count(card), (Color){ 128, 128, 128, 255 });
 
-    // Cost badge under the name
-    char cost[4];
-    snprintf(cost, sizeof(cost), "%d", card->cost);
-    int cost_badge_w = scaled_len(dest, 16);
-    int cost_badge_h = scaled_len(dest, 14);
-    int cost_y = top_y + scaled_len(dest, 22);
-    Rectangle cost_box = {
-        (float)lx, (float)cost_y,
-        (float)cost_badge_w, (float)cost_badge_h
-    };
-    DrawRectangleRec(cost_box, (Color){ 245, 225, 90, 255 });
-    DrawRectangleLinesEx(cost_box, 1.0f, (Color){ 80, 65, 20, 230 });
-    DrawText(cost,
-        lx + cost_badge_w / 2 - MeasureText(cost, 10) / 2,
-        cost_y + 2,
-        10,
-        (Color){ 25, 25, 20, 255 });
-
-    // UPG badge at top-right of header
-    if (upgraded)
-        DrawText("UPG", scaled_x(dest, 74), top_y, 10, (Color){ 255, 245, 120, 255 });
-
-    // Art box in the middle
-    int art_x = scaled_x(dest, 8);
-    int art_y = top_y + header_h + pad2;
-    int art_w = scaled_len(dest, 80);
-    int art_h = scaled_len(dest, 46);
-    Rectangle art_box = snap_rect((Rectangle){
-        (float)art_x, (float)art_y, (float)art_w, (float)art_h
+    Rectangle icon_box = snap_rect((Rectangle){
+        (float)scaled_x(dest, 60),
+        (float)scaled_y(dest, 30),
+        (float)scaled_len(dest, 32),
+        (float)scaled_len(dest, 32)
     });
-    DrawRectangleRec(art_box, color_fade_alpha(theme_class_dark(card->class), 0));
-    DrawRectangleLinesEx(art_box, 1.0f, color_fade_alpha(c, 0));
     Texture2D class_icon = class_icon_texture(card->class);
     if (class_icon.id != 0)
     {
-        int icon_size = 32;
-        if (art_box.width < 32.0f || art_box.height < 32.0f)
-            icon_size = 16;
-        if (icon_size > (int)art_box.width || icon_size > (int)art_box.height)
-            icon_size = 0;
-        if (icon_size > 0)
-        {
-            Rectangle icon_dest = {
-                (float)snap_i(art_box.x + (art_box.width - (float)icon_size) * 0.5f),
-                (float)snap_i(art_box.y + (art_box.height - (float)icon_size) * 0.5f),
-                (float)icon_size,
-                (float)icon_size
-            };
-            DrawTexturePro(class_icon,
-                (Rectangle){ 0.0f, 0.0f, (float)class_icon.width, (float)class_icon.height },
-                icon_dest,
-                (Vector2){ 0.0f, 0.0f },
-                0.0f,
-                WHITE);
-        }
+        DrawTexturePro(class_icon,
+            (Rectangle){ 0.0f, 0.0f, (float)class_icon.width, (float)class_icon.height },
+            icon_box,
+            (Vector2){ 0.0f, 0.0f },
+            0.0f,
+            WHITE);
     }
-
-    // Type/target info
-    int info_y = scaled_y(dest, 80);
-    DrawText(theme_card_type_label(card->type), lx, info_y, 10, type);
-    draw_text_fit(target_code(card), scaled_x(dest, 48), info_y, scaled_len(dest, 42), 10, c);
-
-    // Tokens in bottom panel
-    draw_card_tokens(dest, card, upgraded, c);
+    else
+    {
+        const char *label = theme_class_abbrev(card->class);
+        Color label_color = theme_class_color(card->class);
+        DrawText(label,
+            (int)(icon_box.x + icon_box.width * 0.5f - MeasureText(label, 10) * 0.5f),
+            (int)(icon_box.y + icon_box.height * 0.5f - 5.0f),
+            10,
+            color_fade_alpha(label_color, 240));
+    }
 }
 
 void theme_draw_card_tooltip(Rectangle bounds, const CardDef *card, bool upgraded)
@@ -732,10 +745,4 @@ void theme_draw_card_tooltip(Rectangle bounds, const CardDef *card, bool upgrade
         Color line_color = i == 0 ? RAYWHITE : (Color){ 190, 194, 215, 235 };
         draw_text_fit(lines[i], x, line_y + i * line_h, (int)bounds.width - 10, 10, line_color);
     }
-
-    if (upgraded)
-        DrawText("UPG", right - MeasureText("UPG", 10), snap_i(bounds.y + bounds.height) - 11, 10, (Color){ 255, 245, 120, 230 });
 }
-
-
-
