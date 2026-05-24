@@ -134,9 +134,9 @@ void assets_load(void)
     }
 
     const char *font_paths[] = {
-        "assets/fonts/5x5_pixel.ttf",
-        "../assets/fonts/5x5_pixel.ttf",
-        "../../assets/fonts/5x5_pixel.ttf",
+        "assets/fonts/Cobblestone.ttf",
+        "../assets/fonts/Cobblestone.ttf",
+        "../../assets/fonts/Cobblestone.ttf",
     };
 
     const char *font_path = NULL;

@@ -8,8 +8,8 @@
 
 #define CARD_ART_SOURCE_W CARD_SOURCE_W
 #define CARD_ART_SOURCE_H CARD_SOURCE_H
-#define UI_FONT_MIN_SIZE 3
-#define UI_FONT_MAX_SIZE 32
+#define UI_FONT_MIN_SIZE 8
+#define UI_FONT_MAX_SIZE 72
 
 typedef enum {
     SFX_BUTTON_HOVER,

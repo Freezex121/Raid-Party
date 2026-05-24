@@ -4,7 +4,7 @@
 // Pixel-perfect render target and window
 #define VIRT_W 640
 #define VIRT_H 360
-#define SCALE 2
+#define SCALE 1
 #define SCREEN_W (VIRT_W * SCALE)
 #define SCREEN_H (VIRT_H * SCALE)
 

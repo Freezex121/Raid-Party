@@ -1,5 +1,6 @@
 #include "theme.h"
 #include "assets.h"
+#include "util/math_utils.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -8,11 +9,6 @@ static Color color_fade_alpha(Color c, unsigned char a)
 {
     c.a = a;
     return c;
-}
-
-static int snap_i(float value)
-{
-    return value >= 0.0f ? (int)(value + 0.5f) : (int)(value - 0.5f);
 }
 
 static Rectangle snap_rect(Rectangle r)

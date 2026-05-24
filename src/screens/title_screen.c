@@ -5,6 +5,7 @@
 #include "data/area_defs.h"
 #include "util/tween.h"
 #include "util/text.h"
+#include "util/math_utils.h"
 #include "constants.h"
 #include "raylib.h"
 #include <stdio.h>
@@ -20,7 +21,7 @@ static int title_tween, subtitle_tween, btn_tween;
 
 static Rectangle area_panel_rect(void)
 {
-    return (Rectangle){ 150.0f, 126.0f, 340.0f, 92.0f };
+    return (Rectangle){ 150.0f, 90.0f, 340.0f, 92.0f };
 }
 
 void title_screen_update(void)
@@ -57,7 +58,7 @@ void title_screen_update(void)
             WHITE
         );
 
-        title_tween = tween_create(&title_y, 70.0f, 0.6f, EASE_OUT_BACK);
+        title_tween = tween_create(&title_y, 20.0f, 0.6f, EASE_OUT_BACK);
         subtitle_tween = tween_create(&subtitle_alpha, 1.0f, 0.5f, EASE_OUT_QUAD);
         btn_tween = tween_create(&button_y, 264.0f, 0.6f, EASE_OUT_ELASTIC);
 
@@ -111,10 +112,10 @@ void title_screen_draw(void)
         theme_draw_class_portrait((ClassType)(i % CLASS_COUNT), x, y, 14, true);
     }
 
-    DrawText("RAID PARTY", VIRT_W/2 - MeasureText("RAID PARTY", 28) / 2, (int)title_y, 28, RAYWHITE);
+    DrawText("RAID PARTY", VIRT_W/2 - MeasureText("RAID PARTY", 40) / 2, snap_i(title_y), 40, RAYWHITE);
 
     Color subtitle_color = { 180, 180, 200, (unsigned char)(subtitle_alpha * 180) };
-    DrawText("A deck-building roguelite MMO", VIRT_W/2 - MeasureText("A deck-building roguelite MMO", 9) / 2, (int)(title_y + 38), 9, subtitle_color);
+    DrawText("A deck-building roguelite MMO", VIRT_W/2 - MeasureText("A deck-building roguelite MMO", 24) / 2, snap_i(title_y + 38), 24, subtitle_color);
 
     Rectangle panel = area_panel_rect();
     const AreaDef *area = area_def(g_state.selected_area);
@@ -133,7 +134,7 @@ void title_screen_draw(void)
     DrawText(area_name, (int)panel.x + 10, (int)panel.y + 20, 14, name_col);
 
     if (area)
-        draw_text_wrapped(area->description, (int)panel.x + 10, (int)panel.y + 42, (int)panel.width - 20, 7, 2, (Color){ 170, 176, 205, 220 });
+        draw_text_wrapped(area->description, (int)panel.x + 10, (int)panel.y + 36, (int)panel.width - 20, 16, 0, (Color){ 170, 176, 205, 220 });
 
     char area_stats[96];
     snprintf(area_stats, sizeof(area_stats), "%d floors  Difficulty %d%%  %s",
@@ -141,7 +142,7 @@ void title_screen_draw(void)
         area ? area->difficulty_percent : 100,
         selected_unlocked ? "Unlocked" : "Locked");
     Color stat_col = selected_unlocked ? (Color){ 230, 205, 95, 235 } : (Color){ 125, 128, 145, 220 };
-    DrawText(area_stats, (int)panel.x + 10, (int)panel.y + 78, 7, stat_col);
+    DrawText(area_stats, (int)panel.x + 10, (int)panel.y + 74, 16, stat_col);
 
     if (g_state.selected_area > 0)
         button_draw(&prev_area_btn);
@@ -149,12 +150,12 @@ void title_screen_draw(void)
         button_draw(&next_area_btn);
 
     char meta[128];
-    snprintf(meta, sizeof(meta), "Runs %d  Wins %d  Renown %d  Party max %d/5",
+    snprintf(meta, sizeof(meta), "Runs: %d      |       Wins: %d        |       Renown: %d      |       Max Party: %d",
         g_state.meta.runs_completed,
         g_state.meta.wins,
         g_state.meta.renown,
         g_state.max_party_size);
-    DrawText(meta, VIRT_W / 2 - MeasureText(meta, 7) / 2, 224, 7, (Color){ 150, 155, 180, 200 });
+    DrawText(meta, VIRT_W / 2 - MeasureText(meta, 16) / 2, snap_i(panel.y + panel.height + 10), 16, (Color){ 150, 155, 180, 200 });
 
     if (selected_unlocked)
     {
@@ -165,12 +166,12 @@ void title_screen_draw(void)
         Rectangle r = start_btn.bounds;
         DrawRectangleRec(r, (Color){ 35, 36, 48, 220 });
         DrawRectangleLinesEx(r, 1.0f, (Color){ 75, 78, 95, 180 });
-        DrawText("LOCKED", (int)(r.x + r.width / 2 - MeasureText("LOCKED", 8) / 2), (int)r.y + 7, 8, (Color){ 110, 113, 130, 230 });
+        DrawText("LOCKED", snap_i(r.x + r.width / 2 - MeasureText("LOCKED", 16) / 2), snap_i(r.y) + 7, 16, (Color){ 110, 113, 130, 230 });
     }
     button_draw(&shop_btn);
 
     Color credit_color = { 100, 100, 120, 180 };
-    DrawText("devlog v0.1", VIRT_W/2 - MeasureText("devlog v0.1", 6) / 2, VIRT_H - 20, 6, credit_color);
+    DrawText("devlog v0.1", VIRT_W/2 - MeasureText("devlog v0.1", 16) / 2, VIRT_H - 20, 16, credit_color);
 }
 
 
