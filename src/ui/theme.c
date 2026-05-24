@@ -100,17 +100,17 @@ static const char *target_code(const CardDef *card)
 {
     if (card && card->channel && card->target == TARGET_SELF)
     {
-        if (card->damage > 0) return "ALL EN";
-        if (card->heal > 0 || card->shield > 0) return "ALL AL";
+        if (card->damage > 0) return "ALL";
+        if (card->heal > 0 || card->shield > 0) return "ALL";
     }
-    if (card_effect(card, CARD_EFFECT_APPLY_STATUS_ALL_ALLIES)) return "ALL AL";
+    if (card_effect(card, CARD_EFFECT_APPLY_STATUS_ALL_ALLIES)) return "ALL";
 
     switch (card ? card->target : TARGET_SELF)
     {
-        case TARGET_ENEMY:       return "1 EN";
-        case TARGET_ALL_ENEMIES: return "ALL EN";
-        case TARGET_ALLY:        return "1 AL";
-        case TARGET_ALL_ALLIES:  return "ALL AL";
+        case TARGET_ENEMY:       return "SINGLE";
+        case TARGET_ALL_ENEMIES: return "ALL";
+        case TARGET_ALLY:        return "SINGLE";
+        case TARGET_ALL_ALLIES:  return "ALL";
         case TARGET_SELF:        return "SELF";
     }
     return "SELF";
@@ -226,14 +226,14 @@ static void draw_card_tokens(Rectangle dest, const CardDef *card, bool upgraded,
 {
     char tokens[12][12];
     int token_count = build_card_tokens(card, upgraded, tokens, 12);
-    int size = scaled_font(dest, 4);
-    int x0 = scaled_x(dest, 5);
+    int size = 10;
+    int x0 = scaled_x(dest, 6);
     int x = x0;
-    int max_x = scaled_x(dest, 56);
-    int y = scaled_y(dest, 47);
-    int line_h = scaled_len(dest, 7);
+    int max_x = scaled_x(dest, 88);
+    int y = scaled_y(dest, 94);
+    int line_h = scaled_len(dest, 12);
     if (line_h < size + 2) line_h = size + 2;
-    int gap = scaled_len(dest, 3);
+    int gap = scaled_len(dest, 4);
     if (gap < 2) gap = 2;
 
     int row = 0;
@@ -563,25 +563,43 @@ void theme_draw_card_art(Rectangle bounds, const CardDef *card, bool upgraded)
     Color type = card ? theme_card_type_color(card->type) : (Color){ 130, 135, 160, 255 };
 
     bounds = snap_rect(bounds);
-    DrawRectangleRec(bounds, (Color){ 9, 10, 16, 245 });
+
+    if (g_assets.card_template.id != 0)
+    {
+        DrawTexturePro(g_assets.card_template,
+            (Rectangle){ 0.0f, 0.0f, (float)g_assets.card_template.width, (float)g_assets.card_template.height },
+            bounds,
+            (Vector2){ 0.0f, 0.0f },
+            0.0f, WHITE);
+    }
+    else
+    {
+        DrawRectangleRec(bounds, (Color){ 9, 10, 16, 245 });
+    }
 
     Rectangle dest = fit_card_art_rect(bounds);
-    DrawRectangleRec(dest, (Color){ 8, 9, 14, 255 });
+
+    int pad2 = scaled_len(dest, 2);
+    int pad4 = scaled_len(dest, 4);
+    int pad6 = scaled_len(dest, 6);
+
+    // Header strip: class-colored top bar
+    int header_h = scaled_len(dest, 22);
     DrawRectangleRec((Rectangle){
-        dest.x + (float)scaled_len(dest, 2),
-        dest.y + (float)scaled_len(dest, 2),
-        dest.width - (float)scaled_len(dest, 4),
-        (float)scaled_len(dest, 10)
-    }, color_fade_alpha(theme_class_dark(card ? card->class : CLASS_NONE), 215));
+        dest.x + (float)pad2, dest.y + (float)pad2,
+        dest.width - (float)pad4, (float)header_h
+    }, color_fade_alpha(theme_class_dark(card ? card->class : CLASS_NONE), 0));
+
+    // Bottom info strip: dark panel
+    int bottom_h = scaled_len(dest, 42);
     DrawRectangleRec((Rectangle){
-        dest.x + (float)scaled_len(dest, 2),
-        dest.y + dest.height - (float)scaled_len(dest, 26),
-        dest.width - (float)scaled_len(dest, 4),
-        (float)scaled_len(dest, 24)
+        dest.x + (float)pad2,
+        dest.y + dest.height - (float)bottom_h - (float)pad2,
+        dest.width - (float)pad4, (float)bottom_h
     }, (Color){ 13, 15, 24, 255 });
 
     float s = dest.width / (float)CARD_ART_SOURCE_W;
-    DrawRectangleLinesEx(dest, s >= 3.0f ? 3.0f : 1.0f, color_fade_alpha(c, upgraded ? 245 : 185));
+    DrawRectangleLinesEx(dest, s >= 3.0f ? 3.0f : 1.0f, color_fade_alpha(c, 0));
 
     if (upgraded)
     {
@@ -593,36 +611,44 @@ void theme_draw_card_art(Rectangle bounds, const CardDef *card, bool upgraded)
 
     if (!card) return;
 
-    int title_x = scaled_x(dest, 4);
-    int title_y = scaled_y(dest, 3);
-    int title_w = (int)(42 * s);
-    draw_text_fit(card->name, title_x, title_y, title_w, 18, RAYWHITE);
+    int lx = scaled_x(dest, 6);
+    int top_y = scaled_y(dest, 5);
 
+    // Card name (font 10, no scaling)
+    draw_text_wrapped(card->name, lx, top_y, 80, 10, 0, RAYWHITE);
+
+    // Cost badge under the name
     char cost[4];
     snprintf(cost, sizeof(cost), "%d", card->cost);
-    int cost_size = 18;
+    int cost_badge_w = scaled_len(dest, 16);
+    int cost_badge_h = scaled_len(dest, 14);
+    int cost_y = top_y + scaled_len(dest, 22);
     Rectangle cost_box = {
-        (float)scaled_x(dest, 47),
-        (float)scaled_y(dest, 1),
-        (float)scaled_len(dest, 10),
-        (float)scaled_len(dest, 10)
+        (float)lx, (float)cost_y,
+        (float)cost_badge_w, (float)cost_badge_h
     };
     DrawRectangleRec(cost_box, (Color){ 245, 225, 90, 255 });
     DrawRectangleLinesEx(cost_box, 1.0f, (Color){ 80, 65, 20, 230 });
     DrawText(cost,
-        scaled_x(dest, 50) - MeasureText(cost, cost_size) / 2,
-        scaled_y(dest, 2),
-        cost_size,
+        lx + cost_badge_w / 2 - MeasureText(cost, 10) / 2,
+        cost_y + 2,
+        10,
         (Color){ 25, 25, 20, 255 });
 
+    // UPG badge at top-right of header
+    if (upgraded)
+        DrawText("UPG", scaled_x(dest, 74), top_y, 10, (Color){ 255, 245, 120, 255 });
+
+    // Art box in the middle
+    int art_x = scaled_x(dest, 8);
+    int art_y = top_y + header_h + pad2;
+    int art_w = scaled_len(dest, 80);
+    int art_h = scaled_len(dest, 46);
     Rectangle art_box = snap_rect((Rectangle){
-        (float)scaled_x(dest, 5),
-        (float)scaled_y(dest, 14),
-        (float)scaled_len(dest, 50),
-        (float)scaled_len(dest, 30)
+        (float)art_x, (float)art_y, (float)art_w, (float)art_h
     });
-    DrawRectangleRec(art_box, color_fade_alpha(theme_class_dark(card->class), 185));
-    DrawRectangleLinesEx(art_box, 1.0f, color_fade_alpha(c, 150));
+    DrawRectangleRec(art_box, color_fade_alpha(theme_class_dark(card->class), 0));
+    DrawRectangleLinesEx(art_box, 1.0f, color_fade_alpha(c, 0));
     Texture2D class_icon = class_icon_texture(card->class);
     if (class_icon.id != 0)
     {
@@ -648,13 +674,13 @@ void theme_draw_card_art(Rectangle bounds, const CardDef *card, bool upgraded)
         }
     }
 
-    int info_size = 10;
-    DrawText(theme_card_type_label(card->type), scaled_x(dest, 5), scaled_y(dest, 39), info_size, type);
-    draw_text_fit(target_code(card), scaled_x(dest, 27), scaled_y(dest, 39), (int)(29 * s), info_size, c);
-    draw_card_tokens(dest, card, upgraded, c);
+    // Type/target info
+    int info_y = scaled_y(dest, 80);
+    DrawText(theme_card_type_label(card->type), lx, info_y, 10, type);
+    draw_text_fit(target_code(card), scaled_x(dest, 48), info_y, scaled_len(dest, 42), 10, c);
 
-    if (upgraded)
-        DrawText("UPG", scaled_x(dest, 39), scaled_y(dest, 2), 10, (Color){ 255, 245, 120, 255 });
+    // Tokens in bottom panel
+    draw_card_tokens(dest, card, upgraded, c);
 }
 
 void theme_draw_card_tooltip(Rectangle bounds, const CardDef *card, bool upgraded)
