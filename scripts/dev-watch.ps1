@@ -19,10 +19,16 @@ $script:GameProcess = $null
 function Get-WatchStamp {
     $files = New-Object System.Collections.Generic.List[System.IO.FileInfo]
     $srcPath = Join-Path $Root "src"
+    $dataPath = Join-Path $Root "assets"
     $cmakePath = Join-Path $Root "CMakeLists.txt"
 
     if (Test-Path $srcPath) {
         Get-ChildItem -Path $srcPath -Recurse -File -Include *.c,*.h,*.cpp,*.hpp |
+            ForEach-Object { [void]$files.Add($_) }
+    }
+
+    if (Test-Path $dataPath) {
+        Get-ChildItem -Path $dataPath -Recurse -File -Include *.json |
             ForEach-Object { [void]$files.Add($_) }
     }
 
@@ -117,6 +123,13 @@ function Invoke-CMakeBuild {
         }
     }
 
+    # Delete old exe to force MSBuild to always relink (bypasses stale incremental builds)
+    foreach ($candidate in (Get-BuildExeCandidates)) {
+        if (Test-Path $candidate) {
+            Remove-Item -Path $candidate -Force
+        }
+    }
+
     Write-Host "Building $Target ($Config)..."
     & cmake --build $BuildPath --config $Config --target $Target
     return ($LASTEXITCODE -eq 0)
@@ -177,7 +190,7 @@ try {
     }
 
     Write-Host ""
-    Write-Host "Watching src and CMakeLists.txt. Save a .c or .h file to rebuild and relaunch."
+    Write-Host "Watching src, assets, and CMakeLists.txt. Save to rebuild and relaunch."
     Write-Host "Press Ctrl+C to stop."
 
     while ($true) {

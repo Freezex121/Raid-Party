@@ -76,7 +76,7 @@ void title_screen_update(void)
 
         title_tween = tween_create(&title_y, 20.0f, 0.6f, EASE_OUT_BACK);
         subtitle_tween = tween_create(&subtitle_alpha, 1.0f, 0.5f, EASE_OUT_QUAD);
-        btn_tween = tween_create(&button_y, 264.0f, 0.6f, EASE_OUT_ELASTIC);
+        btn_tween = tween_create(&button_y, 284.0f, 0.6f, EASE_OUT_ELASTIC);
 
         initialized = true;
     }
@@ -136,17 +136,27 @@ void title_screen_draw(void)
 {
     theme_draw_background();
 
+    int unlocked_class_count = 0;
     for (int i = 0; i < CLASS_COUNT; i++)
     {
-        int x = VIRT_W / 2 - 136 + i * 34;
-        int y = 232 + (i % 2) * 7;
+        if (meta_class_unlocked(&g_state.meta, i))
+            unlocked_class_count++;
+    }
+
+    for (int i = 0; i < CLASS_COUNT; i++)
+    {
+        if (!meta_class_unlocked(&g_state.meta, i))
+            continue;
+
+        int x = VIRT_W / 2 - (unlocked_class_count * 22) + i * 50;
+        int y = 250 + (i % 2) * 10;
         theme_draw_class_portrait((ClassType)(i % CLASS_COUNT), x, y, 14, true);
     }
 
     game_draw_text("RAID PARTY", VIRT_W/2 - game_measure_text("RAID PARTY", 40) / 2, snap_i(title_y), 40, RAYWHITE);
 
     Color subtitle_color = { 180, 180, 200, (unsigned char)(subtitle_alpha * 180) };
-    game_draw_text("A deck-building roguelite MMO", VIRT_W/2 - game_measure_text("A deck-building roguelite MMO", 24) / 2, snap_i(title_y + 38), 24, subtitle_color);
+    game_draw_text("A deck-building roguelite MMO", VIRT_W/2 - game_measure_text("A deck-building roguelite MMK", 24) / 2, snap_i(title_y + 38), 24, subtitle_color);
 
     Rectangle panel = area_panel_rect();
     const AreaDef *area = area_def(g_state.selected_area);
@@ -190,7 +200,7 @@ void title_screen_draw(void)
 
     char asc[96];
     snprintf(asc, sizeof(asc), "ASCENSION %d / %d", g_state.meta.ascension_level, g_state.meta.max_ascension_unlocked);
-    DrawText(asc, VIRT_W / 2 - MeasureText(asc, 10) / 2, 211, 10,
+    DrawText(asc, VIRT_W / 2 - MeasureText(asc, 10) / 2, 220, 10,
         g_state.meta.max_ascension_unlocked > 0 ? (Color){ 190, 160, 255, 220 } : (Color){ 110, 112, 135, 180 });
     if (g_state.meta.max_ascension_unlocked > 0)
     {
