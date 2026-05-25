@@ -7,9 +7,37 @@
 #include "constants.h"
 #include "raylib.h"
 #include <stdio.h>
+#include <string.h>
 
 static int hovered_card = -1;
 static int scroll_offset = 0;
+
+static int sorted_indices[MAX_DECK_SIZE];
+static int sorted_count = 0;
+
+static int card_sort_key(const CardDef *a)
+{
+    if (!a) return 999;
+    return a->class * 100 + a->cost;
+}
+
+static void build_sorted_index(Deck *deck)
+{
+    sorted_count = 0;
+    for (int i = 0; i < deck->card_count && sorted_count < MAX_DECK_SIZE; i++)
+    {
+        if (!deck->cards[i].def) continue;
+        int pos = sorted_count++;
+        sorted_indices[pos] = i;
+        while (pos > 0 && card_sort_key(deck->cards[sorted_indices[pos]].def) < card_sort_key(deck->cards[sorted_indices[pos - 1]].def))
+        {
+            int tmp = sorted_indices[pos];
+            sorted_indices[pos] = sorted_indices[pos - 1];
+            sorted_indices[pos - 1] = tmp;
+            pos--;
+        }
+    }
+}
 
 static void finish_discard_screen(void)
 {
@@ -29,10 +57,12 @@ void discard_screen_update(void)
         return;
     }
 
+    Deck *deck = &g_state.run_deck;
+    build_sorted_index(deck);
+
     Vector2 mouse = GetMousePosition();
     hovered_card = -1;
 
-    // Scroll with mouse wheel
     int wheel = GetMouseWheelMove();
     scroll_offset -= wheel * 16;
     if (scroll_offset < 0) scroll_offset = 0;
@@ -45,14 +75,11 @@ void discard_screen_update(void)
     int start_x = (VIRT_W - total_w) / 2;
     int start_y = DISCARD_Y;
 
-    Deck *deck = &g_state.run_deck;
-
-    for (int i = 0; i < deck->card_count; i++)
+    for (int pos = 0; pos < sorted_count; pos++)
     {
-        if (!deck->cards[i].def) continue;
-
-        int row = i / cards_per_row;
-        int col = i % cards_per_row;
+        int di = sorted_indices[pos];
+        int row = pos / cards_per_row;
+        int col = pos % cards_per_row;
         int cx = start_x + col * (card_w + gap);
         int cy = start_y + row * (card_h + gap) - scroll_offset;
 
@@ -61,11 +88,10 @@ void discard_screen_update(void)
         Rectangle r = { (float)cx, (float)cy, (float)card_w, (float)card_h };
         if (CheckCollisionPointRec(mouse, r))
         {
-            hovered_card = i;
+            hovered_card = di;
             if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
             {
-                // Toggle selection
-                int uid = deck->cards[i].uid;
+                int uid = deck->cards[di].uid;
                 int already = -1;
                 for (int j = 0; j < g_state.discard_selected; j++)
                     if (g_state.discard_uids[j] == uid) { already = j; break; }
@@ -85,7 +111,6 @@ void discard_screen_update(void)
         }
     }
 
-    // Skip button (always visible)
     Rectangle skip_btn = { (float)(VIRT_W / 2 + 10), (float)(VIRT_H - 40), 80.0f, 26.0f };
     if (CheckCollisionPointRec(mouse, skip_btn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
     {
@@ -95,7 +120,6 @@ void discard_screen_update(void)
         finish_discard_screen();
     }
 
-    // Confirm button (only when enough selected)
     if (g_state.discard_selected >= g_state.discard_count)
     {
         Rectangle confirm_btn = { (float)(VIRT_W / 2 - 90), (float)(VIRT_H - 40), 100.0f, 26.0f };
@@ -130,6 +154,8 @@ void discard_screen_draw(void)
     draw_text_box((Rectangle){ 80.0f, 56.0f, 480.0f, 14.0f }, sel, 10, 0, sel_col, TEXT_ALIGN_CENTER);
 
     Deck *deck = &g_state.run_deck;
+    if (sorted_count == 0) build_sorted_index(deck);
+
     int cards_per_row = 4;
     int card_w = DISCARD_CARD_W;
     int card_h = DISCARD_CARD_H;
@@ -138,12 +164,11 @@ void discard_screen_draw(void)
     int start_x = (VIRT_W - total_w) / 2;
     int start_y = DISCARD_Y;
 
-    for (int i = 0; i < deck->card_count; i++)
+    for (int pos = 0; pos < sorted_count; pos++)
     {
-        if (!deck->cards[i].def) continue;
-
-        int row = i / cards_per_row;
-        int col = i % cards_per_row;
+        int di = sorted_indices[pos];
+        int row = pos / cards_per_row;
+        int col = pos % cards_per_row;
         int cx = start_x + col * (card_w + gap);
         int cy = start_y + row * (card_h + gap) - scroll_offset;
 
@@ -152,17 +177,14 @@ void discard_screen_draw(void)
         Rectangle r = { (float)cx, (float)cy, (float)card_w, (float)card_h };
         bool selected = false;
         for (int j = 0; j < g_state.discard_selected; j++)
-            if (g_state.discard_uids[j] == deck->cards[i].uid) { selected = true; break; }
+            if (g_state.discard_uids[j] == deck->cards[di].uid) { selected = true; break; }
 
-        theme_draw_card_art(r, deck->cards[i].def, deck->cards[i].upgraded);
+        theme_draw_card_art(r, deck->cards[di].def, deck->cards[di].upgraded);
 
         if (selected)
-        {
             DrawRectangleRec(r, (Color){ 255, 80, 80, 50 });
-        }
     }
 
-    // Skip button (always visible)
     Rectangle skip_btn = { (float)(VIRT_W / 2 + 10), (float)(VIRT_H - 40), 80.0f, 26.0f };
     Vector2 mouse = GetMousePosition();
     bool skip_hover = CheckCollisionPointRec(mouse, skip_btn);
@@ -172,7 +194,6 @@ void discard_screen_draw(void)
     draw_text_box((Rectangle){ skip_btn.x + 5.0f, skip_btn.y + 5.0f, skip_btn.width - 10.0f, skip_btn.height - 8.0f },
         "Skip", 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
 
-    // Confirm button
     if (g_state.discard_selected >= g_state.discard_count)
     {
         Rectangle confirm_btn = { (float)(VIRT_W / 2 - 90), (float)(VIRT_H - 40), 100.0f, 26.0f };

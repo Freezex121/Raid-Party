@@ -88,6 +88,17 @@ void shop_screen_update(void)
             {
                 snprintf(msg, sizeof(msg), "Deck too small to remove!");
             }
+
+            // Leave button
+            Rectangle leave_btn = { (float)(VIRT_W / 2 - 40), 214.0f, 80.0f, 22.0f };
+            if (CheckCollisionPointRec(m, leave_btn))
+            {
+                g_state.map.nodes[g_state.map.current_index].completed = true;
+                g_state.map.current_index = -1;
+                map_unlock_next(&g_state.map);
+                lucky_coin_given = false;
+                game_change_screen(SCREEN_MAP);
+            }
         }
     }
     else if (mode == SHOP_UPGRADE || mode == SHOP_REMOVE)
@@ -173,6 +184,15 @@ void shop_screen_draw(void)
 
         if (msg[0])
             draw_text_box((Rectangle){ 96.0f, 224.0f, 448.0f, 28.0f }, msg, 10, 0, (Color){ 200, 150, 100, 220 }, TEXT_ALIGN_CENTER);
+
+        // Leave button
+        Rectangle leave_btn = { (float)(VIRT_W / 2 - 40), 214.0f, 80.0f, 22.0f };
+        bool leave_hover = CheckCollisionPointRec(m, leave_btn);
+        Color leave_col = leave_hover ? (Color){ 100, 100, 100, 255 } : (Color){ 60, 60, 60, 255 };
+        DrawRectangleRec(leave_btn, leave_col);
+        DrawRectangleLinesEx(leave_btn, 1.0f, (Color){ 120, 120, 120, 200 });
+        draw_text_box((Rectangle){ leave_btn.x + 4.0f, leave_btn.y + 4.0f, leave_btn.width - 8.0f, leave_btn.height - 8.0f },
+            "Leave", 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
     }
     else if (mode == SHOP_UPGRADE)
     {
@@ -181,8 +201,34 @@ void shop_screen_draw(void)
         snprintf(hint, sizeof(hint), "%d cards  |  wheel scroll  |  right-click cancel", g_state.run_deck.card_count);
         draw_text_box((Rectangle){ 80.0f, 34.0f, 480.0f, 14.0f }, hint, 10, 0, (Color){ 160, 160, 180, 180 }, TEXT_ALIGN_CENTER);
         deck_browser_draw(&shop_browser, &g_state.run_deck, true, RAYWHITE);
-        if (hovered_deck >= 0 && g_state.run_deck.cards[hovered_deck].def)
-            theme_draw_card_tooltip(layout_deck_inspector_panel(), g_state.run_deck.cards[hovered_deck].def, g_state.run_deck.cards[hovered_deck].upgraded);
+        if (hovered_deck >= 0)
+        {
+            const CardDef *cd = g_state.run_deck.cards[hovered_deck].def;
+            if (cd)
+            {
+                Rectangle tip = theme_draw_card_tooltip_limited(layout_deck_inspector_panel(), cd, g_state.run_deck.cards[hovered_deck].upgraded, 268);
+                int preview_y = (int)(tip.y + tip.height + 5.0f);
+                if (g_state.run_deck.cards[hovered_deck].upgraded)
+                {
+                    draw_text_box((Rectangle){ tip.x, (float)preview_y, tip.width, 24.0f },
+                        "Already upgraded", 10, 0, (Color){ 160, 160, 180, 220 }, TEXT_ALIGN_LEFT);
+                }
+                else if (!card_upgrade_changes_values(cd))
+                {
+                    draw_text_box((Rectangle){ tip.x, (float)preview_y, tip.width, 24.0f },
+                        "Upgrade has no value changes", 10, 0, (Color){ 160, 160, 180, 220 }, TEXT_ALIGN_LEFT);
+                }
+                else
+                {
+                    int od = cd->damage, oh = cd->heal, os = cd->shield;
+                    int nd = card_damage(cd, true), nh = card_heal(cd, true), ns = card_shield(cd, true);
+                    int y = preview_y;
+                    if (nd != od) { char b[32]; snprintf(b, sizeof(b), "DMG %d>%d", od, nd); DrawText(b, (int)tip.x, y, 10, (Color){ 220, 110, 100, 255 }); y += 14; }
+                    if (nh != oh) { char b[32]; snprintf(b, sizeof(b), "HEAL %d>%d", oh, nh); DrawText(b, (int)tip.x, y, 10, (Color){ 105, 220, 125, 255 }); y += 14; }
+                    if (ns != os) { char b[32]; snprintf(b, sizeof(b), "SHIELD %d>%d", os, ns); DrawText(b, (int)tip.x, y, 10, (Color){ 125, 190, 255, 255 }); }
+                }
+            }
+        }
     }
     else if (mode == SHOP_REMOVE)
     {

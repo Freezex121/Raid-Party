@@ -1,5 +1,6 @@
 #include "tween.h"
 #include <math.h>
+#include <stddef.h>
 
 #define MAX_TWEENS 64
 

@@ -25,7 +25,9 @@ typedef enum {
     SCREEN_REWARD,
     SCREEN_RELIC_REWARD,
     SCREEN_DISCARD,
-    SCREEN_GAME_OVER
+    SCREEN_GAME_OVER,
+    SCREEN_DECK,
+    SCREEN_ACHIEVEMENTS
 } GameScreen;
 
 typedef struct {
@@ -81,6 +83,7 @@ typedef struct {
     int run_deaths;
     int run_interrupts;
     int run_best_combat_turns;
+    int reroll_tokens;
 } GameState;
 
 extern GameState g_state;

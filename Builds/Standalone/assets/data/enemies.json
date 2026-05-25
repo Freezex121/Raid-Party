@@ -1,0 +1,649 @@
+{
+  "schema": 1,
+  "enemies": [
+    {
+      "id": "dummy",
+      "name": "Training Dummy",
+      "max_hp": 60,
+      "abilities": [
+        {
+          "name": "Poke",
+          "intent": "attack",
+          "base_damage": 2,
+          "cast_time": 1,
+          "description": "A gentle poke.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        }
+      ]
+    },
+    {
+      "id": "giant_spider",
+      "name": "Giant Spider",
+      "max_hp": 35,
+      "abilities": [
+        {
+          "name": "Web Shot",
+          "intent": "attack",
+          "base_damage": 7,
+          "cast_time": 1,
+          "description": "Deals 7 damage.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        },
+        {
+          "name": "Venom Bite",
+          "intent": "tank_buster",
+          "base_damage": 11,
+          "cast_time": 2,
+          "description": "Deals 11 damage. Deals 2 Bleed for 3 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "bleed",
+          "status_amount": 2,
+          "status_turns": 3
+        }
+      ]
+    },
+    {
+      "id": "dire_wolf",
+      "name": "Dire Wolf",
+      "max_hp": 50,
+      "abilities": [
+        {
+          "name": "Savage Bite",
+          "intent": "attack",
+          "base_damage": 9,
+          "cast_time": 1,
+          "description": "Deals 9 damage.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        },
+        {
+          "name": "Howl",
+          "intent": "buff",
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains 8 shield.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 8
+        }
+      ]
+    },
+    {
+      "id": "forest_boar",
+      "name": "Forest Boar",
+      "max_hp": 45,
+      "abilities": [
+        {
+          "name": "Gore",
+          "intent": "tank_buster",
+          "base_damage": 10,
+          "cast_time": 2,
+          "description": "Deals 10 damage.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        },
+        {
+          "name": "Stampede",
+          "intent": "aoe",
+          "base_damage": 6,
+          "cast_time": 1,
+          "description": "Deals 6 damage to all.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        }
+      ]
+    },
+    {
+      "id": "elder_treant",
+      "name": "Elder Treant",
+      "max_hp": 50,
+      "abilities": [
+        {
+          "name": "Bark Shield",
+          "intent": "shield",
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains 12 shield.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 12
+        },
+        {
+          "name": "Healing Sap",
+          "intent": "heal",
+          "base_damage": 0,
+          "cast_time": 1,
+          "description": "Heals an ally for 10.",
+          "is_wipe": false,
+          "heal_amount": 10,
+          "shield_amount": 0
+        }
+      ]
+    },
+    {
+      "id": "alpha_wolf",
+      "name": "Alpha Wolf",
+      "max_hp": 80,
+      "abilities": [
+        {
+          "name": "Feral Strike",
+          "intent": "attack",
+          "base_damage": 12,
+          "cast_time": 1,
+          "description": "Deals 12 damage.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        },
+        {
+          "name": "Howl",
+          "intent": "buff",
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains 8 shield.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 8
+        },
+        {
+          "name": "Vicious Maul",
+          "intent": "tank_buster",
+          "base_damage": 16,
+          "cast_time": 2,
+          "description": "Deals 16 damage.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        },
+        {
+          "name": "Pack Frenzy",
+          "intent": "buff",
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains 16 shield and pressures the party.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 16
+        }
+      ]
+    },
+    {
+      "id": "manticore",
+      "name": "Manticore",
+      "max_hp": 60,
+      "abilities": [
+        {
+          "name": "Tail Spikes",
+          "intent": "aoe",
+          "base_damage": 7,
+          "cast_time": 2,
+          "description": "Deals 7 damage to all.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        },
+        {
+          "name": "Venom Sting",
+          "intent": "attack",
+          "base_damage": 9,
+          "cast_time": 1,
+          "description": "Deals 9 damage. Deals 2 Bleed for 3 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "bleed",
+          "status_amount": 2,
+          "status_turns": 3
+        }
+      ]
+    },
+    {
+      "id": "basilisk",
+      "name": "Basilisk",
+      "max_hp": 55,
+      "abilities": [
+        {
+          "name": "Petrifying Gaze",
+          "intent": "tank_buster",
+          "base_damage": 14,
+          "cast_time": 2,
+          "description": "Deals 14 damage. Applies 25% Weakness for 2 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "weakness",
+          "status_amount": 25,
+          "status_turns": 2
+        },
+        {
+          "name": "Toxic Bite",
+          "intent": "attack",
+          "base_damage": 6,
+          "cast_time": 1,
+          "description": "Deals 6 damage. Deals 2 Bleed for 3 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "bleed",
+          "status_amount": 2,
+          "status_turns": 3
+        }
+      ]
+    },
+    {
+      "id": "venom_stalker",
+      "name": "Venom Stalker",
+      "max_hp": 30,
+      "abilities": [
+        {
+          "name": "Venom Strike",
+          "intent": "attack",
+          "base_damage": 6,
+          "cast_time": 1,
+          "description": "Deals 6 damage. Deals 2 Bleed for 3 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "bleed",
+          "status_amount": 2,
+          "status_turns": 3
+        },
+        {
+          "name": "Rapid Strikes",
+          "intent": "attack",
+          "base_damage": 4,
+          "cast_time": 1,
+          "description": "Deals 4 damage twice.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        }
+      ]
+    },
+    {
+      "id": "venom_priest",
+      "name": "Venom Priest",
+      "max_hp": 40,
+      "abilities": [
+        {
+          "name": "Dark Blessing",
+          "intent": "heal",
+          "base_damage": 0,
+          "cast_time": 1,
+          "description": "Heals an ally for 14.",
+          "is_wipe": false,
+          "heal_amount": 14,
+          "shield_amount": 0
+        },
+        {
+          "name": "Poison Ward",
+          "intent": "shield",
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains 10 shield.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 10
+        },
+        {
+          "name": "Shadow Bolt",
+          "intent": "attack",
+          "base_damage": 5,
+          "cast_time": 1,
+          "description": "Deals 5 damage. Applies 15% Weakness for 2 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "weakness",
+          "status_amount": 15,
+          "status_turns": 2
+        }
+      ]
+    },
+    {
+      "id": "greater_manticore",
+      "name": "Greater Manticore",
+      "max_hp": 100,
+      "abilities": [
+        {
+          "name": "Volley",
+          "intent": "aoe",
+          "base_damage": 10,
+          "cast_time": 2,
+          "description": "Deals 10 damage to all.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        },
+        {
+          "name": "Poison Barb",
+          "intent": "attack",
+          "base_damage": 9,
+          "cast_time": 1,
+          "description": "Deals 9 damage. Deals 2 Bleed for 3 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "bleed",
+          "status_amount": 2,
+          "status_turns": 3
+        },
+        {
+          "name": "Swoop",
+          "intent": "tank_buster",
+          "base_damage": 16,
+          "cast_time": 2,
+          "description": "Deals 16 damage.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        },
+        {
+          "name": "Toxic Volley",
+          "intent": "aoe",
+          "base_damage": 8,
+          "cast_time": 2,
+          "description": "Deals 8 damage to all and 1 Bleed for 3 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "bleed",
+          "status_amount": 1,
+          "status_turns": 3
+        }
+      ]
+    },
+    {
+      "id": "venom_hydra",
+      "name": "Venom Hydra",
+      "max_hp": 150,
+      "abilities": [
+        {
+          "name": "Toxic Spray",
+          "intent": "aoe",
+          "base_damage": 8,
+          "cast_time": 2,
+          "description": "Deals 8 damage to all. Deals 1 Bleed to all for 3 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "bleed",
+          "status_amount": 1,
+          "status_turns": 3
+        },
+        {
+          "name": "Venom Bite",
+          "intent": "tank_buster",
+          "base_damage": 15,
+          "cast_time": 2,
+          "description": "Deals 15 damage. Deals 2 Bleed for 3 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "bleed",
+          "status_amount": 2,
+          "status_turns": 3
+        },
+        {
+          "name": "Regrow Heads",
+          "intent": "heal",
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Heals self for 18.",
+          "is_wipe": false,
+          "heal_amount": 18,
+          "shield_amount": 0
+        },
+        {
+          "name": "Many-Headed Bite",
+          "intent": "aoe",
+          "base_damage": 9,
+          "cast_time": 2,
+          "description": "Deals 9 damage to all and 1 Bleed for 3 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "bleed",
+          "status_amount": 1,
+          "status_turns": 3
+        }
+      ]
+    },
+    {
+      "id": "flame_imp",
+      "name": "Flame Imp",
+      "max_hp": 40,
+      "abilities": [
+        {
+          "name": "Firebolt",
+          "intent": "attack",
+          "base_damage": 8,
+          "cast_time": 1,
+          "description": "Deals 8 damage. Drains 1 energy next turn.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "energy_drain",
+          "status_amount": 1,
+          "status_turns": 1
+        },
+        {
+          "name": "Flame Breath",
+          "intent": "tank_buster",
+          "base_damage": 14,
+          "cast_time": 2,
+          "description": "Deals 14 damage. Drains 1 energy next turn.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "energy_drain",
+          "status_amount": 1,
+          "status_turns": 1
+        }
+      ]
+    },
+    {
+      "id": "fire_drake",
+      "name": "Fire Drake",
+      "max_hp": 70,
+      "abilities": [
+        {
+          "name": "Flame Breath",
+          "intent": "aoe",
+          "base_damage": 9,
+          "cast_time": 2,
+          "description": "Deals 9 damage to all. Drains 1 energy next turn.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "energy_drain",
+          "status_amount": 1,
+          "status_turns": 1
+        },
+        {
+          "name": "Tail Swipe",
+          "intent": "tank_buster",
+          "base_damage": 13,
+          "cast_time": 1,
+          "description": "Deals 13 damage.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        }
+      ]
+    },
+    {
+      "id": "cinder_warden",
+      "name": "Cinder Warden",
+      "max_hp": 55,
+      "abilities": [
+        {
+          "name": "Blazing Shield",
+          "intent": "shield",
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains 14 shield.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 14
+        },
+        {
+          "name": "Ember Heal",
+          "intent": "heal",
+          "base_damage": 0,
+          "cast_time": 1,
+          "description": "Heals an ally for 12.",
+          "is_wipe": false,
+          "heal_amount": 12,
+          "shield_amount": 0
+        },
+        {
+          "name": "Sear",
+          "intent": "attack",
+          "base_damage": 7,
+          "cast_time": 1,
+          "description": "Deals 7 damage.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        }
+      ]
+    },
+    {
+      "id": "living_armor",
+      "name": "Living Armor",
+      "max_hp": 65,
+      "abilities": [
+        {
+          "name": "Shield Bash",
+          "intent": "attack",
+          "base_damage": 6,
+          "cast_time": 1,
+          "description": "Deals 6 damage. Gains 8 shield.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 8
+        },
+        {
+          "name": "Rebuild Armor",
+          "intent": "shield",
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains 15 shield.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 15
+        }
+      ]
+    },
+    {
+      "id": "fire_giant",
+      "name": "Fire Giant",
+      "max_hp": 110,
+      "abilities": [
+        {
+          "name": "Magma Fist",
+          "intent": "tank_buster",
+          "base_damage": 18,
+          "cast_time": 2,
+          "description": "Deals 18 damage.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        },
+        {
+          "name": "Lava Wave",
+          "intent": "aoe",
+          "base_damage": 10,
+          "cast_time": 2,
+          "description": "Deals 10 damage to all.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        },
+        {
+          "name": "Molten Shield",
+          "intent": "shield",
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains 12 shield.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 12
+        },
+        {
+          "name": "Sundering Roar",
+          "intent": "aoe",
+          "base_damage": 7,
+          "cast_time": 1,
+          "description": "Deals 7 damage to all and applies 15% Weakness for 2 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "weakness",
+          "status_amount": 15,
+          "status_turns": 2
+        }
+      ]
+    },
+    {
+      "id": "elder_dragon",
+      "name": "Elder Dragon",
+      "max_hp": 220,
+      "abilities": [
+        {
+          "name": "Inferno Breath",
+          "intent": "aoe",
+          "base_damage": 12,
+          "cast_time": 2,
+          "description": "Deals 12 damage to all. Drains 1 energy next turn.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "energy_drain",
+          "status_amount": 1,
+          "status_turns": 1
+        },
+        {
+          "name": "Tail Sweep",
+          "intent": "tank_buster",
+          "base_damage": 20,
+          "cast_time": 2,
+          "description": "Deals 20 damage.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        },
+        {
+          "name": "Wing Gust",
+          "intent": "aoe",
+          "base_damage": 8,
+          "cast_time": 1,
+          "description": "Deals 8 damage to all.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        },
+        {
+          "name": "Ancient Fury",
+          "intent": "buff",
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains 20 shield.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 20
+        }
+      ]
+    }
+  ]
+}

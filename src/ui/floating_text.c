@@ -2,6 +2,7 @@
 #include "constants.h"
 #include "util/math_utils.h"
 #include "util/text.h"
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>

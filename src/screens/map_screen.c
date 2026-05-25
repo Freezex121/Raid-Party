@@ -85,6 +85,14 @@ void map_screen_update(void)
         LOG_I(CAT_SCREEN, "Map screen: floor %d, %d nodes", g_state.map.floor, g_state.map.node_count);
     }
 
+    // Deck button
+    Rectangle deck_btn = { 10.0f, 10.0f, 66.0f, 16.0f };
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(GetMousePosition(), deck_btn))
+    {
+        game_change_screen(SCREEN_DECK);
+        return;
+    }
+
     if (g_state.map.current_index >= 0)
     {
         int ci = g_state.map.current_index;
@@ -179,6 +187,15 @@ void map_screen_draw(void)
     int loaded_floors = map_loaded_floor_count_for_area(area ? area->id : NULL);
     if (loaded_floors > 0 && floor_count > loaded_floors)
         floor_count = loaded_floors;
+
+    // Deck button
+    Vector2 mouse = GetMousePosition();
+    Rectangle deck_btn = { 10.0f, 10.0f, 66.0f, 16.0f };
+    Color deck_col = CheckCollisionPointRec(mouse, deck_btn) ? (Color){ 80, 80, 120, 255 } : (Color){ 50, 50, 80, 255 };
+    DrawRectangleRec(deck_btn, deck_col);
+    DrawRectangleLinesEx(deck_btn, 1.0f, (Color){ 100, 100, 140, 200 });
+    draw_text_box((Rectangle){ deck_btn.x + 4.0f, deck_btn.y + 3.0f, deck_btn.width - 8.0f, deck_btn.height - 6.0f },
+        "DECK", 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
 
     char title[96];
     snprintf(title, sizeof(title), "%s", area ? area->name : "Area");

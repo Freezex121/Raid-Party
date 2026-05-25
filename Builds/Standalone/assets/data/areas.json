@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "areas": [
+    {
+      "id": "greenwood_breach",
+      "name": "Greenwood Breach",
+      "description": "A short incursion through corrupted forest trails. Good for fresh parties and risky solo attempts.",
+      "floor_count": 3,
+      "difficulty_percent": 100
+    },
+    {
+      "id": "venom_mire",
+      "name": "Venom Mire",
+      "description": "A longer route through poisoned ruins where support enemies and elites pressure the party.",
+      "floor_count": 4,
+      "difficulty_percent": 122
+    },
+    {
+      "id": "cinder_spire",
+      "name": "Cinder Spire",
+      "description": "A five-floor climb into dragon fire. Bosses hit harder and the final stretch expects a tuned deck.",
+      "floor_count": 5,
+      "difficulty_percent": 145
+    }
+  ]
+}

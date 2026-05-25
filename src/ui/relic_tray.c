@@ -2,6 +2,7 @@
 #include "constants.h"
 #include "util/text.h"
 #include "util/math_utils.h"
+#include <stddef.h>
 
 static void draw_tooltip(Rectangle icon_rect, const RelicDef *def)
 {

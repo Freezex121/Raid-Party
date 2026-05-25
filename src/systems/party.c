@@ -137,3 +137,14 @@ int party_highest_aggro(Party *party)
     }
     return idx;
 }
+
+int party_random_alive(Party *party)
+{
+    int alive[MAX_PARTY_SIZE];
+    int count = 0;
+    for (int i = 0; i < party->count; i++)
+        if (party->members[i].alive)
+            alive[count++] = i;
+    if (count == 0) return -1;
+    return alive[rand() % count];
+}

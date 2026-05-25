@@ -232,7 +232,9 @@ void assets_load(void)
             Font font = LoadFontEx(cobble_font, size, NULL, 0);
             if (font.texture.id != 0)
             {
+#ifndef __EMSCRIPTEN__
                 make_font_bitmap(&font);
+#endif
                 SetTextureFilter(font.texture, TEXTURE_FILTER_POINT);
                 g_assets.ui_fonts[size] = font;
                 g_assets.ui_font_sizes_loaded[size] = true;

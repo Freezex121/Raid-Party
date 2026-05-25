@@ -30,8 +30,8 @@ static const char *intent_icon(IntentType intent, bool is_wipe)
         case INTENT_AOE:         return "AOE";
         case INTENT_TANK_BUSTER: return "TNK";
         case INTENT_HEAL:        return "HEAL";
-        case INTENT_SHIELD:      return "SHLD";
-        case INTENT_BUFF:        return "BUFF";
+        case INTENT_SHIELD:      return "SHD";
+        case INTENT_BUFF:        return "BUF";
         default:                 return "ATK";
     }
 }
@@ -59,7 +59,7 @@ void cast_bar_draw_ability_tooltip(const EnemyAbility *ability, Rectangle bounds
         ability->base_damage,
         ability->heal_amount,
         ability->shield_amount,
-        (ability->is_wipe || ability->intent == INTENT_WIPE) ? "Locked cast" : "Interruptible");
+        (ability->is_wipe || ability->intent == INTENT_WIPE) ? "Uninterruptible" : "Interruptible");
 
     int title_h = measure_text_box(ability->name, body_w - 4, 10, 0);
     if (title_h < ui_line_height(10)) title_h = ui_line_height(10);

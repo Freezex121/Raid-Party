@@ -20,6 +20,7 @@ void game_over_screen_update(void)
             g_state.result_floor,
             g_state.result_bosses_defeated,
             g_state.run_party.count,
+            g_state.selected_classes,
             g_state.run_deaths,
             g_state.relic_count,
             g_state.run_interrupts,

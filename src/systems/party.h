@@ -41,6 +41,7 @@ bool party_defs_load_json(const char *path);
 void party_create(Party *party, int *class_indices, int count);
 int party_lowest_hp(Party *party);
 int party_highest_aggro(Party *party);
+int party_random_alive(Party *party);
 const char *class_name(ClassType ct);
 const char *class_role(ClassType ct);
 

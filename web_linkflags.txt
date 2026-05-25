@@ -1,0 +1,4 @@
+# Emscripten linker flags for itch.io web embed
+--shell-file shell.html
+-s MAX_WEBGL_VERSION=2
+-s TOTAL_MEMORY=64MB

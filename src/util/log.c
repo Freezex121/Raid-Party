@@ -5,7 +5,15 @@
 #include <string.h>
 #include <time.h>
 #include <stdarg.h>
+#ifdef _WIN32
 #include <direct.h>
+#else
+#include <sys/stat.h>
+#endif
+
+#ifdef __EMSCRIPTEN__
+#define _mkdir(path) mkdir(path, 0755)
+#endif
 
 #define LOG_BASE "logs"
 

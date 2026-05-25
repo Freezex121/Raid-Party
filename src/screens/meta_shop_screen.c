@@ -15,13 +15,13 @@ static char shop_msg[128] = "";
 static Rectangle item_rect(int index)
 {
     const float w = 178.0f;
-    const float h = 66.0f;
+    const float h = 56.0f;
     const float gap_x = 14.0f;
-    const float gap_y = 8.0f;
+    const float gap_y = 6.0f;
     int col = index % 3;
     int row = index / 3;
     float start_x = (VIRT_W - (3.0f * w + 2.0f * gap_x)) * 0.5f;
-    return (Rectangle){ start_x + col * (w + gap_x), 88.0f + row * (h + gap_y), w, h };
+    return (Rectangle){ start_x + col * (w + gap_x), 82.0f + row * (h + gap_y), w, h };
 }
 
 static void init_if_needed(void)
@@ -142,6 +142,40 @@ static void try_buy_class(int class_index)
     snprintf(shop_msg, sizeof(shop_msg), "%s unlocked.", class_name((ClassType)class_index));
 }
 
+static void try_buy_start_bool(bool *flag, const char *name, int cost)
+{
+    if (*flag)
+    {
+        snprintf(shop_msg, sizeof(shop_msg), "%s is already unlocked.", name);
+        return;
+    }
+    if (!spend_renown(cost))
+    {
+        snprintf(shop_msg, sizeof(shop_msg), "Need %d Renown.", cost);
+        return;
+    }
+    *flag = true;
+    meta_save(&g_state.meta);
+    snprintf(shop_msg, sizeof(shop_msg), "%s unlocked!", name);
+}
+
+static void try_buy_stat(int *stat, const char *name, int cost, int max)
+{
+    if (*stat >= max)
+    {
+        snprintf(shop_msg, sizeof(shop_msg), "%s is maxed.", name);
+        return;
+    }
+    if (!spend_renown(cost))
+    {
+        snprintf(shop_msg, sizeof(shop_msg), "Need %d Renown.", cost);
+        return;
+    }
+    (*stat)++;
+    meta_save(&g_state.meta);
+    snprintf(shop_msg, sizeof(shop_msg), "%s upgraded.", name);
+}
+
 void meta_shop_screen_update(void)
 {
     init_if_needed();
@@ -164,6 +198,14 @@ void meta_shop_screen_update(void)
         else if (CheckCollisionPointRec(mouse, item_rect(4))) try_buy_class(CLASS_PALADIN);
         else if (CheckCollisionPointRec(mouse, item_rect(5))) try_buy_class(CLASS_WARLOCK);
         else if (CheckCollisionPointRec(mouse, item_rect(6))) try_buy_class(CLASS_BARD);
+        else if (CheckCollisionPointRec(mouse, item_rect(7))) try_buy_start_bool(&g_state.meta.start_prep, "Scout's Kit", 5);
+        else if (CheckCollisionPointRec(mouse, item_rect(8))) try_buy_start_bool(&g_state.meta.start_energize, "Mana Crystal", 6);
+        else if (CheckCollisionPointRec(mouse, item_rect(9))) try_buy_start_bool(&g_state.meta.start_fortify, "Traveler's Pack", 8);
+        else if (CheckCollisionPointRec(mouse, item_rect(10))) try_buy_start_bool(&g_state.meta.start_rejuv, "First Aid", 8);
+        else if (CheckCollisionPointRec(mouse, item_rect(11))) try_buy_stat(&g_state.meta.dmg_bonus, "Sharpened Blades", 5, 3);
+        else if (CheckCollisionPointRec(mouse, item_rect(12))) try_buy_stat(&g_state.meta.shield_bonus, "Reinforced Armor", 5, 3);
+        else if (CheckCollisionPointRec(mouse, item_rect(13))) try_buy_start_bool(&g_state.meta.seasoned_adventurer, "Seasoned Adventurer", 8);
+        else if (CheckCollisionPointRec(mouse, item_rect(14))) try_buy_start_bool(&g_state.meta.master_raider, "Master Raider", 12);
     }
 }
 
@@ -241,6 +283,15 @@ void meta_shop_screen_draw(void)
     draw_item(item_rect(4), "Paladin", "Unlock hybrid tank/healer class cards.", g_state.meta.paladin_unlocked ? "OWNED" : "BUY", META_CLASS_UNLOCK_COST, !g_state.meta.paladin_unlocked && g_state.meta.renown >= META_CLASS_UNLOCK_COST, g_state.meta.paladin_unlocked);
     draw_item(item_rect(5), "Warlock", "Unlock DOT and curse class cards.", g_state.meta.warlock_unlocked ? "OWNED" : "BUY", META_CLASS_UNLOCK_COST, !g_state.meta.warlock_unlocked && g_state.meta.renown >= META_CLASS_UNLOCK_COST, g_state.meta.warlock_unlocked);
     draw_item(item_rect(6), "Bard", "Unlock party buff and draw class cards.", g_state.meta.bard_unlocked ? "OWNED" : "BUY", META_CLASS_UNLOCK_COST, !g_state.meta.bard_unlocked && g_state.meta.renown >= META_CLASS_UNLOCK_COST, g_state.meta.bard_unlocked);
+
+    draw_item(item_rect(7), "Scout's Kit", "Start each run with Preparation in your deck.", g_state.meta.start_prep ? "OWNED" : "BUY", 5, !g_state.meta.start_prep && g_state.meta.renown >= 5, g_state.meta.start_prep);
+    draw_item(item_rect(8), "Mana Crystal", "Start each run with Energize in your deck.", g_state.meta.start_energize ? "OWNED" : "BUY", 6, !g_state.meta.start_energize && g_state.meta.renown >= 6, g_state.meta.start_energize);
+    draw_item(item_rect(9), "Traveler's Pack", "Start each run with Fortify in your deck.", g_state.meta.start_fortify ? "OWNED" : "BUY", 8, !g_state.meta.start_fortify && g_state.meta.renown >= 8, g_state.meta.start_fortify);
+    draw_item(item_rect(10), "First Aid", "Start each run with Rejuvenate in your deck.", g_state.meta.start_rejuv ? "OWNED" : "BUY", 8, !g_state.meta.start_rejuv && g_state.meta.renown >= 8, g_state.meta.start_rejuv);
+    draw_item(item_rect(11), "Sharpened Blades", "All attacks deal +1 damage. Can stack 3 times.", g_state.meta.dmg_bonus >= 3 ? "MAXED" : "BUY", 5, g_state.meta.dmg_bonus < 3 && g_state.meta.renown >= 5, g_state.meta.dmg_bonus >= 3);
+    draw_item(item_rect(12), "Reinforced Armor", "All shields gain +1. Can stack 3 times.", g_state.meta.shield_bonus >= 3 ? "MAXED" : "BUY", 5, g_state.meta.shield_bonus < 3 && g_state.meta.renown >= 5, g_state.meta.shield_bonus >= 3);
+    draw_item(item_rect(13), "Seasoned Adventurer", "+1 renown per boss defeated.", g_state.meta.seasoned_adventurer ? "OWNED" : "BUY", 8, !g_state.meta.seasoned_adventurer && g_state.meta.renown >= 8, g_state.meta.seasoned_adventurer);
+    draw_item(item_rect(14), "Master Raider", "+2 renown per area cleared.", g_state.meta.master_raider ? "OWNED" : "BUY", 12, !g_state.meta.master_raider && g_state.meta.renown >= 12, g_state.meta.master_raider);
 
     if (shop_msg[0])
         draw_text_box((Rectangle){ 96.0f, 300.0f, 448.0f, 16.0f }, shop_msg, 10, 0, (Color){ 230, 205, 115, 240 }, TEXT_ALIGN_CENTER);

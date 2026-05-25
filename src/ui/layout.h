@@ -22,7 +22,7 @@ Rectangle layout_party_frame_rect(int party_count, int index);
 
 Vector2 layout_enemy_position(int enemy_count, int index);
 Rectangle layout_enemy_hit_rect(Vector2 pos);
-Rectangle layout_enemy_cast_bar_rect(Vector2 pos);
+Rectangle layout_enemy_cast_bar_rect(Vector2 pos, int enemy_count, int enemy_index);
 
 HandLayout layout_hand(int hand_count);
 Rectangle layout_hand_card_rect(HandLayout layout, int index);

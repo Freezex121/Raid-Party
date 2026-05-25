@@ -30,6 +30,17 @@ typedef struct {
     bool warlock_unlocked;
     bool bard_unlocked;
     bool achievements[ACH_COUNT];
+    int achievement_times[ACH_COUNT];
+    int achievement_party[ACH_COUNT];
+    bool start_prep;
+    bool start_energize;
+    bool start_fortify;
+    bool start_rejuv;
+    int dmg_bonus;
+    int shield_bonus;
+    int first_draw_bonus;
+    bool seasoned_adventurer;
+    bool master_raider;
 } MetaProgress;
 
 void meta_set_defaults(MetaProgress *meta);
@@ -42,6 +53,13 @@ int meta_next_legacy_cost(const MetaProgress *meta);
 bool meta_area_unlocked(const MetaProgress *meta, int area_index);
 bool meta_class_unlocked(const MetaProgress *meta, int class_index);
 bool meta_unlock_class(MetaProgress *meta, int class_index);
+int meta_next_upgrade_cost(int rank);
+int meta_starting_deck_bonuses(const MetaProgress *meta);
+int meta_dmg_bonus(const MetaProgress *meta);
+int meta_shield_bonus(const MetaProgress *meta);
+int meta_first_draw_bonus(const MetaProgress *meta);
+int meta_renown_bonus_per_boss(const MetaProgress *meta);
+int meta_renown_bonus_per_clear(const MetaProgress *meta);
 int meta_record_run(
     MetaProgress *meta,
     bool won,
@@ -49,6 +67,7 @@ int meta_record_run(
     int floor_reached,
     int bosses_defeated,
     int party_size,
+    const int *party_classes,
     int deaths,
     int relic_count,
     int interrupts,

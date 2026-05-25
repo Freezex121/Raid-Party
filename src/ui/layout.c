@@ -33,8 +33,8 @@ Rectangle layout_party_frame_rect(int party_count, int index)
 
 Vector2 layout_enemy_position(int enemy_count, int index)
 {
-    int left = 200;
-    int right = VIRT_W - 200;
+    int left = 240;
+    int right = VIRT_W - 240;
     int span = right - left;
     int x = enemy_count <= 1 ? VIRT_W / 2 : left + (span * index) / (enemy_count - 1);
 
@@ -51,11 +51,14 @@ Rectangle layout_enemy_hit_rect(Vector2 pos)
     };
 }
 
-Rectangle layout_enemy_cast_bar_rect(Vector2 pos)
+Rectangle layout_enemy_cast_bar_rect(Vector2 pos, int enemy_count, int enemy_index)
 {
+    float y = pos.y + ENEMY_SIZE / 2.0f + 29.0f;
+    if (enemy_count == 3 && enemy_index == 1)
+        y += CAST_BAR_HEIGHT;
     return (Rectangle){
         pos.x - CAST_BAR_W / 2.0f,
-        pos.y + ENEMY_SIZE / 2.0f + 34.0f,
+        y,
         (float)CAST_BAR_W,
         (float)CAST_BAR_HEIGHT
     };

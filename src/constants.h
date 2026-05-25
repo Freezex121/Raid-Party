@@ -23,7 +23,7 @@
 
 // Enemy
 #define ENEMY_SIZE 56
-#define ENEMY_Y 145
+#define ENEMY_Y 130
 
 // Cast bar
 #define CAST_BAR_W 132

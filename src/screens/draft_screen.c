@@ -11,6 +11,7 @@
 #include "util/log.h"
 #include "constants.h"
 #include "raylib.h"
+#include <stdio.h>
 #include <string.h>
 
 #define CLASS_COLOR(r,g,b) (Color){ r, g, b, 255 }
@@ -216,6 +217,7 @@ void draft_screen_update(void)
             g_state.run_deaths = 0;
             g_state.run_interrupts = 0;
             g_state.run_best_combat_turns = 0;
+            g_state.reroll_tokens = 0;
             g_state.result_reason[0] = '\0';
             party_create(&g_state.run_party, g_state.selected_classes, g_state.selected_count);
             g_state.run_party_active = true;
@@ -226,6 +228,16 @@ void draft_screen_update(void)
                 deck_add_card(&g_state.run_deck, doubt);
             if (doubt && asc >= 9)
                 deck_add_card(&g_state.run_deck, doubt);
+
+            // Starting deck cards from meta upgrades
+            const CardDef *prep = card_def_by_id("util_prep");
+            const CardDef *energize = card_def_by_id("util_energ");
+            const CardDef *fortify = card_def_by_id("util_for");
+            const CardDef *rejuv = card_def_by_id("util_rejuv");
+            if (prep && g_state.meta.start_prep) deck_add_card(&g_state.run_deck, prep);
+            if (energize && g_state.meta.start_energize) deck_add_card(&g_state.run_deck, energize);
+            if (fortify && g_state.meta.start_fortify) deck_add_card(&g_state.run_deck, fortify);
+            if (rejuv && g_state.meta.start_rejuv) deck_add_card(&g_state.run_deck, rejuv);
 
             if (g_state.meta.starting_relic_rank == 1 || g_state.meta.starting_relic_rank == 2)
             {

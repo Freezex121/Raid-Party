@@ -246,7 +246,7 @@ void party_frames_draw(Party *party)
         Color aggro_col = (Color){ 220, 160, 60, 200 };
         char agg_text[16];
         snprintf(agg_text, sizeof(agg_text), "A:%d", m->aggro);
-        draw_text_box((Rectangle){ (float)bar_x, (float)(y + 30), 28.0f, 11.0f },
+        draw_text_box((Rectangle){ (float)bar_x, (float)(y + 30), 42.0f, 11.0f },
             agg_text, 10, 0, aggro_col, TEXT_ALIGN_LEFT);
 
         if (!m->alive)

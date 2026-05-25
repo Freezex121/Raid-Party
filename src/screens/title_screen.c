@@ -13,6 +13,7 @@
 static Button start_btn;
 static Button shop_btn;
 static Button codex_btn;
+static Button ach_btn;
 static Button prev_area_btn;
 static Button next_area_btn;
 static Button asc_down_btn;
@@ -71,6 +72,13 @@ void title_screen_update(void)
             (Color){ 70, 78, 110, 255 },
             WHITE
         );
+        ach_btn = button_create(
+            (Rectangle){ (float)(VIRT_W / 2 - 56), button_y + 56.0f, 112, (float)BTN_H },
+            "ACHIEVEMENTS",
+            (Color){ 42, 48, 70, 255 },
+            (Color){ 70, 78, 110, 255 },
+            WHITE
+        );
         Rectangle area_panel = area_panel_rect();
         prev_area_btn = button_create(
             (Rectangle){ area_panel.x - 32.0f, area_panel.y + 55.0f, 24.0f, 24.0f },
@@ -116,6 +124,7 @@ void title_screen_update(void)
     start_btn.bounds.y = button_y;
     shop_btn.bounds.y = button_y + 28.0f;
     codex_btn.bounds.y = button_y + 28.0f;
+    ach_btn.bounds.y = button_y + 56.0f;
 
     bool selected_unlocked = meta_area_unlocked(&g_state.meta, g_state.selected_area);
     if (selected_unlocked)
@@ -124,6 +133,7 @@ void title_screen_update(void)
         start_btn.pressed_this_frame = false;
     button_update(&shop_btn);
     button_update(&codex_btn);
+    button_update(&ach_btn);
     button_update(&prev_area_btn);
     button_update(&next_area_btn);
     if (g_state.meta.max_ascension_unlocked > 0)
@@ -163,6 +173,11 @@ void title_screen_update(void)
     {
         initialized = false;
         game_change_screen(SCREEN_CODEX);
+    }
+    else if (ach_btn.pressed_this_frame)
+    {
+        initialized = false;
+        game_change_screen(SCREEN_ACHIEVEMENTS);
     }
 }
 
@@ -270,7 +285,8 @@ void title_screen_draw(void)
     }
     button_draw(&shop_btn);
     button_draw(&codex_btn);
+    button_draw(&ach_btn);
 
     Color credit_color = { 100, 100, 120, 180 };
-    game_draw_text("devlog v0.1", VIRT_W/2 - game_measure_text("devlog v0.1", 10) / 2, VIRT_H - 20, 10, credit_color);
+    game_draw_text("devlog v0.1", VIRT_W - game_measure_text("devlog v0.1" - 15, 10) / 2, VIRT_H - 20, 10, credit_color);
 }

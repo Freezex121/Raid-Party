@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "classes": [
+    {
+      "id": "guardian",
+      "name": "Guardian",
+      "role": "Tank",
+      "hp": 80
+    },
+    {
+      "id": "cleric",
+      "name": "Cleric",
+      "role": "Healer",
+      "hp": 55
+    },
+    {
+      "id": "mage",
+      "name": "Mage",
+      "role": "Burst DPS",
+      "hp": 45
+    },
+    {
+      "id": "rogue",
+      "name": "Rogue",
+      "role": "Interrupt DPS",
+      "hp": 60
+    },
+    {
+      "id": "shaman",
+      "name": "Shaman",
+      "role": "Support",
+      "hp": 55
+    },
+    {
+      "id": "ranger",
+      "name": "Ranger",
+      "role": "Sustained DPS",
+      "hp": 55
+    },
+    {
+      "id": "paladin",
+      "name": "Paladin",
+      "role": "Tank Healer",
+      "hp": 70
+    },
+    {
+      "id": "warlock",
+      "name": "Warlock",
+      "role": "Risk DPS",
+      "hp": 50
+    },
+    {
+      "id": "bard",
+      "name": "Bard",
+      "role": "Tempo Support",
+      "hp": 52
+    }
+  ]
+}

@@ -15,6 +15,7 @@ typedef enum {
 } AchievementId;
 
 const char *achievement_name(AchievementId id);
+const char *achievement_desc(AchievementId id);
 int achievement_reward(AchievementId id);
 
 #endif

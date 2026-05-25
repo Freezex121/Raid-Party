@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Raid Paper Legends</title>
+  <style>
+    body { margin: 0; background: #0e0e1a; overflow: hidden; }
+    canvas.emscripten { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+    .emscripten { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); color: #aaa; font-family: monospace; text-align: center; }
+  </style>
+</head>
+<body>
+  <canvas id="canvas" class="emscripten"></canvas>
+  <div class="emscripten" id="loading">Loading Raid Paper Legends...</div>
+  <div class="emscripten" id="error" style="display:none;color:#e66"></div>
+  <script>
+    var Module = {
+      canvas: document.getElementById('canvas'),
+      locateFile: function(path) { return path.split('/').pop(); },
+      onRuntimeInitialized: function() {
+        document.getElementById('loading').style.display = 'none';
+      },
+      onAbort: function(msg) {
+        var el = document.getElementById('error');
+        el.textContent = 'Failed to load: ' + msg;
+        el.style.display = 'block';
+        document.getElementById('loading').style.display = 'none';
+      },
+      printErr: function(msg) { if (msg) console.error('[Emscripten]', msg); }
+    };
+  </script>
+  <script>
+    setTimeout(function() {
+      var loading = document.getElementById('loading');
+      if (loading && loading.style.display !== 'none') {
+        loading.textContent = 'Loading... (click to continue)';
+        loading.onclick = function() { location.reload(); };
+      }
+    }, 15000);
+  </script>
+  {{{ SCRIPT }}}
+</body>
+</html>

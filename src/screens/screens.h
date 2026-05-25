@@ -40,4 +40,10 @@ void discard_screen_draw(void);
 void game_over_screen_update(void);
 void game_over_screen_draw(void);
 
+void deck_screen_update(void);
+void deck_screen_draw(void);
+
+void achievements_screen_update(void);
+void achievements_screen_draw(void);
+
 #endif

@@ -230,7 +230,7 @@ void enemy_render_draw(EnemyState *enemy, bool highlighted, bool targeting)
     const char *mark = enemy_mark(enemy->def->id);
     DrawText(mark, cx - MeasureText(mark, 10) / 2, draw_y + 8, 10, RAYWHITE);
 
-    Rectangle nameplate = { (float)(cx - 42), (float)(draw_y - size / 2 - 22), 84.0f, 14.0f };
+    Rectangle nameplate = { (float)(cx - 42), (float)(draw_y - size / 2 - 22), 96.0f, 14.0f };
     DrawRectangleRec(nameplate, (Color){ 18, 18, 28, 220 });
     DrawRectangleLinesEx(nameplate, 1.0f, (Color){ accent.r, accent.g, accent.b, 170 });
     draw_text_box((Rectangle){ nameplate.x + 3.0f, nameplate.y + 2.0f, nameplate.width - 6.0f, nameplate.height - 3.0f },

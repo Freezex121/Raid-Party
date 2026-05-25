@@ -13,6 +13,7 @@
 #include <stdlib.h>
 
 static int hovered_reward = -1;
+static bool generated = false;
 
 static void generate_rewards(void)
 {
@@ -72,18 +73,48 @@ static void generate_rewards(void)
 
 void reward_screen_update(void)
 {
-    static bool generated = false;
     if (!generated)
     {
         generate_rewards();
         generated = true;
     }
-    ft_update(GetFrameTime());
-
     if (g_state.reward_count == 0) return;
 
     Vector2 mouse = GetMousePosition();
     hovered_reward = -1;
+
+    // Skip button
+    Rectangle skip_btn = { (float)(VIRT_W / 2 - 90), 206.0f, 80.0f, 22.0f };
+    if (CheckCollisionPointRec(mouse, skip_btn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    {
+        generated = false;
+        if (g_state.encounter_is_elite)
+        {
+            g_state.discard_count = 1;
+            g_state.discard_selected = 0;
+            game_change_screen(SCREEN_DISCARD);
+        }
+        else if (g_state.encounter_is_boss)
+        {
+            g_state.discard_count = 2;
+            g_state.discard_selected = 0;
+            game_change_screen(SCREEN_DISCARD);
+        }
+        else
+        {
+            game_change_screen(SCREEN_MAP);
+        }
+        return;
+    }
+
+    // Reroll button
+    Rectangle reroll_btn = { (float)(VIRT_W / 2 + 10), 206.0f, 80.0f, 22.0f };
+    if (g_state.reroll_tokens > 0 && CheckCollisionPointRec(mouse, reroll_btn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    {
+        g_state.reroll_tokens--;
+        generated = false;
+        return;
+    }
 
     for (int i = 0; i < g_state.reward_count; i++)
     {
@@ -148,6 +179,27 @@ void reward_screen_draw(void)
     char pick_label[48];
     snprintf(pick_label, sizeof(pick_label), "Choose %d card%s", g_state.reward_picks_remaining, g_state.reward_picks_remaining > 1 ? "s" : "");
     draw_text_box((Rectangle){ 80.0f, 40.0f, 480.0f, 14.0f }, pick_label, 10, 0, (Color){ 160, 160, 180, 200 }, TEXT_ALIGN_CENTER);
+
+    // Skip and Reroll buttons
+    Vector2 mouse = GetMousePosition();
+    Rectangle skip_btn = { (float)(VIRT_W / 2 - 90), 206.0f, 80.0f, 22.0f };
+    bool skip_hover = CheckCollisionPointRec(mouse, skip_btn);
+    Color skip_col = skip_hover ? (Color){ 100, 100, 100, 255 } : (Color){ 60, 60, 60, 255 };
+    DrawRectangleRec(skip_btn, skip_col);
+    DrawRectangleLinesEx(skip_btn, 1.0f, (Color){ 120, 120, 120, 200 });
+    draw_text_box((Rectangle){ skip_btn.x + 4.0f, skip_btn.y + 4.0f, skip_btn.width - 8.0f, skip_btn.height - 8.0f },
+        "Skip", 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
+
+    Rectangle reroll_btn = { (float)(VIRT_W / 2 + 10), 206.0f, 80.0f, 22.0f };
+    bool can_reroll = g_state.reroll_tokens > 0;
+    bool reroll_hover = can_reroll && CheckCollisionPointRec(mouse, reroll_btn);
+    Color reroll_col = reroll_hover ? (Color){ 70, 180, 90, 255 } : (can_reroll ? (Color){ 45, 120, 60, 255 } : (Color){ 40, 40, 60, 255 });
+    DrawRectangleRec(reroll_btn, reroll_col);
+    DrawRectangleLinesEx(reroll_btn, 1.0f, can_reroll ? (Color){ 100, 220, 120, 220 } : (Color){ 80, 80, 100, 150 });
+    char reroll_label[24];
+    snprintf(reroll_label, sizeof(reroll_label), "Reroll (%d)", g_state.reroll_tokens);
+    draw_text_box((Rectangle){ reroll_btn.x + 4.0f, reroll_btn.y + 4.0f, reroll_btn.width - 8.0f, reroll_btn.height - 8.0f },
+        reroll_label, 10, 0, can_reroll ? RAYWHITE : (Color){ 100, 100, 120, 180 }, TEXT_ALIGN_CENTER);
 
     for (int i = 0; i < g_state.reward_count; i++)
     {

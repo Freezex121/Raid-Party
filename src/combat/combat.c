@@ -57,6 +57,7 @@ static void deal_cards(Deck *deck, int count)
 static void deal_opening_hand(Deck *deck, int party_count, int ascension_level)
 {
     int draw = party_draw_count(party_count);
+    draw += meta_first_draw_bonus(&g_state.meta);
     if (ascension_level >= 8)
         draw--;
     if (draw < 1) draw = 1;
@@ -934,9 +935,9 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
 
     bool ug = inst->upgraded;
 
-    int dmg = card_damage(card, ug);
+    int dmg = card_damage(card, ug) + meta_dmg_bonus(&g_state.meta);
     int hl  = card_heal(card, ug);
-    int sh  = card_shield(card, ug);
+    int sh  = card_shield(card, ug) + meta_shield_bonus(&g_state.meta);
 
     LOG_I(CAT_CARD, "Playing %s (enemy=%d, ally=%d) upgraded=%d channel=%d", card->name, target_enemy, target_ally, ug, card->channel);
     combat_spawn_card_throw(cs, hand_idx, card, ug, target_enemy, target_ally);
@@ -1513,7 +1514,11 @@ static void enemy_action(EnemyState *e, CombatState *cs)
 
     for (int hit = 0; hit < repeats; hit++)
     {
-        int target = party_highest_aggro(&cs->party);
+        int target;
+        if (cs->party.count > 1 && (rand() % 4) == 0)
+            target = party_random_alive(&cs->party);
+        else
+            target = party_highest_aggro(&cs->party);
         if (target < 0) break;
         apply_damage_to_ally(cs, target, damage, e->def->name);
         if (hit == 0 && ab->status != STATUS_NONE && ab->status_turns > 0)
@@ -1823,7 +1828,7 @@ void combat_start(CombatState *cs, const Party *party, const EncounterDef *encou
     LOG_T("  deck copied: card_count=%d draw_count=%d", cs->deck.card_count, cs->deck.draw_count);
 
     int asc = active_ascension();
-    cs->turn_draw_count = party_draw_count(cs->party.count);
+    cs->turn_draw_count = party_draw_count(cs->party.count) + meta_first_draw_bonus(&g_state.meta);
     if (asc >= 8)
         cs->turn_draw_count--;
     if (cs->turn_draw_count < 1) cs->turn_draw_count = 1;
@@ -2186,8 +2191,6 @@ void combat_update(CombatState *cs)
     for (int i = cs->deck.hand_count - 1; i >= 0; i--)
     {
         Rectangle r = layout_hand_card_rect(hand_layout, i);
-        r.y -= 34.0f;
-        r.height += 34.0f;
         if (CheckCollisionPointRec(mouse, r))
         {
             cs->hovered_card = i;

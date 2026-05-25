@@ -17,6 +17,23 @@ const char *achievement_name(AchievementId id)
     }
 }
 
+const char *achievement_desc(AchievementId id)
+{
+    switch (id)
+    {
+        case ACH_FIRST_STEPS:   return "Complete your first run.";
+        case ACH_CHAMPION:      return "Win a run.";
+        case ACH_PERFECTIONIST: return "Win a run with no deaths.";
+        case ACH_SOLO_ARTIST:   return "Win a run with 1 party member.";
+        case ACH_FULL_HOUSE:    return "Win a run with 5 party members.";
+        case ACH_INTERRUPTED:   return "Interrupt 20 enemy casts across all runs.";
+        case ACH_HOARDER:       return "Collect 10 relics in a single run.";
+        case ACH_SPEED_DEMON:   return "Clear a combat floor in 3 turns or fewer.";
+        case ACH_COMPLETIONIST: return "Beat all areas.";
+        default:                return "";
+    }
+}
+
 int achievement_reward(AchievementId id)
 {
     switch (id)

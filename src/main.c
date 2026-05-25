@@ -63,6 +63,8 @@ int main(void)
                 case SCREEN_RELIC_REWARD: relic_reward_screen_update(); break;
                 case SCREEN_DISCARD: discard_screen_update(); break;
                 case SCREEN_GAME_OVER: game_over_screen_update(); break;
+                case SCREEN_DECK: deck_screen_update(); break;
+                case SCREEN_ACHIEVEMENTS: achievements_screen_update(); break;
                 default: break;
             }
         }
@@ -71,6 +73,7 @@ int main(void)
             LOG_I(CAT_SCREEN, "Screen transition: %d -> %d", prev, g_state.screen);
 
         tween_update(dt);
+        ft_update(dt);
         assets_update_audio();
 
         BeginTextureMode(target);
@@ -89,9 +92,11 @@ int main(void)
             case SCREEN_EVENT: event_screen_draw(); break;
             case SCREEN_REWARD: reward_screen_draw(); break;
             case SCREEN_RELIC_REWARD: relic_reward_screen_draw(); break;
-            case SCREEN_DISCARD: discard_screen_draw(); break;
-            case SCREEN_GAME_OVER: game_over_screen_draw(); break;
-            default: break;
+                case SCREEN_DISCARD: discard_screen_draw(); break;
+                case SCREEN_GAME_OVER: game_over_screen_draw(); break;
+                case SCREEN_DECK: deck_screen_draw(); break;
+                case SCREEN_ACHIEVEMENTS: achievements_screen_draw(); break;
+                default: break;
         }
 
         ft_draw();

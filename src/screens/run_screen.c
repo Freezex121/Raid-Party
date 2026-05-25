@@ -20,6 +20,7 @@
 #include "raylib.h"
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static bool combat_initialized = false;
@@ -412,7 +413,19 @@ void run_screen_update(void)
     }
 
     combat_update(&g_state.combat);
-    ft_update(GetFrameTime());
+
+    if (IsKeyPressed(KEY_D))
+    {
+        game_change_screen(SCREEN_DECK);
+        return;
+    }
+
+    Rectangle deck_btn = { 552.0f, 220.0f, 76.0f, 16.0f };
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(GetMousePosition(), deck_btn))
+    {
+        game_change_screen(SCREEN_DECK);
+        return;
+    }
 
     if (g_state.combat.phase == COMBAT_TURN_START)
     {
@@ -452,6 +465,12 @@ void run_screen_update(void)
                     g_state.run_party.members[lowest].hp = g_state.run_party.members[lowest].max_hp;
             }
         }
+
+        // Reroll tokens from elites and bosses
+        if (g_state.encounter_is_boss)
+            g_state.reroll_tokens++;
+        else if (g_state.encounter_is_elite && (rand() % 2) == 0)
+            g_state.reroll_tokens++;
 
         g_state.relic_reward_pending = g_state.encounter_is_boss;
         g_state.relic_reward_count = 0;
@@ -507,7 +526,6 @@ void run_screen_draw(void)
     }
 
     party_frames_draw(&cs->party);
-    draw_pair_passives(cs);
 
     bool targeting = cs->target_mode != TGT_NONE;
 
@@ -532,7 +550,7 @@ void run_screen_draw(void)
             if (cs->enemies[i].intent.ability_idx >= 0)
             {
                 int ab_idx = cs->enemies[i].intent.ability_idx;
-                Rectangle bar = layout_enemy_cast_bar_rect((Vector2){ (float)cs->enemies[i].pos_x, (float)cs->enemies[i].pos_y });
+                Rectangle bar = layout_enemy_cast_bar_rect((Vector2){ (float)cs->enemies[i].pos_x, (float)cs->enemies[i].pos_y }, cs->enemy_count, i);
                 cast_bar_draw_ability(
                     &cs->enemies[i].def->abilities[ab_idx],
                     cs->enemies[i].intent.remaining_turns,
@@ -542,9 +560,6 @@ void run_screen_draw(void)
             }
         }
     }
-
-    draw_target_preview(cs);
-    relic_tray_draw(g_state.relics, g_state.relic_count, (Rectangle){ 12.0f, 184.0f, 76.0f, 66.0f });
 
     if (cs->combo_prime != COMBO_PRIME_NONE)
     {
@@ -627,8 +642,16 @@ void run_screen_draw(void)
     draw_text_box((Rectangle){ energy_panel.x + 10.0f, energy_panel.y + 36.0f, energy_panel.width - 20.0f, 12.0f },
         regen_text, 10, 0, (Color){ 180, 180, 205, 220 }, TEXT_ALIGN_LEFT);
 
-    Rectangle end_turn_btn = layout_end_turn_button();
+    // Deck button
     Vector2 mouse = GetMousePosition();
+    Rectangle deck_btn = { 552.0f, 220.0f, 76.0f, 16.0f };
+    Color deck_col = CheckCollisionPointRec(mouse, deck_btn) ? (Color){ 80, 80, 120, 255 } : (Color){ 50, 50, 80, 255 };
+    DrawRectangleRec(deck_btn, deck_col);
+    DrawRectangleLinesEx(deck_btn, 1.0f, (Color){ 100, 100, 140, 200 });
+    draw_text_box((Rectangle){ deck_btn.x + 4.0f, deck_btn.y + 3.0f, deck_btn.width - 8.0f, deck_btn.height - 6.0f },
+        "DECK", 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
+
+    Rectangle end_turn_btn = layout_end_turn_button();
     bool hover = CheckCollisionPointRec(mouse, end_turn_btn);
     Color btn_col = hover ? (Color){ 80, 80, 120, 255 } : (Color){ 50, 50, 80, 255 };
     DrawRectangleRec(end_turn_btn, btn_col);
@@ -636,16 +659,45 @@ void run_screen_draw(void)
     draw_text_box((Rectangle){ end_turn_btn.x + 4.0f, end_turn_btn.y + 5.0f, end_turn_btn.width - 8.0f, end_turn_btn.height - 8.0f },
         "End Turn", 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
 
+    draw_pair_passives(cs);
+    draw_target_preview(cs);
+    relic_tray_draw(g_state.relics, g_state.relic_count, (Rectangle){ 12.0f, 184.0f, 76.0f, 66.0f });
+
     for (int i = 0; i < cs->enemy_count; i++)
     {
         if (!cs->enemies[i].def || cs->enemies[i].hp <= 0 || cs->enemies[i].intent.ability_idx < 0) continue;
         int ab_idx = cs->enemies[i].intent.ability_idx;
-        Rectangle bar = layout_enemy_cast_bar_rect((Vector2){ (float)cs->enemies[i].pos_x, (float)cs->enemies[i].pos_y });
+        Rectangle bar = layout_enemy_cast_bar_rect((Vector2){ (float)cs->enemies[i].pos_x, (float)cs->enemies[i].pos_y }, cs->enemy_count, i);
         cast_bar_draw_ability_tooltip(&cs->enemies[i].def->abilities[ab_idx], bar);
     }
     for (int i = 0; i < cs->enemy_count; i++)
         enemy_render_draw_status_tooltip(&cs->enemies[i]);
     party_frames_draw_tooltips(&cs->party);
+
+    // PRIMED combo hover tooltip
+    if (cs->combo_prime != COMBO_PRIME_NONE)
+    {
+        char cb[64];
+        snprintf(cb, sizeof(cb), "PRIMED: %s", cs->synergy_banner_title[0] ? cs->synergy_banner_title : "COMBO");
+        int tw = MeasureText(cb, 10);
+        int badge_w = tw + 14;
+        if (badge_w > 300) badge_w = 300;
+        Rectangle badge = { (float)(VIRT_W / 2) - badge_w / 2.0f, 58.0f, (float)badge_w, 15.0f };
+        if (CheckCollisionPointRec(mouse, badge) && cs->synergy_banner_subtitle[0])
+        {
+            int tip_w = 236;
+            int tip_h = 42;
+            int tip_x = VIRT_W / 2 - tip_w / 2;
+            int tip_y = (int)(badge.y + badge.height + 4);
+            Rectangle tip = { (float)tip_x, (float)tip_y, (float)tip_w, (float)tip_h };
+            DrawRectangleRec(tip, (Color){ 10, 11, 18, 245 });
+            DrawRectangleLinesEx(tip, 1.0f, (Color){ 255, 220, 80, 230 });
+            draw_text_box((Rectangle){ tip.x + 6.0f, tip.y + 5.0f, tip.width - 12.0f, 12.0f },
+                cs->synergy_banner_title, 10, 0, (Color){ 255, 220, 80, 245 }, TEXT_ALIGN_LEFT);
+            draw_text_box((Rectangle){ tip.x + 6.0f, tip.y + 18.0f, tip.width - 12.0f, 20.0f },
+                cs->synergy_banner_subtitle, 10, 0, (Color){ 210, 214, 235, 235 }, TEXT_ALIGN_LEFT);
+        }
+    }
 
 }
 
