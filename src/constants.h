@@ -9,8 +9,8 @@
 #define SCREEN_H (VIRT_H * SCALE)
 
 // Party frames
-#define FRAME_W 108
-#define FRAME_H 34
+#define FRAME_W 116
+#define FRAME_H 42
 #define FRAME_GAP 6
 #define FRAME_Y 8
 

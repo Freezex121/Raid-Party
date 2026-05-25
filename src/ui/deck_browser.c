@@ -2,6 +2,7 @@
 #include "constants.h"
 #include "ui/theme.h"
 #include "util/math_utils.h"
+#include "util/text.h"
 #include <string.h>
 
 #define BROWSER_GAP_X DECK_GAP
@@ -114,7 +115,7 @@ void deck_browser_reset(DeckBrowser *browser)
 bool deck_browser_has_upgradeable(Deck *deck)
 {
     for (int i = 0; i < deck->card_count; i++)
-        if (deck->cards[i].def && !deck->cards[i].upgraded)
+        if (deck->cards[i].def && !deck->cards[i].upgraded && card_upgrade_changes_values(deck->cards[i].def))
             return true;
     return false;
 }
@@ -153,7 +154,7 @@ int deck_browser_update(DeckBrowser *browser, Deck *deck, Rectangle viewport, bo
         browser->hovered_deck_index = deck_index;
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
-            if (require_unupgraded && deck->cards[deck_index].upgraded)
+            if (require_unupgraded && (deck->cards[deck_index].upgraded || !card_upgrade_changes_values(deck->cards[deck_index].def)))
                 return -1;
             return deck_index;
         }
@@ -188,12 +189,19 @@ void deck_browser_draw(DeckBrowser *browser, Deck *deck, bool require_unupgraded
         Rectangle r = card_rect_for(browser, visible_pos);
 
         theme_draw_card_art(r, inst->def, inst->upgraded);
+        if (require_unupgraded && (inst->upgraded || !card_upgrade_changes_values(inst->def)))
+        {
+            DrawRectangleRec(r, (Color){ 8, 8, 12, 155 });
+            const char *label = inst->upgraded ? "UPGRADED" : "NO CHANGE";
+            draw_text_box((Rectangle){ r.x + 5.0f, r.y + r.height * 0.5f - 7.0f, r.width - 10.0f, 16.0f },
+                label, 10, 0, (Color){ 175, 178, 195, 230 }, TEXT_ALIGN_CENTER);
+        }
     }
 
     draw_scrollbar(browser);
 
     if (count == 0)
-        DrawText("No cards", snap_i(browser->viewport.x + browser->viewport.width / 2 - MeasureText("No cards", 10) / 2),
-            snap_i(browser->viewport.y + browser->viewport.height / 2 - 4), 10, (Color){ 160, 160, 180, 220 });
+        draw_text_box((Rectangle){ browser->viewport.x + 6.0f, browser->viewport.y + browser->viewport.height * 0.5f - 7.0f, browser->viewport.width - 12.0f, 14.0f },
+            "No cards", 10, 0, (Color){ 160, 160, 180, 220 }, TEXT_ALIGN_CENTER);
 
 }

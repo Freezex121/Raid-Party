@@ -69,7 +69,8 @@ static void draw_hand_card(Rectangle card_rect, const CardDef *card, bool upgrad
     if (locked)
     {
         DrawRectangleRec(card_rect, (Color){ 40, 20, 22, 165 });
-        DrawText("CHANNELING", cx + cw / 2 - MeasureText("CHANNELING", 10) / 2, cy + ch / 2 - 4, 10, (Color){ 240, 120, 120, 230 });
+        draw_text_box((Rectangle){ card_rect.x + 5.0f, card_rect.y + card_rect.height * 0.5f - 7.0f, card_rect.width - 10.0f, 14.0f },
+            "CHANNELING", 10, 0, (Color){ 240, 120, 120, 230 }, TEXT_ALIGN_CENTER);
         return;
     }
 
@@ -78,7 +79,8 @@ static void draw_hand_card(Rectangle card_rect, const CardDef *card, bool upgrad
         DrawRectangleRec(card_rect, (Color){ 8, 8, 12, 120 });
         DrawRectangle(cx, cy + ch - 9, cw, 9, (Color){ 190, 60, 65, 210 });
         if (hovered)
-            DrawText("Not enough energy", cx + 5, cy + ch - 19, 10, (Color){ 240, 110, 115, 240 });
+            draw_text_box((Rectangle){ card_rect.x + 5.0f, card_rect.y + card_rect.height - 24.0f, card_rect.width - 10.0f, 16.0f },
+                "Not enough energy", 10, 0, (Color){ 240, 110, 115, 240 }, TEXT_ALIGN_CENTER);
     }
 }
 
@@ -176,7 +178,6 @@ void hand_render_draw(Deck *deck, Energy *energy, int hovered_card, ClassType ch
     }
     LOG_T("HRD: end");
 }
-
 
 
 

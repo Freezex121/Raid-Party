@@ -4,33 +4,6 @@
 #include "raylib.h"
 #include <stdio.h>
 
-static void draw_text_fit(const char *text, int x, int y, int max_w, int size, Color color)
-{
-    if (!text || max_w <= 0) return;
-    while (size > 3 && MeasureText(text, size) > max_w)
-        size--;
-
-    if (MeasureText(text, size) <= max_w)
-    {
-        DrawText(text, x, y, size, color);
-        return;
-    }
-
-    char clipped[64];
-    int len = 0;
-    while (text[len] && len < (int)sizeof(clipped) - 4)
-    {
-        clipped[len] = text[len];
-        clipped[len + 1] = '\0';
-        if (MeasureText(TextFormat("%s...", clipped), size) > max_w)
-            break;
-        len++;
-    }
-    if (len <= 0) return;
-    clipped[len] = '\0';
-    DrawText(TextFormat("%s...", clipped), x, y, size, color);
-}
-
 static Color intent_color(IntentType intent, bool is_wipe, int remaining_turns, int total_turns)
 {
     if (is_wipe || intent == INTENT_WIPE)
@@ -70,8 +43,33 @@ void cast_bar_draw_ability_tooltip(const EnemyAbility *ability, Rectangle bounds
     Vector2 mouse = GetMousePosition();
     if (!CheckCollisionPointRec(mouse, bounds)) return;
 
-    int w = 176;
-    int h = 80;
+    static TextScroll tooltip_scroll = { 0 };
+    static const EnemyAbility *last_ability = NULL;
+    if (last_ability != ability)
+    {
+        tooltip_scroll.offset_y = 0;
+        last_ability = ability;
+    }
+
+    int w = 196;
+    int body_w = w - 10;
+    char details[512];
+    snprintf(details, sizeof(details), "%s\n\nDmg %d   Heal %d   Shield %d\n%s",
+        ability->description,
+        ability->base_damage,
+        ability->heal_amount,
+        ability->shield_amount,
+        (ability->is_wipe || ability->intent == INTENT_WIPE) ? "Locked cast" : "Interruptible");
+
+    int title_h = measure_text_box(ability->name, body_w - 4, 10, 0);
+    if (title_h < ui_line_height(10)) title_h = ui_line_height(10);
+    int detail_h = measure_text_box(details, body_w - 4, 10, 0);
+    int needed_h = 10 + title_h + detail_h + 10;
+    int max_h = (int)(HAND_Y - (FRAME_Y + FRAME_H + 12));
+    if (max_h > 128) max_h = 128;
+    if (max_h < 68) max_h = 68;
+    int h = needed_h < max_h ? needed_h : max_h;
+
     int x = (int)(bounds.x + bounds.width / 2.0f - w / 2.0f);
     int y = (int)(bounds.y - h - 5);
     if (x + w > VIRT_W - 2) x = VIRT_W - w - 2;
@@ -81,14 +79,17 @@ void cast_bar_draw_ability_tooltip(const EnemyAbility *ability, Rectangle bounds
     DrawRectangleRec((Rectangle){ (float)x, (float)y, (float)w, (float)h }, (Color){ 18, 18, 28, 245 });
     DrawRectangleLinesEx((Rectangle){ (float)x, (float)y, (float)w, (float)h }, 1.0f, (Color){ 100, 100, 130, 220 });
 
-    game_draw_text(ability->name, x + 5, y + 5, 10, RAYWHITE);
-    draw_text_wrapped(ability->description, x + 5, y + 17, w - 10, 10, 1, (Color){ 220, 220, 235, 240 });
+    draw_text_box((Rectangle){ (float)(x + 5), (float)(y + 5), (float)(body_w - 4), (float)title_h },
+        ability->name, 10, 0, RAYWHITE, TEXT_ALIGN_LEFT);
 
-    char details[96];
-    snprintf(details, sizeof(details), "Dmg %d   Heal %d   Shield %d", ability->base_damage, ability->heal_amount, ability->shield_amount);
-    DrawText(details, x + 5, y + 39, 10, (Color){ 170, 170, 200, 230 });
-    DrawText((ability->is_wipe || ability->intent == INTENT_WIPE) ? "Locked cast" : "Interruptible", x + 5, y + 50, 10,
-        (ability->is_wipe || ability->intent == INTENT_WIPE) ? (Color){ 230, 110, 80, 240 } : (Color){ 140, 220, 160, 240 });
+    Rectangle detail_box = {
+        (float)(x + 5),
+        (float)(y + 7 + title_h),
+        (float)(body_w - 7),
+        (float)(h - title_h - 12)
+    };
+    draw_text_box_scrolled(detail_box, details, 10, 0, (Color){ 220, 220, 235, 240 },
+        TEXT_ALIGN_LEFT, &tooltip_scroll, true);
 }
 
 void cast_bar_draw_ex(const char *ability_name, int remaining_turns, int total_turns, bool is_wipe, int bar_x, int bar_y)
@@ -107,11 +108,11 @@ void cast_bar_draw_ex(const char *ability_name, int remaining_turns, int total_t
 
     DrawRectangleLinesEx((Rectangle){ (float)bar_x, (float)bar_y, (float)bar_w, (float)bar_h }, 1.0f, (Color){ 60, 60, 80, 200 });
 
-    DrawText(ability_name, bar_x + 4, bar_y + 3, 10, RAYWHITE);
-
     char turns_text[16];
     snprintf(turns_text, sizeof(turns_text), "%dT", remaining_turns);
     int tw = MeasureText(turns_text, 10);
+    draw_text_box((Rectangle){ (float)(bar_x + 4), (float)(bar_y + 3), (float)(bar_w - tw - 12), (float)(bar_h - 4) },
+        ability_name, 10, 0, RAYWHITE, TEXT_ALIGN_LEFT);
     DrawText(turns_text, bar_x + bar_w - tw - 4, bar_y + 3, 10, (Color){ 200, 200, 220, 200 });
 
     if (is_wipe)
@@ -139,8 +140,10 @@ void cast_bar_draw_ability(const EnemyAbility *ability, int remaining_turns, int
     DrawRectangleLinesEx(bounds, 1.0f, locked ? (Color){ 230, 90, 80, 230 } : (Color){ 80, 90, 125, 230 });
 
     const char *icon = intent_icon(ability->intent, ability->is_wipe);
-    DrawRectangleRec((Rectangle){ (float)(bar_x + 1), (float)(bar_y + 1), 21.0f, (float)(bar_h - 2) }, (Color){ bar_color.r, bar_color.g, bar_color.b, 120 });
-    game_draw_text(icon, bar_x + 4, bar_y + 4, 16, RAYWHITE);
+    int icon_w = 31;
+    DrawRectangleRec((Rectangle){ (float)(bar_x + 1), (float)(bar_y + 1), (float)icon_w, (float)(bar_h - 2) }, (Color){ bar_color.r, bar_color.g, bar_color.b, 120 });
+    draw_text_box((Rectangle){ (float)(bar_x + 2), (float)(bar_y + 4), (float)(icon_w - 2), (float)(bar_h - 6) },
+        icon, 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
 
     char amount[48];
     if (ability->heal_amount > 0)
@@ -155,12 +158,16 @@ void cast_bar_draw_ability(const EnemyAbility *ability, int remaining_turns, int
     int turns_w = MeasureText(turns_text, 10);
     DrawText(turns_text, bar_x + bar_w - turns_w - 4, bar_y + 3, 10, (Color){ 230, 230, 245, 235 });
 
-    int amount_x = bar_x + bar_w - turns_w - 29;
-    game_draw_text(amount, amount_x, bar_y + 4, 10, (Color){ 220, 220, 235, 230 });
+    int amount_w = 30;
+    int amount_x = bar_x + bar_w - turns_w - amount_w - 8;
+    draw_text_box((Rectangle){ (float)amount_x, (float)(bar_y + 4), (float)amount_w, (float)(bar_h - 6) },
+        amount, 10, 0, (Color){ 220, 220, 235, 230 }, TEXT_ALIGN_RIGHT);
 
-    int name_x = bar_x + 25;
+    int name_x = bar_x + icon_w + 5;
     int name_w = amount_x - name_x - 3;
-    game_draw_text(ability->name, name_x, bar_y + 4, 10, RAYWHITE);
+    if (name_w > 0)
+        draw_text_box((Rectangle){ (float)name_x, (float)(bar_y + 4), (float)name_w, (float)(bar_h - 6) },
+            ability->name, 10, 0, RAYWHITE, TEXT_ALIGN_LEFT);
 
     if (locked)
         DrawText("!", bar_x + bar_w - turns_w - 41, bar_y + 3, 10, (Color){ 250, 105, 80, 240 });

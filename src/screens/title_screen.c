@@ -24,7 +24,7 @@ static int title_tween, subtitle_tween, btn_tween;
 
 static Rectangle area_panel_rect(void)
 {
-    return (Rectangle){ 150.0f, 90.0f, 340.0f, 92.0f };
+    return (Rectangle){ 126.0f, 86.0f, 388.0f, 134.0f };
 }
 
 static const char *ascension_effect_text(int level)
@@ -71,29 +71,30 @@ void title_screen_update(void)
             (Color){ 70, 78, 110, 255 },
             WHITE
         );
+        Rectangle area_panel = area_panel_rect();
         prev_area_btn = button_create(
-            (Rectangle){ 112.0f, 158.0f, 24.0f, 24.0f },
+            (Rectangle){ area_panel.x - 32.0f, area_panel.y + 55.0f, 24.0f, 24.0f },
             "<",
             (Color){ 42, 48, 70, 255 },
             (Color){ 70, 78, 110, 255 },
             WHITE
         );
         next_area_btn = button_create(
-            (Rectangle){ 504.0f, 158.0f, 24.0f, 24.0f },
+            (Rectangle){ area_panel.x + area_panel.width + 8.0f, area_panel.y + 55.0f, 24.0f, 24.0f },
             ">",
             (Color){ 42, 48, 70, 255 },
             (Color){ 70, 78, 110, 255 },
             WHITE
         );
         asc_down_btn = button_create(
-            (Rectangle){ 214.0f, 206.0f, 24.0f, 20.0f },
+            (Rectangle){ area_panel.x + 96.0f, area_panel.y + 96.0f, 24.0f, 20.0f },
             "-",
             (Color){ 42, 48, 70, 255 },
             (Color){ 70, 78, 110, 255 },
             WHITE
         );
         asc_up_btn = button_create(
-            (Rectangle){ 402.0f, 206.0f, 24.0f, 20.0f },
+            (Rectangle){ area_panel.x + area_panel.width - 120.0f, area_panel.y + 96.0f, 24.0f, 20.0f },
             "+",
             (Color){ 42, 48, 70, 255 },
             (Color){ 70, 78, 110, 255 },
@@ -183,7 +184,7 @@ void title_screen_draw(void)
             continue;
 
         int x = VIRT_W / 2 - (unlocked_class_count * 22) + unlocked_idx * 50;
-        int y = 250 + (unlocked_idx % 2) * 10;
+        int y = 260;
         theme_draw_class_portrait((ClassType)i, x, y, 14, true);
         unlocked_idx++;
     }
@@ -203,14 +204,17 @@ void title_screen_draw(void)
     if (area_count <= 0) area_count = 1;
     char area_num[48];
     snprintf(area_num, sizeof(area_num), "AREA %d/%d", g_state.selected_area + 1, area_count);
-    game_draw_text(area_num, snap_i(panel.x + 10), snap_i(panel.y + 8), 10, (Color){ 145, 155, 190, 220 });
+    draw_text_box((Rectangle){ panel.x + 10.0f, panel.y + 8.0f, panel.width - 20.0f, 12.0f },
+        area_num, 10, 0, (Color){ 145, 155, 190, 220 }, TEXT_ALIGN_LEFT);
 
     const char *area_name = area ? area->name : "Unknown Area";
     Color name_col = selected_unlocked ? RAYWHITE : (Color){ 130, 132, 150, 230 };
-    game_draw_text(area_name, (int)panel.x + 10, (int)panel.y + 20, 10, name_col);
+    draw_text_box((Rectangle){ panel.x + 10.0f, panel.y + 20.0f, panel.width - 20.0f, 14.0f },
+        area_name, 10, 0, name_col, TEXT_ALIGN_LEFT);
 
     if (area)
-        draw_text_wrapped(area->description, (int)panel.x + 10, (int)panel.y + 36, (int)panel.width - 25, 10, 0, (Color){ 170, 176, 205, 220 });
+        draw_text_box((Rectangle){ panel.x + 10.0f, panel.y + 36.0f, panel.width - 25.0f, 34.0f },
+            area->description, 10, 0, (Color){ 170, 176, 205, 220 }, TEXT_ALIGN_LEFT);
 
     char area_stats[96];
     snprintf(area_stats, sizeof(area_stats), "%d floors  Difficulty %d%%  %s",
@@ -218,7 +222,26 @@ void title_screen_draw(void)
         area ? area->difficulty_percent : 100,
         selected_unlocked ? "Unlocked" : "Locked");
     Color stat_col = selected_unlocked ? (Color){ 230, 205, 95, 235 } : (Color){ 125, 128, 145, 220 };
-    game_draw_text(area_stats, (int)panel.x + 10, (int)panel.y + 74, 10, stat_col);
+    draw_text_box((Rectangle){ panel.x + 10.0f, panel.y + 74.0f, panel.width - 20.0f, 14.0f },
+        area_stats, 10, 0, stat_col, TEXT_ALIGN_LEFT);
+
+    DrawRectangle((int)panel.x + 10, (int)panel.y + 91, (int)panel.width - 20, 1, (Color){ 60, 65, 92, 190 });
+
+    char asc[96];
+    snprintf(asc, sizeof(asc), "ASCENSION %d / %d", g_state.meta.ascension_level, g_state.meta.max_ascension_unlocked);
+    Color asc_col = g_state.meta.max_ascension_unlocked > 0 ? (Color){ 190, 160, 255, 230 } : (Color){ 110, 112, 135, 180 };
+    draw_text_box((Rectangle){ panel.x + 128.0f, panel.y + 96.0f, panel.width - 256.0f, 14.0f },
+        asc, 10, 0, asc_col, TEXT_ALIGN_CENTER);
+    char asc_effect[128];
+    snprintf(asc_effect, sizeof(asc_effect), "%s", ascension_effect_text(g_state.meta.ascension_level));
+    draw_text_box((Rectangle){ panel.x + 10.0f, panel.y + 120.0f, panel.width - 20.0f, 12.0f },
+        asc_effect, 10, 0, (Color){ 230, 225, 245, 235 }, TEXT_ALIGN_CENTER);
+
+    if (g_state.meta.max_ascension_unlocked > 0)
+    {
+        button_draw(&asc_down_btn);
+        button_draw(&asc_up_btn);
+    }
 
     if (g_state.selected_area > 0)
         button_draw(&prev_area_btn);
@@ -231,27 +254,8 @@ void title_screen_draw(void)
         g_state.meta.wins,
         g_state.meta.renown,
         g_state.max_party_size);
-    game_draw_text(meta, VIRT_W / 2 - game_measure_text(meta, 18) / 2, snap_i(panel.y + panel.height + 10), 18, (Color){ 150, 155, 180, 200 });
-
-    char asc[96];
-    snprintf(asc, sizeof(asc), "ASCENSION %d / %d", g_state.meta.ascension_level, g_state.meta.max_ascension_unlocked);
-    DrawText(asc, VIRT_W / 2 - MeasureText(asc, 10) / 2, 220, 10,
-        g_state.meta.max_ascension_unlocked > 0 ? (Color){ 190, 160, 255, 220 } : (Color){ 110, 112, 135, 180 });
-    if (g_state.meta.max_ascension_unlocked > 0)
-    {
-        button_draw(&asc_down_btn);
-        button_draw(&asc_up_btn);
-    }
-
-    Rectangle asc_panel = { 122.0f, 232.0f, 396.0f, 38.0f };
-    DrawRectangleRec(asc_panel, (Color){ 12, 10, 22, 210 });
-    DrawRectangleLinesEx(asc_panel, 1.0f, (Color){ 160, 120, 230, 165 });
-    DrawText("Ascensions are additive: A5 includes A1-A5.", 132, 237, 10, (Color){ 205, 185, 245, 230 });
-    char asc_effect[128];
-    snprintf(asc_effect, sizeof(asc_effect), "%s", ascension_effect_text(g_state.meta.ascension_level));
-    DrawText(asc_effect, 132, 250, 10, (Color){ 230, 225, 245, 235 });
-    draw_text_wrapped("A1 dmg A2 energy A3 HP A4 casts A5/A9 Doubt A7 boss A8 draw A10 dmg",
-        132, 262, 376, 10, 1, (Color){ 145, 150, 175, 215 });
+    draw_text_box((Rectangle){ 70.0f, panel.y + panel.height + 6.0f, 500.0f, 14.0f },
+        meta, 10, 0, (Color){ 150, 155, 180, 200 }, TEXT_ALIGN_CENTER);
 
     if (selected_unlocked)
     {

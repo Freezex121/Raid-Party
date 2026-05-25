@@ -57,9 +57,9 @@ static void generate_rewards(void)
         g_state.reward_upgraded[i] = false;
 
         // Boss: 50% chance this card is upgraded
-        if (g_state.encounter_is_boss && (rand() % 2) == 0)
+        if (g_state.encounter_is_boss && card_upgrade_changes_values(pool[idx]) && (rand() % 2) == 0)
             g_state.reward_upgraded[i] = true;
-        if (g_state.encounter_is_boss && i == 0 && relic_has(g_state.relics, g_state.relic_count, RELIC_VETERAN_SIGIL))
+        if (g_state.encounter_is_boss && i == 0 && card_upgrade_changes_values(pool[idx]) && relic_has(g_state.relics, g_state.relic_count, RELIC_VETERAN_SIGIL))
             g_state.reward_upgraded[i] = true;
 
         LOG_I(CAT_CARD, "Reward[%d]: %s (%s)%s", i, pool[idx]->name,
@@ -144,10 +144,10 @@ void reward_screen_draw(void)
                         g_state.encounter_is_elite ? "ELITE REWARD" : "CARD REWARD";
     Color title_col = g_state.encounter_is_boss ? (Color){ 220, 180, 50, 255 } :
                       g_state.encounter_is_elite ? (Color){ 200, 100, 220, 255 } : RAYWHITE;
-    DrawText(title, (VIRT_W / 2) - MeasureText(title, 18) / 2, 18, 18, title_col);
+    draw_text_box((Rectangle){ 80.0f, 18.0f, 480.0f, 22.0f }, title, 18, 0, title_col, TEXT_ALIGN_CENTER);
     char pick_label[48];
     snprintf(pick_label, sizeof(pick_label), "Choose %d card%s", g_state.reward_picks_remaining, g_state.reward_picks_remaining > 1 ? "s" : "");
-    DrawText(pick_label, (VIRT_W / 2) - MeasureText(pick_label, 10) / 2, 40, 10, (Color){ 160, 160, 180, 200 });
+    draw_text_box((Rectangle){ 80.0f, 40.0f, 480.0f, 14.0f }, pick_label, 10, 0, (Color){ 160, 160, 180, 200 }, TEXT_ALIGN_CENTER);
 
     for (int i = 0; i < g_state.reward_count; i++)
     {

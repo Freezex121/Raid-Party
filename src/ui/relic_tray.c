@@ -7,11 +7,26 @@ static void draw_tooltip(Rectangle icon_rect, const RelicDef *def)
 {
     if (!def) return;
 
+    static TextScroll relic_scroll = { 0 };
+    static const RelicDef *last_relic = NULL;
+    if (last_relic != def)
+    {
+        relic_scroll.offset_y = 0;
+        last_relic = def;
+    }
+
+    int title_h = measure_text_box(def->name, 158, 10, 0);
+    if (title_h < ui_line_height(10)) title_h = ui_line_height(10);
+    int body_h = measure_text_box(def->description, 155, 10, 0);
+    int needed_h = title_h + body_h + 18;
+    int tip_h = needed_h < 96 ? needed_h : 96;
+    if (tip_h < 46) tip_h = 46;
+
     Rectangle tip = {
         icon_rect.x,
         icon_rect.y + icon_rect.height + 5.0f,
         170.0f,
-        46.0f
+        (float)tip_h
     };
 
     if (tip.x + tip.width > VIRT_W - 4) tip.x = VIRT_W - tip.width - 4;
@@ -21,19 +36,23 @@ static void draw_tooltip(Rectangle icon_rect, const RelicDef *def)
 
     DrawRectangleRec(tip, (Color){ 9, 10, 17, 245 });
     DrawRectangleLinesEx(tip, 1.0f, (Color){ 210, 190, 95, 230 });
-    DrawText(def->name, (int)tip.x + 6, (int)tip.y + 5, 10, (Color){ 235, 215, 120, 255 });
-    draw_text_wrapped(def->description, (int)tip.x + 6, (int)tip.y + 20, (int)tip.width - 12, 10, 1, (Color){ 190, 194, 215, 235 });
+    draw_text_box((Rectangle){ tip.x + 6.0f, tip.y + 5.0f, tip.width - 12.0f, (float)title_h },
+        def->name, 10, 0, (Color){ 235, 215, 120, 255 }, TEXT_ALIGN_LEFT);
+    draw_text_box_scrolled((Rectangle){ tip.x + 6.0f, tip.y + 8.0f + title_h, tip.width - 15.0f, tip.height - title_h - 12.0f },
+        def->description, 10, 0, (Color){ 190, 194, 215, 235 }, TEXT_ALIGN_LEFT, &relic_scroll, true);
 }
 
 void relic_tray_draw(const RelicId *relics, int count, Rectangle bounds)
 {
     DrawRectangleRec(bounds, (Color){ 9, 10, 17, 205 });
     DrawRectangleLinesEx(bounds, 1.0f, (Color){ 120, 118, 82, 175 });
-    DrawText("RELICS", (int)bounds.x + 5, (int)bounds.y + 4, 10, (Color){ 210, 190, 95, 225 });
+    draw_text_box((Rectangle){ bounds.x + 5.0f, bounds.y + 4.0f, bounds.width - 10.0f, 12.0f },
+        "RELICS", 10, 0, (Color){ 210, 190, 95, 225 }, TEXT_ALIGN_LEFT);
 
     if (count <= 0)
     {
-        DrawText("none", (int)bounds.x + 6, (int)bounds.y + 17, 10, (Color){ 120, 124, 150, 190 });
+        draw_text_box((Rectangle){ bounds.x + 6.0f, bounds.y + 17.0f, bounds.width - 12.0f, 12.0f },
+            "none", 10, 0, (Color){ 120, 124, 150, 190 }, TEXT_ALIGN_LEFT);
         return;
     }
 

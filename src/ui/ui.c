@@ -57,23 +57,18 @@ void button_draw(Button *btn)
         DrawRectangleLinesEx(btn->bounds, 2.0f, btn->border_color);
 
     int font_size = 10;
+    int text_h = measure_text_box(btn->text, snap_i(btn->bounds.width - 8), font_size, 0);
+    if (text_h <= 0) text_h = ui_line_height(font_size);
+    int y = snap_i(btn->bounds.y + (btn->bounds.height - text_h) * 0.5f);
+    if (y < snap_i(btn->bounds.y + 2)) y = snap_i(btn->bounds.y + 2);
 
-    int text_w = MeasureText(btn->text, font_size);
-    int btn_center_x = snap_i(btn->bounds.x + btn->bounds.width / 2.0f);
-    if (text_w > btn->bounds.width - 8)
-    {
-        draw_text_wrapped(btn->text,
-            snap_i(btn->bounds.x + 4),
-            snap_i(btn->bounds.y + 3),
-            snap_i(btn->bounds.width - 8), font_size, 2, btn->text_color);
-    }
-    else
-    {
-        DrawText(btn->text,
-            btn_center_x - text_w / 2,
-            snap_i(btn->bounds.y + btn->bounds.height / 2.0f - font_size / 2.0f),
-            font_size, btn->text_color);
-    }
+    draw_text_box((Rectangle){
+            btn->bounds.x + 4.0f,
+            (float)y,
+            btn->bounds.width - 8.0f,
+            btn->bounds.y + btn->bounds.height - y - 2.0f
+        },
+        btn->text, font_size, 0, btn->text_color, TEXT_ALIGN_CENTER);
 }
 
 void button_set_disabled(Button *btn, bool disabled)
@@ -91,6 +86,6 @@ void draw_panel(Rectangle bounds, Color bg, float corner_radius, Color border)
 
 void draw_label(const char *text, Vector2 pos, int size, Color color)
 {
-    DrawText(text, snap_i(pos.x), snap_i(pos.y), size, color);
+    DrawText(text, snap_i(pos.x), snap_i(pos.y), ui_font_size(size), color);
 }
 

@@ -6,6 +6,7 @@
 #include "ui/theme.h"
 #include "ui/layout.h"
 #include "util/math_utils.h"
+#include "util/text.h"
 #include "raylib.h"
 #include <stdio.h>
 
@@ -156,8 +157,8 @@ void rest_screen_draw(void)
 
     if (mode == REST_CHOICE)
     {
-        DrawText("REST SITE", (VIRT_W / 2) - MeasureText("REST SITE", 18) / 2, 76, 18, RAYWHITE);
-        DrawText("Choose:", (VIRT_W / 2) - MeasureText("Choose:", 10) / 2, 104, 10, (Color){ 160, 160, 180, 200 });
+        draw_text_box((Rectangle){ 80.0f, 76.0f, 480.0f, 22.0f }, "REST SITE", 18, 0, RAYWHITE, TEXT_ALIGN_CENTER);
+        draw_text_box((Rectangle){ 80.0f, 104.0f, 480.0f, 14.0f }, "Choose:", 10, 0, (Color){ 160, 160, 180, 200 }, TEXT_ALIGN_CENTER);
 
         Vector2 m = GetMousePosition();
         Rectangle heal_btn = rest_heal_button();
@@ -167,50 +168,61 @@ void rest_screen_draw(void)
         Color uc = CheckCollisionPointRec(m, upg_btn)  ? (Color){ 80, 140, 220, 255 } : (Color){ 50, 80, 140, 255 };
 
         DrawRectangleRec(heal_btn, hc);
-        DrawText("HEAL PARTY", snap_i(heal_btn.x + heal_btn.width / 2 - MeasureText("HEAL PARTY", 10) / 2), snap_i(heal_btn.y) + 10, 10, RAYWHITE);
+        draw_text_box((Rectangle){ heal_btn.x + 6.0f, heal_btn.y + 8.0f, heal_btn.width - 12.0f, 14.0f },
+            "HEAL PARTY", 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
 
         DrawRectangleRec(upg_btn, uc);
-        DrawText("UPGRADE A CARD", snap_i(upg_btn.x + upg_btn.width / 2 - MeasureText("UPGRADE A CARD", 10) / 2), snap_i(upg_btn.y) + 10, 10, RAYWHITE);
+        draw_text_box((Rectangle){ upg_btn.x + 6.0f, upg_btn.y + 8.0f, upg_btn.width - 12.0f, 14.0f },
+            "UPGRADE A CARD", 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
 
-        DrawText("Fully restore HP", snap_i(heal_btn.x) + 16, snap_i(heal_btn.y) + 29, 10, (Color){ 160, 220, 170, 200 });
-        DrawText("Boost one card's power", snap_i(upg_btn.x) + 12, snap_i(upg_btn.y) + 29, 10, (Color){ 160, 180, 220, 200 });
+        draw_text_box((Rectangle){ heal_btn.x + 6.0f, heal_btn.y + 28.0f, heal_btn.width - 12.0f, 14.0f },
+            "Fully restore HP", 10, 0, (Color){ 160, 220, 170, 200 }, TEXT_ALIGN_CENTER);
+        draw_text_box((Rectangle){ upg_btn.x + 6.0f, upg_btn.y + 28.0f, upg_btn.width - 12.0f, 14.0f },
+            "Boost one card's power", 10, 0, (Color){ 160, 180, 220, 200 }, TEXT_ALIGN_CENTER);
 
         if (rest_msg[0])
-            DrawText(rest_msg, (VIRT_W / 2) - MeasureText(rest_msg, 10) / 2, 228, 10, (Color){ 200, 150, 100, 220 });
+            draw_text_box((Rectangle){ 96.0f, 228.0f, 448.0f, 26.0f }, rest_msg, 10, 0, (Color){ 200, 150, 100, 220 }, TEXT_ALIGN_CENTER);
     }
     else if (mode == REST_UPGRADE)
     {
-        DrawText("PICK A CARD TO UPGRADE", (VIRT_W / 2) - MeasureText("PICK A CARD TO UPGRADE", 18) / 2, 16, 18, RAYWHITE);
+        draw_text_box((Rectangle){ 80.0f, 16.0f, 480.0f, 22.0f }, "PICK A CARD TO UPGRADE", 18, 0, RAYWHITE, TEXT_ALIGN_CENTER);
         char hint[80];
         snprintf(hint, sizeof(hint), "%d cards  |  wheel scroll  |  right-click cancel", g_state.run_deck.card_count);
-        DrawText(hint, (VIRT_W / 2) - MeasureText(hint, 10) / 2, 34, 10, (Color){ 160, 160, 180, 180 });
+        draw_text_box((Rectangle){ 80.0f, 34.0f, 480.0f, 14.0f }, hint, 10, 0, (Color){ 160, 160, 180, 180 }, TEXT_ALIGN_CENTER);
 
         deck_browser_draw(&rest_browser, &g_state.run_deck, true, RAYWHITE);
 
         if (hovered_upgrade >= 0)
         {
             const CardDef *cd = g_state.run_deck.cards[hovered_upgrade].def;
-            theme_draw_card_tooltip(layout_deck_inspector_panel(), cd, g_state.run_deck.cards[hovered_upgrade].upgraded);
+            Rectangle tip = theme_draw_card_tooltip_limited(layout_deck_inspector_panel(), cd, g_state.run_deck.cards[hovered_upgrade].upgraded, 268);
+            int preview_y = (int)(tip.y + tip.height + 5.0f);
             if (g_state.run_deck.cards[hovered_upgrade].upgraded)
             {
-                DrawText("Already upgraded", 448, 190, 10, (Color){ 160, 160, 180, 220 });
+                draw_text_box((Rectangle){ tip.x, (float)preview_y, tip.width, 24.0f },
+                    "Already upgraded", 10, 0, (Color){ 160, 160, 180, 220 }, TEXT_ALIGN_LEFT);
+            }
+            else if (!card_upgrade_changes_values(cd))
+            {
+                draw_text_box((Rectangle){ tip.x, (float)preview_y, tip.width, 24.0f },
+                    "Upgrade has no value changes", 10, 0, (Color){ 160, 160, 180, 220 }, TEXT_ALIGN_LEFT);
             }
             else
             {
                 int od = cd->damage, oh = cd->heal, os = cd->shield;
                 int nd = card_damage(cd, true), nh = card_heal(cd, true), ns = card_shield(cd, true);
 
-                int y = 190;
-                if (od > 0) { char b[32]; snprintf(b, sizeof(b), "DMG %d>%d", od, nd); DrawText(b, 448, y, 10, (Color){ 220, 110, 100, 255 }); y += 14; }
-                if (oh > 0) { char b[32]; snprintf(b, sizeof(b), "HEAL %d>%d", oh, nh); DrawText(b, 448, y, 10, (Color){ 105, 220, 125, 255 }); y += 14; }
-                if (os > 0) { char b[32]; snprintf(b, sizeof(b), "SHIELD %d>%d", os, ns); DrawText(b, 448, y, 10, (Color){ 125, 190, 255, 255 }); }
+                int y = preview_y;
+                if (nd != od) { char b[32]; snprintf(b, sizeof(b), "DMG %d>%d", od, nd); DrawText(b, (int)tip.x, y, 10, (Color){ 220, 110, 100, 255 }); y += 14; }
+                if (nh != oh) { char b[32]; snprintf(b, sizeof(b), "HEAL %d>%d", oh, nh); DrawText(b, (int)tip.x, y, 10, (Color){ 105, 220, 125, 255 }); y += 14; }
+                if (ns != os) { char b[32]; snprintf(b, sizeof(b), "SHIELD %d>%d", os, ns); DrawText(b, (int)tip.x, y, 10, (Color){ 125, 190, 255, 255 }); }
             }
         }
     }
     else if (mode == REST_HEAL_DONE)
     {
-        DrawText("PARTY RESTED", (VIRT_W / 2) - MeasureText("PARTY RESTED", 18) / 2, 164, 18, (Color){ 100, 220, 120, 255 });
-        DrawText("Click to continue.", (VIRT_W / 2) - MeasureText("Click to continue.", 10) / 2, 190, 10, (Color){ 160, 160, 180, 200 });
+        draw_text_box((Rectangle){ 80.0f, 164.0f, 480.0f, 22.0f }, "PARTY RESTED", 18, 0, (Color){ 100, 220, 120, 255 }, TEXT_ALIGN_CENTER);
+        draw_text_box((Rectangle){ 80.0f, 190.0f, 480.0f, 14.0f }, "Click to continue.", 10, 0, (Color){ 160, 160, 180, 200 }, TEXT_ALIGN_CENTER);
     }
 }
 

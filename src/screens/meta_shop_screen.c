@@ -184,8 +184,10 @@ static void draw_item(Rectangle r, const char *title, const char *body, const ch
 
     DrawRectangleRec(r, bg);
     DrawRectangleLinesEx(r, hover && can_buy ? 2.0f : 1.0f, border);
-    DrawText(title, (int)r.x + 9, (int)r.y + 9, 10, title_col);
-    draw_text_wrapped(body, (int)r.x + 9, (int)r.y + 29, (int)r.width - 18, 10, 2, body_col);
+    draw_text_box((Rectangle){ r.x + 9.0f, r.y + 7.0f, r.width - 18.0f, 14.0f },
+        title, 10, 0, title_col, TEXT_ALIGN_LEFT);
+    draw_text_box((Rectangle){ r.x + 9.0f, r.y + 24.0f, r.width - 18.0f, r.height - 48.0f },
+        body, 10, 0, body_col, TEXT_ALIGN_LEFT);
 
     Rectangle buy = { r.x + 9.0f, r.y + r.height - 22.0f, r.width - 18.0f, 16.0f };
     Color buy_bg = complete ? (Color){ 42, 95, 58, 255 } :
@@ -199,14 +201,15 @@ static void draw_item(Rectangle r, const char *title, const char *body, const ch
     else
         snprintf(label, sizeof(label), "%s  %dR", status, cost);
     Color label_col = can_buy || complete ? RAYWHITE : (Color){ 105, 108, 125, 220 };
-    DrawText(label, snap_i(buy.x + buy.width / 2 - MeasureText(label, 10) / 2), snap_i(buy.y) + 4, 10, label_col);
+    draw_text_box((Rectangle){ buy.x + 4.0f, buy.y + 2.0f, buy.width - 8.0f, buy.height - 3.0f },
+        label, 10, 0, label_col, TEXT_ALIGN_CENTER);
 }
 
 void meta_shop_screen_draw(void)
 {
     theme_draw_background();
 
-    DrawText("META SHOP", VIRT_W / 2 - MeasureText("META SHOP", 18) / 2, 34, 18, RAYWHITE);
+    draw_text_box((Rectangle){ 80.0f, 34.0f, 480.0f, 22.0f }, "META SHOP", 18, 0, RAYWHITE, TEXT_ALIGN_CENTER);
 
     char line[96];
     snprintf(line, sizeof(line), "Renown: %d    Party max: %d/5    Gold: %d    Asc max: %d",
@@ -214,7 +217,7 @@ void meta_shop_screen_draw(void)
         meta_party_slots(&g_state.meta),
         meta_starting_gold(&g_state.meta),
         g_state.meta.max_ascension_unlocked);
-    DrawText(line, VIRT_W / 2 - MeasureText(line, 10) / 2, 62, 10, (Color){ 190, 195, 220, 230 });
+    draw_text_box((Rectangle){ 80.0f, 62.0f, 480.0f, 14.0f }, line, 10, 0, (Color){ 190, 195, 220, 230 }, TEXT_ALIGN_CENTER);
 
     bool can_slot4 = !g_state.meta.slot4_unlocked && g_state.meta.renown >= META_SLOT4_COST;
     bool can_slot5 = g_state.meta.slot4_unlocked && !g_state.meta.slot5_unlocked && g_state.meta.renown >= META_SLOT5_COST;
@@ -240,7 +243,7 @@ void meta_shop_screen_draw(void)
     draw_item(item_rect(6), "Bard", "Unlock party buff and draw class cards.", g_state.meta.bard_unlocked ? "OWNED" : "BUY", META_CLASS_UNLOCK_COST, !g_state.meta.bard_unlocked && g_state.meta.renown >= META_CLASS_UNLOCK_COST, g_state.meta.bard_unlocked);
 
     if (shop_msg[0])
-        DrawText(shop_msg, VIRT_W / 2 - MeasureText(shop_msg, 10) / 2, 304, 10, (Color){ 230, 205, 115, 240 });
+        draw_text_box((Rectangle){ 96.0f, 300.0f, 448.0f, 16.0f }, shop_msg, 10, 0, (Color){ 230, 205, 115, 240 }, TEXT_ALIGN_CENTER);
 
     button_draw(&back_btn);
 }

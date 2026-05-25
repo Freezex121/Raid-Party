@@ -61,33 +61,6 @@ static int scaled_len(Rectangle r, float source_px)
     return len < 1 ? 1 : len;
 }
 
-static void draw_text_fit(const char *text, int x, int y, int max_w, int size, Color color)
-{
-    if (!text || max_w <= 0) return;
-    while (size > 10 && MeasureText(text, size) > max_w)
-        size--;
-    if (MeasureText(text, size) <= max_w)
-    {
-        DrawText(text, x, y, size, color);
-        return;
-    }
-
-    char clipped[96];
-    int len = 0;
-    int text_len = (int)strlen(text);
-    while (len < text_len && len < (int)sizeof(clipped) - 4)
-    {
-        clipped[len] = text[len];
-        clipped[len + 1] = '\0';
-        if (MeasureText(TextFormat("%s...", clipped), size) > max_w)
-            break;
-        len++;
-    }
-    if (len <= 0) return;
-    clipped[len] = '\0';
-    DrawText(TextFormat("%s...", clipped), x, y, size, color);
-}
-
 static const CardEffect *card_effect(const CardDef *card, CardEffectType type)
 {
     if (!card || !card->effects || card->effect_count <= 0) return NULL;
@@ -277,7 +250,8 @@ static void draw_card_tokens(Rectangle dest, const CardDef *card, bool upgraded,
             y += line_h;
         }
 
-        draw_text_fit(tokens[i], x, y, max_x - x, size, token_color(tokens[i], fallback));
+        draw_text_box((Rectangle){ (float)x, (float)y, (float)(max_x - x), (float)line_h },
+            tokens[i], size, 0, token_color(tokens[i], fallback), TEXT_ALIGN_LEFT);
         x += tw + gap;
     }
 }
@@ -344,14 +318,12 @@ static void draw_card_stat_number(Rectangle dest, int row, int value, Color colo
     char text[8];
     snprintf(text, sizeof(text), "%d", value);
 
-    int size = 10;
     int x = scaled_x(dest, 13);
     int y = scaled_y(dest, (float)row_y[row]);
     int max_w = scaled_len(dest, 17);
-    while (size > 6 && MeasureText(text, size) > max_w)
-        size--;
 
-    DrawText(text, x + max_w - MeasureText(text, size), y, size, color);
+    draw_text_box((Rectangle){ (float)(x - 2), (float)y, (float)(max_w + 2), (float)ui_line_height(10) },
+        text, 10, 0, color, TEXT_ALIGN_RIGHT);
 }
 
 static void add_detail_line(char lines[][80], int *count, int max_lines, const char *fmt, ...)
@@ -492,6 +464,14 @@ static int build_card_detail_lines(const CardDef *card, bool upgraded, char line
         add_detail_line(lines, &count, max_lines, "%s", card->description);
 
     return count;
+}
+
+static void append_detail_text(char *dst, int dst_size, const char *text)
+{
+    if (!dst || dst_size <= 0 || !text || !text[0]) return;
+    int used = (int)strlen(dst);
+    if (used >= dst_size - 1) return;
+    snprintf(dst + used, (size_t)(dst_size - used), "%s", text);
 }
 
 static Texture2D class_icon_texture(ClassType ct)
@@ -672,7 +652,8 @@ void theme_draw_effect_badge(Rectangle bounds, const char *label, Color color)
 {
     DrawRectangleRec(bounds, color_fade_alpha(color, 58));
     DrawRectangleLinesEx(bounds, 1.0f, color_fade_alpha(color, 185));
-    DrawText(label, snap_i(bounds.x + bounds.width / 2 - MeasureText(label, 10) / 2), snap_i(bounds.y + 5), 10, RAYWHITE);
+    draw_text_box((Rectangle){ bounds.x + 2.0f, bounds.y + 3.0f, bounds.width - 4.0f, bounds.height - 5.0f },
+        label, 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
 }
 
 void theme_draw_class_portrait(ClassType ct, int cx, int cy, int radius, bool alive)
@@ -742,11 +723,12 @@ void theme_draw_card_art(Rectangle bounds, const CardDef *card, bool upgraded)
 
     int name_x = scaled_x(dest, 4);
     int name_w = scaled_len(dest, 88);
-    int name_size = 10;
-    int name_lines = MeasureText(card->name, name_size) > name_w ? 2 : 1;
-    int name_h = name_lines * name_size;
-    int name_y = scaled_y(dest, 2) + (scaled_len(dest, 26) - name_h) / 2;
-    draw_text_wrapped(card->name, name_x, name_y, name_w, name_size, 0, RAYWHITE);
+    int name_band_y = scaled_y(dest, 2);
+    int name_band_h = scaled_len(dest, 26);
+    int name_h = measure_text_box(card->name, name_w, 10, 0);
+    int name_y = name_band_y + (name_band_h - (name_h < name_band_h ? name_h : name_band_h)) / 2;
+    draw_text_box((Rectangle){ (float)name_x, (float)name_y, (float)name_w, (float)(name_band_h - (name_y - name_band_y)) },
+        card->name, 10, 0, RAYWHITE, TEXT_ALIGN_LEFT);
 
     draw_card_stat_number(dest, 0, card->cost, (Color){ 255, 255, 0, 255 });
     draw_card_stat_number(dest, 1, card_stat_heal(card, upgraded), (Color){ 255, 255, 255, 255 });
@@ -782,53 +764,105 @@ void theme_draw_card_art(Rectangle bounds, const CardDef *card, bool upgraded)
     }
 }
 
-void theme_draw_card_tooltip(Rectangle bounds, const CardDef *card, bool upgraded)
+Rectangle theme_draw_card_tooltip_limited(Rectangle bounds, const CardDef *card, bool upgraded, int explicit_max_bottom)
 {
-    if (!card) return;
+    if (!card) return bounds;
+
+    static TextScroll tooltip_scroll = { 0 };
+    static const CardDef *last_card = NULL;
+    static bool last_upgraded = false;
+    if (last_card != card || last_upgraded != upgraded)
+    {
+        tooltip_scroll.offset_y = 0;
+        last_card = card;
+        last_upgraded = upgraded;
+    }
 
     if (bounds.x < 2.0f) bounds.x = 2.0f;
     if (bounds.y < 2.0f) bounds.y = 2.0f;
     if (bounds.x + bounds.width > VIRT_W - 2)
         bounds.x = (float)(VIRT_W - 2) - bounds.width;
-    if (bounds.y + bounds.height > VIRT_H - 2)
-        bounds.y = (float)(VIRT_H - 2) - bounds.height;
 
     Color accent = theme_class_color(card->class);
     Color type = theme_card_type_color(card->type);
 
-    DrawRectangleRec(bounds, (Color){ 8, 9, 15, 244 });
-    DrawRectangleRec((Rectangle){ bounds.x, bounds.y, bounds.width, 16.0f }, color_fade_alpha(theme_class_dark(card->class), 235));
-    DrawRectangleLinesEx(bounds, 1.0f, color_fade_alpha(accent, 230));
-
     int x = (int)bounds.x + 5;
-    int y = (int)bounds.y + 3;
     int right = (int)(bounds.x + bounds.width) - 5;
+    int body_w = (int)bounds.width - 10;
 
     char cost[16];
     snprintf(cost, sizeof(cost), "E%d", card->cost);
-    DrawText(cost, right - MeasureText(cost, 10), y, 10, (Color){ 255, 235, 120, 255 });
 
     int title_w = right - x - MeasureText(cost, 10) - 8;
-    draw_text_fit(card->name, x, y, title_w, 10, RAYWHITE);
+    if (title_w < 40) title_w = body_w;
+    int title_h = measure_text_box(card->name, title_w, 10, 0);
+    if (title_h < ui_line_height(10)) title_h = ui_line_height(10);
 
-    char meta[80];
+    char meta[96];
     snprintf(meta, sizeof(meta), "%s  %s  %s",
         card_class_label(card),
         theme_card_type_label(card->type),
         target_code(card));
-    DrawText(meta, x, (int)bounds.y + 20, 10, type);
+
+    char details[1800] = "";
+    if (card->description && card->description[0])
+    {
+        append_detail_text(details, sizeof(details), card->description);
+        append_detail_text(details, sizeof(details), "\n\n");
+    }
 
     char lines[12][80];
     int line_count = build_card_detail_lines(card, upgraded, lines, 12);
-    int line_y = (int)bounds.y + 32;
-    int line_h = 10;
-    int max_lines = ((int)(bounds.y + bounds.height) - line_y - 3) / line_h;
-    if (max_lines < 0) max_lines = 0;
-    if (line_count > max_lines) line_count = max_lines;
-
     for (int i = 0; i < line_count; i++)
     {
-        Color line_color = i == 0 ? RAYWHITE : (Color){ 190, 194, 215, 235 };
-        draw_text_fit(lines[i], x, line_y + i * line_h, (int)bounds.width - 10, 10, line_color);
+        append_detail_text(details, sizeof(details), lines[i]);
+        if (i < line_count - 1)
+            append_detail_text(details, sizeof(details), "\n");
     }
+
+    int details_y = (int)bounds.y + 6 + title_h + 15;
+    int details_h = measure_text_box(details, body_w - 3, 10, 0);
+    int needed_h = details_y - (int)bounds.y + details_h + 6;
+    bool combat_inspector = bounds.x > 430.0f && bounds.y < 100.0f && bounds.height <= 116.0f;
+    int max_bottom = explicit_max_bottom > 0 ? explicit_max_bottom : (combat_inspector ? HAND_Y - 8 : VIRT_H - 4);
+    int max_h = max_bottom - (int)bounds.y;
+    if (max_h < 64) max_h = (int)bounds.height;
+    if ((int)bounds.height < needed_h)
+    {
+        bounds.height = (float)(needed_h < max_h ? needed_h : max_h);
+    }
+    if (bounds.y + bounds.height > VIRT_H - 2)
+        bounds.y = (float)(VIRT_H - 2) - bounds.height;
+    if (bounds.y < 2.0f) bounds.y = 2.0f;
+
+    x = (int)bounds.x + 5;
+    right = (int)(bounds.x + bounds.width) - 5;
+    body_w = (int)bounds.width - 10;
+    details_y = (int)bounds.y + 6 + title_h + 15;
+
+    DrawRectangleRec(bounds, (Color){ 8, 9, 15, 244 });
+    DrawRectangleRec((Rectangle){ bounds.x, bounds.y, bounds.width, (float)(title_h + 8) }, color_fade_alpha(theme_class_dark(card->class), 235));
+    DrawRectangleLinesEx(bounds, 1.0f, color_fade_alpha(accent, 230));
+
+    draw_text_box((Rectangle){ (float)x, bounds.y + 4.0f, (float)title_w, (float)title_h },
+        card->name, 10, 0, RAYWHITE, TEXT_ALIGN_LEFT);
+    DrawText(cost, right - MeasureText(cost, 10), (int)bounds.y + 4, 10, (Color){ 255, 235, 120, 255 });
+    draw_text_box((Rectangle){ (float)x, (float)(details_y - 12), (float)body_w, 12.0f },
+        meta, 10, 0, type, TEXT_ALIGN_LEFT);
+
+    Rectangle detail_box = {
+        (float)x,
+        (float)details_y,
+        (float)(body_w - 3),
+        bounds.y + bounds.height - details_y - 5.0f
+    };
+    if (detail_box.height < 12.0f) detail_box.height = 12.0f;
+    draw_text_box_scrolled(detail_box, details, 10, 0, (Color){ 205, 210, 230, 238 },
+        TEXT_ALIGN_LEFT, &tooltip_scroll, true);
+    return bounds;
+}
+
+Rectangle theme_draw_card_tooltip(Rectangle bounds, const CardDef *card, bool upgraded)
+{
+    return theme_draw_card_tooltip_limited(bounds, card, upgraded, 0);
 }

@@ -58,16 +58,24 @@ void codex_screen_update(void)
 
 static void draw_line(int *y, const char *title, const char *body, Color accent)
 {
-    DrawText(title, 54, *y, 10, accent);
-    draw_text_wrapped(body, 164, *y, 420, 10, 2, (Color){ 205, 210, 230, 230 });
-    *y += 30;
+    int body_h = measure_text_box(body, 420, 10, 0);
+    if (body_h < ui_line_height(10)) body_h = ui_line_height(10);
+    draw_text_box((Rectangle){ 54.0f, (float)*y, 100.0f, (float)body_h },
+        title, 10, 0, accent, TEXT_ALIGN_LEFT);
+    draw_text_box((Rectangle){ 164.0f, (float)*y, 420.0f, (float)body_h },
+        body, 10, 0, (Color){ 205, 210, 230, 230 }, TEXT_ALIGN_LEFT);
+    *y += body_h + 8;
 }
 
 static void draw_compact_line(int *y, const char *title, const char *body, Color accent)
 {
-    DrawText(title, 54, *y, 10, accent);
-    draw_text_wrapped(body, 154, *y, 430, 10, 1, (Color){ 205, 210, 230, 230 });
-    *y += 20;
+    int body_h = measure_text_box(body, 430, 10, 0);
+    if (body_h < ui_line_height(10)) body_h = ui_line_height(10);
+    draw_text_box((Rectangle){ 54.0f, (float)*y, 90.0f, (float)body_h },
+        title, 10, 0, accent, TEXT_ALIGN_LEFT);
+    draw_text_box((Rectangle){ 154.0f, (float)*y, 430.0f, (float)body_h },
+        body, 10, 0, (Color){ 205, 210, 230, 230 }, TEXT_ALIGN_LEFT);
+    *y += body_h + 6;
 }
 
 static void draw_statuses(int *y)
@@ -127,7 +135,7 @@ static void draw_passives(int *y)
 void codex_screen_draw(void)
 {
     theme_draw_background();
-    DrawText("COLLECTIVE", VIRT_W / 2 - MeasureText("COLLECTIVE", 18) / 2, 30, 18, RAYWHITE);
+    draw_text_box((Rectangle){ 80.0f, 30.0f, 480.0f, 22.0f }, "COLLECTIVE", 18, 0, RAYWHITE, TEXT_ALIGN_CENTER);
 
     Vector2 mouse = GetMousePosition();
     for (int i = 0; i < 5; i++)
@@ -138,7 +146,8 @@ void codex_screen_draw(void)
         Color bg = active ? (Color){ 56, 48, 82, 245 } : hover ? (Color){ 38, 44, 66, 245 } : (Color){ 22, 25, 38, 230 };
         DrawRectangleRec(r, bg);
         DrawRectangleLinesEx(r, 1.0f, active ? (Color){ 230, 205, 95, 240 } : (Color){ 95, 105, 135, 190 });
-        DrawText(tab_names[i], snap_i(r.x + r.width / 2 - MeasureText(tab_names[i], 10) / 2), snap_i(r.y + 6), 10, RAYWHITE);
+        draw_text_box((Rectangle){ r.x + 4.0f, r.y + 4.0f, r.width - 8.0f, r.height - 6.0f },
+            tab_names[i], 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
     }
 
     Rectangle panel = { 42.0f, 98.0f, 556.0f, 206.0f };
@@ -146,11 +155,13 @@ void codex_screen_draw(void)
     DrawRectangleLinesEx(panel, 1.0f, (Color){ 105, 115, 150, 180 });
 
     int y = 112;
+    BeginScissorMode((int)panel.x + 1, (int)panel.y + 1, (int)panel.width - 2, (int)panel.height - 2);
     if (codex_tab == 0) draw_statuses(&y);
     else if (codex_tab == 1) draw_synergies(&y);
     else if (codex_tab == 2) draw_combos(&y);
     else if (codex_tab == 3) draw_classes(&y);
     else draw_passives(&y);
+    EndScissorMode();
 
     button_draw(&back_btn);
 }

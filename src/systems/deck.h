@@ -77,6 +77,7 @@ int  card_heal(const CardDef *def, bool upgraded);
 int  card_shield(const CardDef *def, bool upgraded);
 int  card_repeat_hits(const CardDef *def);
 bool card_has_effect(const CardDef *def, CardEffectType type);
+bool card_upgrade_changes_values(const CardDef *def);
 
 typedef struct {
     CardInstance cards[MAX_DECK_SIZE];

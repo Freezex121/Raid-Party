@@ -25,6 +25,7 @@ void theme_draw_cost_gem(int cx, int cy, int cost, bool enabled);
 void theme_draw_effect_badge(Rectangle bounds, const char *label, Color color);
 void theme_draw_class_portrait(ClassType ct, int cx, int cy, int radius, bool alive);
 void theme_draw_card_art(Rectangle bounds, const CardDef *card, bool upgraded);
-void theme_draw_card_tooltip(Rectangle bounds, const CardDef *card, bool upgraded);
+Rectangle theme_draw_card_tooltip(Rectangle bounds, const CardDef *card, bool upgraded);
+Rectangle theme_draw_card_tooltip_limited(Rectangle bounds, const CardDef *card, bool upgraded, int max_bottom);
 
 #endif

@@ -138,7 +138,9 @@ static bool upgrade_random_card(char *out, int out_size)
     int candidates[MAX_DECK_SIZE];
     int count = 0;
     for (int i = 0; i < g_state.run_deck.card_count; i++)
-        if (g_state.run_deck.cards[i].def && !g_state.run_deck.cards[i].upgraded)
+        if (g_state.run_deck.cards[i].def &&
+            !g_state.run_deck.cards[i].upgraded &&
+            card_upgrade_changes_values(g_state.run_deck.cards[i].def))
             candidates[count++] = i;
 
     if (count <= 0)
@@ -370,8 +372,8 @@ void event_screen_draw(void)
 
     if (mode == EVENT_REMOVE_CARD)
     {
-        DrawText("TRAVEL LIGHT", (VIRT_W / 2) - MeasureText("TRAVEL LIGHT", 18) / 2, 16, 18, RAYWHITE);
-        DrawText("Pick a card to remove. Right-click cancels.", (VIRT_W / 2) - MeasureText("Pick a card to remove. Right-click cancels.", 10) / 2, 34, 10, (Color){ 160, 160, 180, 180 });
+        draw_text_box((Rectangle){ 80.0f, 16.0f, 480.0f, 20.0f }, "TRAVEL LIGHT", 18, 0, RAYWHITE, TEXT_ALIGN_CENTER);
+        draw_text_box((Rectangle){ 80.0f, 34.0f, 480.0f, 14.0f }, "Pick a card to remove. Right-click cancels.", 10, 0, (Color){ 160, 160, 180, 180 }, TEXT_ALIGN_CENTER);
         deck_browser_draw(&event_browser, &g_state.run_deck, false, (Color){ 255, 115, 115, 255 });
         if (hovered_deck >= 0 && g_state.run_deck.cards[hovered_deck].def)
             theme_draw_card_tooltip(layout_deck_inspector_panel(), g_state.run_deck.cards[hovered_deck].def, g_state.run_deck.cards[hovered_deck].upgraded);
@@ -380,9 +382,9 @@ void event_screen_draw(void)
 
     const EventDef *event = active_event_def();
     const char *title = event ? event->name : "EVENT";
-    DrawText(title, (VIRT_W / 2) - MeasureText(title, 18) / 2, 66, 18, (Color){ 130, 225, 235, 255 });
+    draw_text_box((Rectangle){ 80.0f, 66.0f, 480.0f, 22.0f }, title, 18, 0, (Color){ 130, 225, 235, 255 }, TEXT_ALIGN_CENTER);
     const char *body = event ? event->body : "";
-    DrawText(body, (VIRT_W / 2) - MeasureText(body, 10) / 2, 98, 10, (Color){ 185, 190, 215, 225 });
+    draw_text_box((Rectangle){ 96.0f, 96.0f, 448.0f, 42.0f }, body, 10, 0, (Color){ 185, 190, 215, 225 }, TEXT_ALIGN_CENTER);
 
     if (mode == EVENT_CHOICE)
     {
@@ -401,16 +403,18 @@ void event_screen_draw(void)
             Color desc_col = available ? (Color){ 180, 190, 210, 225 } : (Color){ 100, 102, 120, 205 };
             DrawRectangleRec(r, bg);
             DrawRectangleLinesEx(r, hover && available ? 2.0f : 1.0f, border);
-            DrawText(event->choices[i].label, (int)r.x + 9, (int)r.y + 10, 10, title_col);
-            draw_text_wrapped(event->choices[i].description, (int)r.x + 9, (int)r.y + 31, (int)r.width - 18, 10, 2, desc_col);
+            draw_text_box((Rectangle){ r.x + 9.0f, r.y + 8.0f, r.width - 18.0f, 18.0f },
+                event->choices[i].label, 10, 0, title_col, TEXT_ALIGN_LEFT);
+            draw_text_box((Rectangle){ r.x + 9.0f, r.y + 30.0f, r.width - 18.0f, r.height - 36.0f },
+                event->choices[i].description, 10, 0, desc_col, TEXT_ALIGN_LEFT);
         }
 
         if (event_msg[0])
-            DrawText(event_msg, (VIRT_W / 2) - MeasureText(event_msg, 10) / 2, 238, 10, (Color){ 210, 165, 105, 230 });
+            draw_text_box((Rectangle){ 96.0f, 238.0f, 448.0f, 28.0f }, event_msg, 10, 0, (Color){ 210, 165, 105, 230 }, TEXT_ALIGN_CENTER);
     }
     else
     {
-        DrawText(event_msg, (VIRT_W / 2) - MeasureText(event_msg, 10) / 2, 158, 10, RAYWHITE);
-        DrawText("Click to continue.", (VIRT_W / 2) - MeasureText("Click to continue.", 10) / 2, 186, 10, (Color){ 160, 160, 190, 220 });
+        draw_text_box((Rectangle){ 96.0f, 154.0f, 448.0f, 38.0f }, event_msg, 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
+        draw_text_box((Rectangle){ 96.0f, 192.0f, 448.0f, 14.0f }, "Click to continue.", 10, 0, (Color){ 160, 160, 190, 220 }, TEXT_ALIGN_CENTER);
     }
 }

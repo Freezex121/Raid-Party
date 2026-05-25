@@ -7,6 +7,7 @@
 #include "ui/theme.h"
 #include "ui/layout.h"
 #include "util/math_utils.h"
+#include "util/text.h"
 #include "raylib.h"
 #include <stdio.h>
 
@@ -139,11 +140,11 @@ void shop_screen_draw(void)
 {
     theme_draw_background();
 
-    DrawText("SHOP", (VIRT_W / 2) - MeasureText("SHOP", 18) / 2, 72, 18, (Color){ 220, 200, 60, 255 });
+    draw_text_box((Rectangle){ 80.0f, 72.0f, 480.0f, 22.0f }, "SHOP", 18, 0, (Color){ 220, 200, 60, 255 }, TEXT_ALIGN_CENTER);
 
     char gold_text[32];
     snprintf(gold_text, sizeof(gold_text), "Gold: %d", g_state.gold);
-    DrawText(gold_text, (VIRT_W / 2) - MeasureText(gold_text, 10) / 2, 100, 10, (Color){ 220, 200, 60, 220 });
+    draw_text_box((Rectangle){ 80.0f, 100.0f, 480.0f, 14.0f }, gold_text, 10, 0, (Color){ 220, 200, 60, 220 }, TEXT_ALIGN_CENTER);
 
     if (mode == SHOP_MAIN)
     {
@@ -162,31 +163,33 @@ void shop_screen_draw(void)
 
         DrawRectangleRec(upg_btn, uc);
         char ul[64]; snprintf(ul, sizeof(ul), "UPGRADE (%dg)", UPGRADE_COST);
-        DrawText(ul, snap_i(upg_btn.x + upg_btn.width / 2 - MeasureText(ul, 10) / 2), snap_i(upg_btn.y) + 11, 10, can_upg ? RAYWHITE : (Color){ 100, 100, 120, 200 });
+        draw_text_box((Rectangle){ upg_btn.x + 6.0f, upg_btn.y + 8.0f, upg_btn.width - 12.0f, upg_btn.height - 14.0f },
+            ul, 10, 0, can_upg ? RAYWHITE : (Color){ 100, 100, 120, 200 }, TEXT_ALIGN_CENTER);
 
         DrawRectangleRec(rem_btn, rc);
         char rl[64]; snprintf(rl, sizeof(rl), "REMOVE (%dg)", REMOVE_COST);
-        DrawText(rl, snap_i(rem_btn.x + rem_btn.width / 2 - MeasureText(rl, 10) / 2), snap_i(rem_btn.y) + 11, 10, can_rem ? RAYWHITE : (Color){ 100, 100, 120, 200 });
+        draw_text_box((Rectangle){ rem_btn.x + 6.0f, rem_btn.y + 8.0f, rem_btn.width - 12.0f, rem_btn.height - 14.0f },
+            rl, 10, 0, can_rem ? RAYWHITE : (Color){ 100, 100, 120, 200 }, TEXT_ALIGN_CENTER);
 
         if (msg[0])
-            DrawText(msg, (VIRT_W / 2) - MeasureText(msg, 10) / 2, 224, 10, (Color){ 200, 150, 100, 220 });
+            draw_text_box((Rectangle){ 96.0f, 224.0f, 448.0f, 28.0f }, msg, 10, 0, (Color){ 200, 150, 100, 220 }, TEXT_ALIGN_CENTER);
     }
     else if (mode == SHOP_UPGRADE)
     {
-        DrawText("PICK A CARD TO UPGRADE", (VIRT_W / 2) - MeasureText("PICK A CARD TO UPGRADE", 18) / 2, 16, 18, RAYWHITE);
+        draw_text_box((Rectangle){ 80.0f, 16.0f, 480.0f, 22.0f }, "PICK A CARD TO UPGRADE", 18, 0, RAYWHITE, TEXT_ALIGN_CENTER);
         char hint[80];
         snprintf(hint, sizeof(hint), "%d cards  |  wheel scroll  |  right-click cancel", g_state.run_deck.card_count);
-        DrawText(hint, (VIRT_W / 2) - MeasureText(hint, 10) / 2, 34, 10, (Color){ 160, 160, 180, 180 });
+        draw_text_box((Rectangle){ 80.0f, 34.0f, 480.0f, 14.0f }, hint, 10, 0, (Color){ 160, 160, 180, 180 }, TEXT_ALIGN_CENTER);
         deck_browser_draw(&shop_browser, &g_state.run_deck, true, RAYWHITE);
         if (hovered_deck >= 0 && g_state.run_deck.cards[hovered_deck].def)
             theme_draw_card_tooltip(layout_deck_inspector_panel(), g_state.run_deck.cards[hovered_deck].def, g_state.run_deck.cards[hovered_deck].upgraded);
     }
     else if (mode == SHOP_REMOVE)
     {
-        DrawText("PICK A CARD TO REMOVE", (VIRT_W / 2) - MeasureText("PICK A CARD TO REMOVE", 18) / 2, 16, 18, (Color){ 220, 120, 120, 255 });
+        draw_text_box((Rectangle){ 80.0f, 16.0f, 480.0f, 22.0f }, "PICK A CARD TO REMOVE", 18, 0, (Color){ 220, 120, 120, 255 }, TEXT_ALIGN_CENTER);
         char hint[80];
         snprintf(hint, sizeof(hint), "%d cards  |  wheel scroll  |  right-click cancel", g_state.run_deck.card_count);
-        DrawText(hint, (VIRT_W / 2) - MeasureText(hint, 10) / 2, 34, 10, (Color){ 160, 160, 180, 180 });
+        draw_text_box((Rectangle){ 80.0f, 34.0f, 480.0f, 14.0f }, hint, 10, 0, (Color){ 160, 160, 180, 180 }, TEXT_ALIGN_CENTER);
         deck_browser_draw(&shop_browser, &g_state.run_deck, false, (Color){ 255, 100, 100, 255 });
         if (hovered_deck >= 0 && g_state.run_deck.cards[hovered_deck].def)
             theme_draw_card_tooltip(layout_deck_inspector_panel(), g_state.run_deck.cards[hovered_deck].def, g_state.run_deck.cards[hovered_deck].upgraded);
@@ -194,8 +197,8 @@ void shop_screen_draw(void)
     else if (mode == SHOP_DONE)
     {
         Color c = (Color){ 100, 220, 120, 255 };
-        DrawText(msg, (VIRT_W / 2) - MeasureText(msg, 18) / 2, 164, 18, c);
-        DrawText("Click to continue.", (VIRT_W / 2) - MeasureText("Click to continue.", 10) / 2, 190, 10, (Color){ 160, 160, 180, 200 });
+        draw_text_box((Rectangle){ 80.0f, 164.0f, 480.0f, 22.0f }, msg, 18, 0, c, TEXT_ALIGN_CENTER);
+        draw_text_box((Rectangle){ 80.0f, 190.0f, 480.0f, 14.0f }, "Click to continue.", 10, 0, (Color){ 160, 160, 180, 200 }, TEXT_ALIGN_CENTER);
     }
 }
 

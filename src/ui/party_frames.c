@@ -1,6 +1,7 @@
 #include "party_frames.h"
 #include "raylib.h"
 #include "util/tween.h"
+#include "util/text.h"
 #include "ui/theme.h"
 #include "ui/layout.h"
 #include "constants.h"
@@ -54,6 +55,42 @@ static const char *status_label(StatusType type)
     return "???";
 }
 
+static const char *status_icon(StatusType type)
+{
+    switch (type)
+    {
+        case STATUS_BURNING: return "B";
+        case STATUS_RENEW: return "R";
+        case STATUS_TRAP: return "T";
+        case STATUS_TOTEM_HEAL: return "O";
+        case STATUS_BLEED: return "L";
+        case STATUS_WEAKNESS: return "W";
+        case STATUS_ENERGY_DRAIN: return "D";
+        case STATUS_MARKED: return "M";
+        case STATUS_CONDUCTIVE: return "C";
+        case STATUS_BLIGHT: return "X";
+    }
+    return "?";
+}
+
+static const char *status_description(StatusType type)
+{
+    switch (type)
+    {
+        case STATUS_BURNING: return "Burning: takes damage at the start of turns.";
+        case STATUS_RENEW: return "Renew: heals at the start of turns.";
+        case STATUS_TRAP: return "Trap: reduces outgoing damage.";
+        case STATUS_TOTEM_HEAL: return "Totem: party healing over time.";
+        case STATUS_BLEED: return "Bleed: takes damage at the start of turns.";
+        case STATUS_WEAKNESS: return "Weakness: outgoing damage is reduced.";
+        case STATUS_ENERGY_DRAIN: return "Energy Drain: lowers available energy.";
+        case STATUS_MARKED: return "Marked: enables Ranger/Rogue/Mage/Cleric payoffs.";
+        case STATUS_CONDUCTIVE: return "Conductive: enables Shaman/Mage chain effects.";
+        case STATUS_BLIGHT: return "Blight: enables Warlock, Guardian, Cleric, and Paladin payoffs.";
+    }
+    return "Status effect.";
+}
+
 static Color status_color(StatusType type)
 {
     switch (type)
@@ -86,6 +123,41 @@ static int highest_aggro_index(Party *party)
         }
     }
     return best;
+}
+
+static Rectangle party_status_rect(Rectangle frame_rect, int status_index)
+{
+    return (Rectangle){
+        frame_rect.x + frame_rect.width - 52.0f + status_index * 17.0f,
+        frame_rect.y + frame_rect.height - 14.0f,
+        15.0f,
+        11.0f
+    };
+}
+
+static void draw_status_tooltip(Rectangle anchor, StatusType status)
+{
+    const char *title = status_label(status);
+    const char *body = status_description(status);
+    Color accent = status_color(status);
+    int w = 184;
+    int body_h = measure_text_box(body, w - 12, 10, 0);
+    if (body_h < ui_line_height(10)) body_h = ui_line_height(10);
+    int h = 24 + body_h;
+    int x = (int)(anchor.x + anchor.width * 0.5f - w * 0.5f);
+    int y = (int)(anchor.y + anchor.height + 5.0f);
+    if (x < 4) x = 4;
+    if (x + w > VIRT_W - 4) x = VIRT_W - w - 4;
+    if (y + h > HAND_Y - 4) y = (int)(anchor.y - h - 5.0f);
+    if (y < 4) y = 4;
+
+    Rectangle tip = { (float)x, (float)y, (float)w, (float)h };
+    DrawRectangleRec(tip, (Color){ 10, 11, 18, 245 });
+    DrawRectangleLinesEx(tip, 1.0f, (Color){ accent.r, accent.g, accent.b, 220 });
+    draw_text_box((Rectangle){ tip.x + 6.0f, tip.y + 5.0f, tip.width - 12.0f, 12.0f },
+        title, 10, 0, accent, TEXT_ALIGN_LEFT);
+    draw_text_box((Rectangle){ tip.x + 6.0f, tip.y + 18.0f, tip.width - 12.0f, tip.height - 22.0f },
+        body, 10, 0, (Color){ 210, 214, 235, 235 }, TEXT_ALIGN_LEFT);
 }
 
 void party_frames_draw(Party *party)
@@ -123,8 +195,9 @@ void party_frames_draw(Party *party)
         shown_hp[i] += ((float)m->hp - shown_hp[i]) * speed;
         shown_shield[i] += ((float)m->shield - shown_shield[i]) * speed;
 
-        Color bg = m->alive ? (Color){ 30, 30, 50, 255 } : (Color){ 40, 30, 30, 180 };
+        Color bg = m->alive ? (Color){ 28, 29, 45, 255 } : (Color){ 40, 30, 30, 180 };
         DrawRectangleRec((Rectangle){ (float)x, (float)y, (float)frame_w, (float)frame_h }, bg);
+        DrawRectangleRec((Rectangle){ (float)x, (float)y, 3.0f, (float)frame_h }, (Color){ tint.r, tint.g, tint.b, m->alive ? 210 : 120 });
         DrawRectangleLinesEx((Rectangle){ (float)x, (float)y, (float)frame_w, (float)frame_h }, 1.0f, (Color){ tint.r, tint.g, tint.b, 135 });
 
         if (i == target_idx && m->alive)
@@ -135,12 +208,12 @@ void party_frames_draw(Party *party)
         }
 
         Color bar_bg = (Color){ 20, 20, 30, 255 };
-        int portrait_x = x + 17;
-        int portrait_y = y + 17;
-        int bar_x = x + 36;
+        int portrait_x = x + 18;
+        int portrait_y = y + 21;
+        int bar_x = x + 39;
         int bar_y = y + 7;
-        int bar_w = frame_w - 44;
-        int bar_h = 7;
+        int bar_w = frame_w - 48;
+        int bar_h = 8;
         DrawRectangleRec((Rectangle){ (float)bar_x, (float)bar_y, (float)bar_w, (float)bar_h }, bar_bg);
 
         float hp_ratio = shown_hp[i] / (float)m->max_hp;
@@ -163,16 +236,18 @@ void party_frames_draw(Party *party)
             DrawRectangleRec((Rectangle){ (float)bar_x, (float)bar_y, (float)shield_fill, (float)bar_h }, shield_col);
         }
 
-        theme_draw_class_portrait(m->class, portrait_x, portrait_y, 10, m->alive);
+        theme_draw_class_portrait(m->class, portrait_x, portrait_y, 12, m->alive);
 
         char hp_text[32];
         snprintf(hp_text, sizeof(hp_text), "%d / %d", m->hp, m->max_hp);
-        DrawText(hp_text, x + 36, y + 17, 10, (Color){ 200, 200, 220, 210 });
+        draw_text_box((Rectangle){ (float)bar_x, (float)(y + 18), (float)bar_w, 12.0f },
+            hp_text, 10, 0, (Color){ 200, 200, 220, 215 }, TEXT_ALIGN_LEFT);
 
         Color aggro_col = (Color){ 220, 160, 60, 200 };
         char agg_text[16];
         snprintf(agg_text, sizeof(agg_text), "A:%d", m->aggro);
-        DrawText(agg_text, x + 36, y + 25, 10, aggro_col);
+        draw_text_box((Rectangle){ (float)bar_x, (float)(y + 30), 28.0f, 11.0f },
+            agg_text, 10, 0, aggro_col, TEXT_ALIGN_LEFT);
 
         if (!m->alive)
         {
@@ -180,17 +255,37 @@ void party_frames_draw(Party *party)
             DrawText("DOWNED", x + frame_w / 2 - MeasureText("DOWNED", 10) / 2, y + 13, 10, (Color){ 255, 95, 95, 230 });
         }
 
-        int sx = x + frame_w - 54;
-        int sy = y + 24;
         for (int s = 0; s < m->status_count && s < 3; s++)
         {
             StatusEffect *st = &m->statuses[s];
             Color sc = status_color(st->type);
-            Rectangle pill = { (float)(sx + s * 18), (float)sy, 16.0f, 8.0f };
+            Rectangle pill = party_status_rect(frame_rect, s);
             DrawRectangleRec(pill, (Color){ sc.r, sc.g, sc.b, 70 });
             DrawRectangleLinesEx(pill, 1.0f, (Color){ sc.r, sc.g, sc.b, 180 });
-            DrawText(status_label(st->type), (int)pill.x + 1, (int)pill.y + 2, 10, (Color){ 235, 235, 245, 230 });
-            DrawText(TextFormat("%d", st->turns), (int)pill.x + 11, (int)pill.y + 1, 10, RAYWHITE);
+            char label[8];
+            snprintf(label, sizeof(label), "%s%d", status_icon(st->type), st->turns);
+            draw_text_box((Rectangle){ pill.x + 1.0f, pill.y, pill.width - 2.0f, pill.height },
+                label, 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
+        }
+    }
+}
+
+void party_frames_draw_tooltips(Party *party)
+{
+    if (!party) return;
+    Vector2 mouse = GetMousePosition();
+    for (int i = 0; i < party->count; i++)
+    {
+        PartyMember *m = &party->members[i];
+        Rectangle frame_rect = layout_party_frame_rect(party->count, i);
+        for (int s = 0; s < m->status_count && s < 3; s++)
+        {
+            Rectangle r = party_status_rect(frame_rect, s);
+            if (CheckCollisionPointRec(mouse, r))
+            {
+                draw_status_tooltip(r, m->statuses[s].type);
+                return;
+            }
         }
     }
 }

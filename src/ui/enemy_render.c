@@ -1,6 +1,7 @@
 #include "enemy_render.h"
 #include "ui/theme.h"
 #include "constants.h"
+#include "util/text.h"
 #include "raylib.h"
 #include <math.h>
 #include <stdio.h>
@@ -75,6 +76,42 @@ static const char *status_icon(StatusType type)
     }
 }
 
+static const char *status_name(StatusType type)
+{
+    switch (type)
+    {
+        case STATUS_BURNING: return "BURNING";
+        case STATUS_TRAP: return "TRAP";
+        case STATUS_BLEED: return "BLEED";
+        case STATUS_WEAKNESS: return "WEAKNESS";
+        case STATUS_MARKED: return "MARKED";
+        case STATUS_CONDUCTIVE: return "CONDUCTIVE";
+        case STATUS_BLIGHT: return "BLIGHT";
+        case STATUS_RENEW: return "RENEW";
+        case STATUS_TOTEM_HEAL: return "TOTEM";
+        case STATUS_ENERGY_DRAIN: return "ENERGY DRAIN";
+        default: return "STATUS";
+    }
+}
+
+static const char *status_description(StatusType type)
+{
+    switch (type)
+    {
+        case STATUS_MARKED: return "Marked: enables Ranger setup and Rogue, Mage, Cleric, Paladin, and Warlock payoffs.";
+        case STATUS_CONDUCTIVE: return "Conductive: enables Shaman and Mage chain effects, plus Rogue and Warlock payoffs.";
+        case STATUS_BLIGHT: return "Blight: enables Guardian, Cleric, Paladin, and Warlock cash-out effects.";
+        case STATUS_BURNING: return "Burning: takes damage at the start of turns.";
+        case STATUS_TRAP: return "Trap: deals less damage while active.";
+        case STATUS_BLEED: return "Bleed: takes damage at the start of turns.";
+        case STATUS_WEAKNESS: return "Weakness: outgoing damage is reduced.";
+        case STATUS_RENEW: return "Renew: heals over time.";
+        case STATUS_TOTEM_HEAL: return "Totem: healing over time.";
+        case STATUS_ENERGY_DRAIN: return "Energy Drain: reduces available energy.";
+        default: return "Status effect.";
+    }
+}
+
 static Color status_icon_color(StatusType type)
 {
     switch (type)
@@ -113,6 +150,40 @@ static void draw_enemy_statuses(EnemyState *enemy, int cx, int top_y)
         DrawText(icon, (int)r.x + 3, (int)r.y + 2, 10, RAYWHITE);
         DrawText(TextFormat("%d", st->turns), (int)r.x + 7, (int)r.y + 6, 10, RAYWHITE);
     }
+}
+
+static Rectangle enemy_status_rect(EnemyState *enemy, int cx, int top_y, int index)
+{
+    int count = enemy->status_count;
+    if (count > 5) count = 5;
+    int start_x = cx - (count * 13) / 2;
+    return (Rectangle){ (float)(start_x + index * 13), (float)top_y, 11.0f, 11.0f };
+}
+
+static void draw_status_tooltip(Rectangle anchor, StatusType status)
+{
+    Color accent = status_icon_color(status);
+    const char *title = status_name(status);
+    const char *body = status_description(status);
+    int w = 196;
+    int body_h = measure_text_box(body, w - 12, 10, 0);
+    if (body_h < ui_line_height(10)) body_h = ui_line_height(10);
+    int h = 24 + body_h;
+    int x = (int)(anchor.x + anchor.width * 0.5f - w * 0.5f);
+    int y = (int)(anchor.y - h - 5.0f);
+    if (x < 4) x = 4;
+    if (x + w > VIRT_W - 4) x = VIRT_W - w - 4;
+    if (y < FRAME_Y + FRAME_H + 3) y = (int)(anchor.y + anchor.height + 5.0f);
+    if (y + h > HAND_Y - 4) y = HAND_Y - h - 4;
+    if (y < 4) y = 4;
+
+    Rectangle tip = { (float)x, (float)y, (float)w, (float)h };
+    DrawRectangleRec(tip, (Color){ 10, 11, 18, 245 });
+    DrawRectangleLinesEx(tip, 1.0f, (Color){ accent.r, accent.g, accent.b, 225 });
+    draw_text_box((Rectangle){ tip.x + 6.0f, tip.y + 5.0f, tip.width - 12.0f, 12.0f },
+        title, 10, 0, accent, TEXT_ALIGN_LEFT);
+    draw_text_box((Rectangle){ tip.x + 6.0f, tip.y + 18.0f, tip.width - 12.0f, tip.height - 22.0f },
+        body, 10, 0, (Color){ 210, 214, 235, 235 }, TEXT_ALIGN_LEFT);
 }
 
 void enemy_render_draw(EnemyState *enemy, bool highlighted, bool targeting)
@@ -162,8 +233,8 @@ void enemy_render_draw(EnemyState *enemy, bool highlighted, bool targeting)
     Rectangle nameplate = { (float)(cx - 42), (float)(draw_y - size / 2 - 22), 84.0f, 14.0f };
     DrawRectangleRec(nameplate, (Color){ 18, 18, 28, 220 });
     DrawRectangleLinesEx(nameplate, 1.0f, (Color){ accent.r, accent.g, accent.b, 170 });
-    int name_size = 10;
-    DrawText(enemy->def->name, cx - MeasureText(enemy->def->name, name_size) / 2, (int)nameplate.y + 3, name_size, RAYWHITE);
+    draw_text_box((Rectangle){ nameplate.x + 3.0f, nameplate.y + 2.0f, nameplate.width - 6.0f, nameplate.height - 3.0f },
+        enemy->def->name, 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
     if (enemy->status_count > 0)
         draw_enemy_statuses(enemy, cx, (int)nameplate.y - 13);
 
@@ -193,6 +264,31 @@ void enemy_render_draw(EnemyState *enemy, bool highlighted, bool targeting)
         char shield_text[24];
         snprintf(shield_text, sizeof(shield_text), "S%d", enemy->shield);
         DrawText(shield_text, cx - MeasureText(shield_text, 10) / 2, hp_y + 11, 10, (Color){ 130, 200, 255, 235 });
+    }
+}
+
+void enemy_render_draw_status_tooltip(EnemyState *enemy)
+{
+    if (!enemy || !enemy->def || enemy->hp <= 0 || enemy->status_count <= 0) return;
+
+    int cx = enemy->pos_x;
+    int cy = enemy->pos_y;
+    int size = ENEMY_SIZE;
+    float bob = sinf((float)GetTime() * 2.0f + cx * 0.01f) * 1.2f;
+    int draw_y = cy + (int)bob;
+    int top_y = draw_y - size / 2 - 22 - 13;
+    int count = enemy->status_count;
+    if (count > 5) count = 5;
+
+    Vector2 mouse = GetMousePosition();
+    for (int i = 0; i < count; i++)
+    {
+        Rectangle r = enemy_status_rect(enemy, cx, top_y, i);
+        if (CheckCollisionPointRec(mouse, r))
+        {
+            draw_status_tooltip(r, enemy->statuses[i].type);
+            return;
+        }
     }
 }
 

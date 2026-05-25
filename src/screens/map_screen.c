@@ -4,6 +4,7 @@
 #include "data/area_defs.h"
 #include "data/encounter_defs.h"
 #include "util/log.h"
+#include "util/text.h"
 #include "ui/relic_tray.h"
 #include "ui/theme.h"
 #include "raylib.h"
@@ -181,13 +182,13 @@ void map_screen_draw(void)
 
     char title[96];
     snprintf(title, sizeof(title), "%s", area ? area->name : "Area");
-    DrawText(title, (VIRT_W / 2) - MeasureText(title, 18) / 2, 14, 18, RAYWHITE);
+    draw_text_box((Rectangle){ 110.0f, 14.0f, 420.0f, 22.0f }, title, 18, 0, RAYWHITE, TEXT_ALIGN_CENTER);
     char subtitle[96];
     snprintf(subtitle, sizeof(subtitle), "Area %d  Floor %d/%d  Choose your route",
         g_state.current_area + 1,
         g_state.map.floor + 1,
         floor_count);
-    DrawText(subtitle, (VIRT_W / 2) - MeasureText(subtitle, 10) / 2, 36, 10, (Color){ 150, 155, 180, 210 });
+    draw_text_box((Rectangle){ 110.0f, 36.0f, 420.0f, 14.0f }, subtitle, 10, 0, (Color){ 150, 155, 180, 210 }, TEXT_ALIGN_CENTER);
     relic_tray_draw(g_state.relics, g_state.relic_count, (Rectangle){ 482.0f, 10.0f, 146.0f, 42.0f });
 
     MapState *map = &g_state.map;
@@ -266,7 +267,7 @@ void map_screen_draw(void)
     if (bounds.height > VIRT_H - 52 || bounds.width > VIRT_W)
     {
         const char *hint = "Wheel scrolls map  |  Shift+wheel pans";
-        DrawText(hint, VIRT_W / 2 - MeasureText(hint, 10) / 2, VIRT_H - 12, 10, (Color){ 150, 155, 180, 185 });
+        draw_text_box((Rectangle){ 110.0f, (float)(VIRT_H - 13), 420.0f, 12.0f }, hint, 10, 0, (Color){ 150, 155, 180, 185 }, TEXT_ALIGN_CENTER);
     }
 
     if (hovered_node >= 0 && map->nodes[hovered_node].available && !map->nodes[hovered_node].completed)
@@ -275,11 +276,12 @@ void map_screen_draw(void)
         Rectangle tip = { (float)((VIRT_W / 2) - 70), (float)(VIRT_H - 38), 140.0f, 26.0f };
         DrawRectangleRec(tip, (Color){ 20, 21, 32, 230 });
         DrawRectangleLinesEx(tip, 1.0f, (Color){ 95, 100, 130, 220 });
-        DrawText(theme_node_name(n->type), (VIRT_W / 2) - MeasureText(theme_node_name(n->type), 10) / 2, (int)tip.y + 4, 10, theme_node_color(n->type));
-        DrawText("Click to travel", (VIRT_W / 2) - MeasureText("Click to travel", 10) / 2, (int)tip.y + 16, 10, (Color){ 175, 178, 205, 220 });
+        draw_text_box((Rectangle){ tip.x + 4.0f, tip.y + 4.0f, tip.width - 8.0f, 12.0f },
+            theme_node_name(n->type), 10, 0, theme_node_color(n->type), TEXT_ALIGN_CENTER);
+        draw_text_box((Rectangle){ tip.x + 4.0f, tip.y + 16.0f, tip.width - 8.0f, 10.0f },
+            "Click to travel", 10, 0, (Color){ 175, 178, 205, 220 }, TEXT_ALIGN_CENTER);
     }
 }
-
 
 
 

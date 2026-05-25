@@ -1,6 +1,7 @@
 #include "floating_text.h"
 #include "constants.h"
 #include "util/math_utils.h"
+#include "util/text.h"
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
@@ -66,7 +67,7 @@ void ft_spawn(float x, float y, const char *text, int size, Color color)
     pool[i].life = 1.2f;
     pool[i].max_life = 1.2f;
     pool[i].color = color;
-    pool[i].font_size = size;
+    pool[i].font_size = ui_font_size(size);
     pool[i].active = true;
     pool[i].shake = false;
     strncpy(pool[i].text, text, sizeof(pool[i].text) - 1);
@@ -151,12 +152,10 @@ void ft_draw(void)
         if (!pool[i].active) continue;
         float t = 1.0f - pool[i].life / pool[i].max_life;
         float alpha = 1.0f - t * t;
-        float scale = 1.0f + t * 0.1f;
-
         Color c = pool[i].color;
         c.a = (unsigned char)(alpha * 255);
 
-        int fs = snap_i(pool[i].font_size * scale);
+        int fs = ui_font_size(pool[i].font_size);
         DrawText(pool[i].text, snap_i(pool[i].x), snap_i(pool[i].y), fs, c);
     }
 

@@ -2,6 +2,7 @@
 #include "game.h"
 #include "data/area_defs.h"
 #include "ui/theme.h"
+#include "util/text.h"
 #include "constants.h"
 #include "raylib.h"
 #include <stdio.h>
@@ -57,11 +58,11 @@ void game_over_screen_draw(void)
     const char *title = g_state.run_won ? "VICTORY" : "PARTY WIPED";
     Color title_col = g_state.run_won ? (Color){ 90, 230, 140, 255 } : (Color){ 230, 80, 80, 255 };
 
-    DrawText(title, (VIRT_W / 2) - MeasureText(title, 18) / 2, 58, 18, title_col);
+    draw_text_box((Rectangle){ 80.0f, 58.0f, 480.0f, 22.0f }, title, 18, 0, title_col, TEXT_ALIGN_CENTER);
 
     const char *reason = g_state.result_reason[0] ? g_state.result_reason :
         (g_state.run_won ? "The raid is complete." : "The run has ended.");
-    DrawText(reason, (VIRT_W / 2) - MeasureText(reason, 10) / 2, 92, 10, (Color){ 190, 190, 215, 230 });
+    draw_text_box((Rectangle){ 100.0f, 90.0f, 440.0f, 28.0f }, reason, 10, 0, (Color){ 190, 190, 215, 230 }, TEXT_ALIGN_CENTER);
 
     char line[96];
     const AreaDef *area = area_def(g_state.result_area);
@@ -98,8 +99,11 @@ void game_over_screen_draw(void)
         snprintf(line, sizeof(line), "Achievements: +%dR", g_state.result_achievement_renown);
         DrawText(line, stats_x, unlock_y, 10, (Color){ 230, 205, 95, 255 });
         unlock_y += 14;
-        DrawText(g_state.result_achievement_names, stats_x, unlock_y, 10, (Color){ 170, 220, 255, 230 });
-        unlock_y += 14;
+        int ach_h = measure_text_box(g_state.result_achievement_names, 260, 10, 0);
+        if (ach_h < ui_line_height(10)) ach_h = ui_line_height(10);
+        draw_text_box((Rectangle){ (float)stats_x, (float)unlock_y, 260.0f, (float)ach_h },
+            g_state.result_achievement_names, 10, 0, (Color){ 170, 220, 255, 230 }, TEXT_ALIGN_LEFT);
+        unlock_y += ach_h + 2;
     }
 
     if (g_state.run_won && g_state.meta.max_ascension_unlocked > 0)
@@ -138,7 +142,8 @@ void game_over_screen_draw(void)
     }
 
     const char *hint = "Click to return to title";
-    DrawText(hint, (VIRT_W / 2) - MeasureText(hint, 10) / 2, VIRT_H - 28, 10, (Color){ 160, 160, 190, 220 });
+    draw_text_box((Rectangle){ 80.0f, (float)(VIRT_H - 28), 480.0f, 14.0f },
+        hint, 10, 0, (Color){ 160, 160, 190, 220 }, TEXT_ALIGN_CENTER);
 }
 
 

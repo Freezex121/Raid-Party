@@ -35,6 +35,14 @@ bool card_has_effect(const CardDef *def, CardEffectType type)
     return false;
 }
 
+bool card_upgrade_changes_values(const CardDef *def)
+{
+    if (!def) return false;
+    return card_damage(def, true) != card_damage(def, false) ||
+           card_heal(def, true) != card_heal(def, false) ||
+           card_shield(def, true) != card_shield(def, false);
+}
+
 void deck_init(Deck *deck)
 {
     memset(deck, 0, sizeof(Deck));
@@ -49,6 +57,8 @@ void deck_add_card_upgraded(Deck *deck, const CardDef *def, bool upgraded)
 {
     if (!def || !def->id || !def->name) return;
     if (deck->card_count >= MAX_DECK_SIZE) return;
+    if (upgraded && !card_upgrade_changes_values(def))
+        upgraded = false;
     int idx = deck->card_count++;
     deck->cards[idx].def = def;
     deck->cards[idx].uid = deck->next_uid++;

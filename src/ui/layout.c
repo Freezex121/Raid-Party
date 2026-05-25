@@ -2,7 +2,6 @@
 
 int layout_party_frame_width(int party_count)
 {
-    if (party_count >= 5) return 104;
     return FRAME_W;
 }
 
@@ -116,12 +115,12 @@ Rectangle layout_hand_card_rect(HandLayout layout, int index)
 
 Rectangle layout_action_feed_panel(void)
 {
-    return (Rectangle){ 12.0f, 56.0f, 160.0f, 92.0f };
+    return (Rectangle){ 12.0f, 64.0f, 160.0f, 92.0f };
 }
 
 Rectangle layout_card_inspector_panel(void)
 {
-    return (Rectangle){ 456.0f, 56.0f, 172.0f, 112.0f };
+    return (Rectangle){ 456.0f, 64.0f, 172.0f, 112.0f };
 }
 
 Rectangle layout_energy_panel(void)
