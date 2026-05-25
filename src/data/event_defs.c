@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_EVENTS 16
+#define MAX_EVENTS 32
 
 static EventDef events[MAX_EVENTS];
 static int event_count = 0;
@@ -33,6 +33,14 @@ static EventEffectType parse_effect(const char *text)
     if (text && strcmp(text, "pay_gold_gain_relic") == 0) return EVENT_EFFECT_PAY_GOLD_GAIN_RELIC;
     if (text && strcmp(text, "pay_gold_add_card") == 0) return EVENT_EFFECT_PAY_GOLD_ADD_CARD;
     if (text && strcmp(text, "gain_gold") == 0) return EVENT_EFFECT_GAIN_GOLD;
+    if (text && strcmp(text, "gain_reroll_token") == 0) return EVENT_EFFECT_GAIN_REROLL_TOKEN;
+    if (text && strcmp(text, "pay_gold_upgrade_random_card") == 0) return EVENT_EFFECT_PAY_GOLD_UPGRADE_RANDOM_CARD;
+    if (text && strcmp(text, "gain_gold_hurt_party") == 0) return EVENT_EFFECT_GAIN_GOLD_HURT_PARTY;
+    if (text && strcmp(text, "add_card_add_curse") == 0) return EVENT_EFFECT_ADD_CARD_ADD_CURSE;
+    if (text && strcmp(text, "gain_relic_add_curse") == 0) return EVENT_EFFECT_GAIN_RELIC_ADD_CURSE;
+    if (text && strcmp(text, "duplicate_random_card_hurt_party") == 0) return EVENT_EFFECT_DUPLICATE_RANDOM_CARD_HURT_PARTY;
+    if (text && strcmp(text, "transform_random_card") == 0) return EVENT_EFFECT_TRANSFORM_RANDOM_CARD;
+    if (text && strcmp(text, "gain_max_hp") == 0) return EVENT_EFFECT_GAIN_MAX_HP;
     return EVENT_EFFECT_NONE;
 }
 

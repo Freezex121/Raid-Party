@@ -147,7 +147,20 @@ void relic_reward_screen_draw(void)
         };
         DrawRectangleRounded(icon_box, 0.22f, 6, (Color){ 57, 48, 30, 255 });
         DrawRectangleRoundedLinesEx(icon_box, 0.22f, 6, 1.0f, (Color){ 232, 211, 112, 232 });
-        DrawText(def->icon, snap_i(icon_box.x + icon_box.width * 0.5f - MeasureText(def->icon, 10) / 2), snap_i(icon_box.y) + 9, 10, RAYWHITE);
+        Texture2D icon_tex = g_assets.relic_icons[g_state.relic_reward_choices[i]];
+        if (icon_tex.id != 0)
+        {
+            float icon_draw = 32.0f;
+            float off = (RELIC_REWARD_ICON_BOX_SIZE - icon_draw) * 0.5f;
+            DrawTexturePro(icon_tex,
+                (Rectangle){ 0.0f, 0.0f, (float)icon_tex.width, (float)icon_tex.height },
+                (Rectangle){ icon_box.x + off, icon_box.y + off, icon_draw, icon_draw },
+                (Vector2){ 0, 0 }, 0.0f, WHITE);
+        }
+        else
+        {
+            DrawText(def->icon, snap_i(icon_box.x + icon_box.width * 0.5f - MeasureText(def->icon, 10) / 2), snap_i(icon_box.y) + 9, 10, RAYWHITE);
+        }
 
         draw_text_box((Rectangle){ card.x + RELIC_REWARD_NAME_X, card.y + RELIC_REWARD_NAME_Y, card.width - RELIC_REWARD_NAME_X - 10.0f, 28.0f },
             def->name, 10, 0, RAYWHITE, TEXT_ALIGN_LEFT);

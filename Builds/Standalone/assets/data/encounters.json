@@ -2,54 +2,198 @@
   "schema": 1,
   "floors": [
     {
+      "area": "greenwood_breach",
       "floor": 1,
       "normal": [
-        { "id": "f1_spider", "enemies": [ "giant_spider" ] },
-        { "id": "f1_wolf", "enemies": [ "dire_wolf" ] },
-        { "id": "f1_treant_boar", "enemies": [ "elder_treant", "forest_boar" ] }
+        { "id": "greenwood_f1_thorns", "enemies": [ "thorn_sprite" ] },
+        { "id": "greenwood_f1_spider_archer", "enemies": [ "giant_spider", "briar_archer" ] },
+        { "id": "greenwood_f1_wolf_sprite", "enemies": [ "dire_wolf", "thorn_sprite" ] },
+        { "id": "greenwood_f1_boar", "enemies": [ "forest_boar" ] }
       ],
-      "elite": { "id": "f1_elite_alpha_treant", "enemies": [ "alpha_wolf", "elder_treant" ] },
-      "boss": { "id": "f1_boss_alpha_pack", "enemies": [ "alpha_wolf", "giant_spider", "dire_wolf" ] }
+      "elite": { "id": "greenwood_f1_elite_moss_archer", "enemies": [ "mossback_guard", "briar_archer" ] },
+      "boss": { "id": "greenwood_f1_boss_bramble_matron", "enemies": [ "bramble_matron", "thorn_sprite" ] }
+    },
+    {
+      "area": "greenwood_breach",
+      "floor": 2,
+      "normal": [
+        { "id": "greenwood_f2_moss_sprite", "enemies": [ "mossback_guard", "thorn_sprite" ] },
+        { "id": "greenwood_f2_treant_archer", "enemies": [ "elder_treant", "briar_archer" ] },
+        { "id": "greenwood_f2_wolf_boar", "enemies": [ "dire_wolf", "forest_boar" ] },
+        { "id": "greenwood_f2_spider_briar_swarm", "enemies": [ "giant_spider", "briar_archer", "thorn_sprite" ] }
+      ],
+      "elite": { "id": "greenwood_f2_elite_alpha_moss", "enemies": [ "alpha_wolf", "mossback_guard" ] },
+      "boss": { "id": "greenwood_f2_boss_alpha_grove", "enemies": [ "alpha_wolf", "elder_treant", "briar_archer" ] }
+    },
+    {
+      "area": "greenwood_breach",
+      "floor": 3,
+      "normal": [
+        { "id": "greenwood_f3_treant_moss", "enemies": [ "elder_treant", "mossback_guard" ] },
+        { "id": "greenwood_f3_briar_pack", "enemies": [ "briar_archer", "dire_wolf", "thorn_sprite" ] },
+        { "id": "greenwood_f3_boar_guard", "enemies": [ "forest_boar", "mossback_guard" ] },
+        { "id": "greenwood_f3_alpha_spider", "enemies": [ "alpha_wolf", "giant_spider" ] }
+      ],
+      "elite": { "id": "greenwood_f3_elite_alpha_treant_guard", "enemies": [ "alpha_wolf", "elder_treant", "mossback_guard" ] },
+      "boss": { "id": "greenwood_f3_boss_heartwood_colossus", "enemies": [ "heartwood_colossus", "mossback_guard" ] }
+    },
+    {
+      "area": "venom_mire",
+      "floor": 1,
+      "normal": [
+        { "id": "venom_f1_leech", "enemies": [ "mire_leech" ] },
+        { "id": "venom_f1_stalker_alchemist", "enemies": [ "venom_stalker", "plague_alchemist" ] },
+        { "id": "venom_f1_basilisk_leech", "enemies": [ "basilisk", "mire_leech" ] },
+        { "id": "venom_f1_priest", "enemies": [ "venom_priest" ] }
+      ],
+      "elite": { "id": "venom_f1_elite_rot_stalker", "enemies": [ "rot_basilisk", "venom_stalker" ] },
+      "boss": { "id": "venom_f1_boss_greater_alchemist", "enemies": [ "greater_manticore", "plague_alchemist" ] }
+    },
+    {
+      "area": "venom_mire",
+      "floor": 2,
+      "normal": [
+        { "id": "venom_f2_alchemist_leech", "enemies": [ "plague_alchemist", "mire_leech" ] },
+        { "id": "venom_f2_brute_stalker", "enemies": [ "bog_brute", "venom_stalker" ] },
+        { "id": "venom_f2_basilisk_priest", "enemies": [ "basilisk", "venom_priest" ] },
+        { "id": "venom_f2_manticore_leech", "enemies": [ "manticore", "mire_leech" ] }
+      ],
+      "elite": { "id": "venom_f2_elite_greater_brute", "enemies": [ "greater_manticore", "bog_brute" ] },
+      "boss": { "id": "venom_f2_boss_hydra_priest", "enemies": [ "venom_hydra", "venom_priest" ] }
+    },
+    {
+      "area": "venom_mire",
+      "floor": 3,
+      "normal": [
+        { "id": "venom_f3_brute_alchemist", "enemies": [ "bog_brute", "plague_alchemist" ] },
+        { "id": "venom_f3_leech_priest_basilisk", "enemies": [ "mire_leech", "venom_priest", "basilisk" ] },
+        { "id": "venom_f3_greater_stalker", "enemies": [ "greater_manticore", "venom_stalker" ] },
+        { "id": "venom_f3_rot_alchemist", "enemies": [ "rot_basilisk", "plague_alchemist" ] }
+      ],
+      "elite": { "id": "venom_f3_elite_hydra_alchemist", "enemies": [ "venom_hydra", "plague_alchemist" ] },
+      "boss": { "id": "venom_f3_boss_mire_queen", "enemies": [ "mire_queen", "mire_leech" ] }
+    },
+    {
+      "area": "venom_mire",
+      "floor": 4,
+      "normal": [
+        { "id": "venom_f4_hydra_brute", "enemies": [ "venom_hydra", "bog_brute" ] },
+        { "id": "venom_f4_greater_basilisk_alchemist", "enemies": [ "greater_manticore", "basilisk", "plague_alchemist" ] },
+        { "id": "venom_f4_brute_leech_stalker", "enemies": [ "bog_brute", "mire_leech", "venom_stalker" ] },
+        { "id": "venom_f4_hydra_priest", "enemies": [ "venom_hydra", "venom_priest" ] }
+      ],
+      "elite": { "id": "venom_f4_elite_queen_brute", "enemies": [ "mire_queen", "bog_brute" ] },
+      "boss": { "id": "venom_f4_boss_plague_titan", "enemies": [ "plague_titan", "plague_alchemist" ] }
+    },
+    {
+      "area": "cinder_spire",
+      "floor": 1,
+      "normal": [
+        { "id": "cinder_f1_cultist", "enemies": [ "ash_cultist" ] },
+        { "id": "cinder_f1_imp_hound", "enemies": [ "flame_imp", "magma_hound" ] },
+        { "id": "cinder_f1_warden_cultist", "enemies": [ "cinder_warden", "ash_cultist" ] },
+        { "id": "cinder_f1_armor", "enemies": [ "living_armor" ] }
+      ],
+      "elite": { "id": "cinder_f1_elite_knight_imp", "enemies": [ "ember_knight", "flame_imp" ] },
+      "boss": { "id": "cinder_f1_boss_giant_cultist", "enemies": [ "fire_giant", "ash_cultist" ] }
+    },
+    {
+      "area": "cinder_spire",
+      "floor": 2,
+      "normal": [
+        { "id": "cinder_f2_hound_warden", "enemies": [ "magma_hound", "cinder_warden" ] },
+        { "id": "cinder_f2_knight_cultist", "enemies": [ "ember_knight", "ash_cultist" ] },
+        { "id": "cinder_f2_drake_imp", "enemies": [ "fire_drake", "flame_imp" ] },
+        { "id": "cinder_f2_armor_hound", "enemies": [ "living_armor", "magma_hound" ] }
+      ],
+      "elite": { "id": "cinder_f2_elite_sentinel_cultist", "enemies": [ "obsidian_sentinel", "ash_cultist" ] },
+      "boss": { "id": "cinder_f2_boss_giant_warden", "enemies": [ "fire_giant", "cinder_warden" ] }
+    },
+    {
+      "area": "cinder_spire",
+      "floor": 3,
+      "normal": [
+        { "id": "cinder_f3_drake_knight", "enemies": [ "fire_drake", "ember_knight" ] },
+        { "id": "cinder_f3_warden_hound_cultist", "enemies": [ "cinder_warden", "magma_hound", "ash_cultist" ] },
+        { "id": "cinder_f3_armor_drake", "enemies": [ "living_armor", "fire_drake" ] },
+        { "id": "cinder_f3_giant_imp", "enemies": [ "fire_giant", "flame_imp" ] }
+      ],
+      "elite": { "id": "cinder_f3_elite_giant_knight", "enemies": [ "fire_giant", "ember_knight" ] },
+      "boss": { "id": "cinder_f3_boss_elder_knight", "enemies": [ "elder_dragon", "ember_knight" ] }
+    },
+    {
+      "area": "cinder_spire",
+      "floor": 4,
+      "normal": [
+        { "id": "cinder_f4_sentinel_hound", "enemies": [ "obsidian_sentinel", "magma_hound" ] },
+        { "id": "cinder_f4_giant_warden", "enemies": [ "fire_giant", "cinder_warden" ] },
+        { "id": "cinder_f4_dragon_cultist", "enemies": [ "elder_dragon", "ash_cultist" ] },
+        { "id": "cinder_f4_knight_drake_imp", "enemies": [ "ember_knight", "fire_drake", "flame_imp" ] }
+      ],
+      "elite": { "id": "cinder_f4_elite_dragon_sentinel", "enemies": [ "elder_dragon", "obsidian_sentinel" ] },
+      "boss": { "id": "cinder_f4_boss_forge_tyrant", "enemies": [ "forge_tyrant", "cinder_warden" ] }
+    },
+    {
+      "area": "cinder_spire",
+      "floor": 5,
+      "normal": [
+        { "id": "cinder_f5_dragon_drake", "enemies": [ "elder_dragon", "fire_drake" ] },
+        { "id": "cinder_f5_tyrant_cultist", "enemies": [ "forge_tyrant", "ash_cultist" ] },
+        { "id": "cinder_f5_giant_sentinel", "enemies": [ "fire_giant", "obsidian_sentinel" ] },
+        { "id": "cinder_f5_knight_warden_imp", "enemies": [ "ember_knight", "cinder_warden", "flame_imp" ] }
+      ],
+      "elite": { "id": "cinder_f5_elite_tyrant_knight", "enemies": [ "forge_tyrant", "ember_knight" ] },
+      "boss": { "id": "cinder_f5_boss_final_forge", "enemies": [ "forge_tyrant", "cinder_warden", "ash_cultist" ] }
+    },
+    {
+      "floor": 1,
+      "normal": [
+        { "id": "fallback_f1_spider", "enemies": [ "giant_spider" ] },
+        { "id": "fallback_f1_wolf", "enemies": [ "dire_wolf" ] },
+        { "id": "fallback_f1_treant_boar", "enemies": [ "elder_treant", "forest_boar" ] }
+      ],
+      "elite": { "id": "fallback_f1_elite_alpha_treant", "enemies": [ "alpha_wolf", "elder_treant" ] },
+      "boss": { "id": "fallback_f1_boss_alpha_pack", "enemies": [ "alpha_wolf", "giant_spider", "dire_wolf" ] }
     },
     {
       "floor": 2,
       "normal": [
-        { "id": "f2_priest_manticore", "enemies": [ "venom_priest", "manticore" ] },
-        { "id": "f2_basilisk_stalker", "enemies": [ "basilisk", "venom_stalker" ] },
-        { "id": "f2_manticore_priest", "enemies": [ "manticore", "venom_priest" ] }
+        { "id": "fallback_f2_priest_manticore", "enemies": [ "venom_priest", "manticore" ] },
+        { "id": "fallback_f2_basilisk_stalker", "enemies": [ "basilisk", "venom_stalker" ] },
+        { "id": "fallback_f2_manticore_priest", "enemies": [ "manticore", "venom_priest" ] }
       ],
-      "elite": { "id": "f2_elite_greater_priest", "enemies": [ "greater_manticore", "venom_priest" ] },
-      "boss": { "id": "f2_boss_hydra", "enemies": [ "venom_hydra", "greater_manticore" ] }
+      "elite": { "id": "fallback_f2_elite_greater_priest", "enemies": [ "greater_manticore", "venom_priest" ] },
+      "boss": { "id": "fallback_f2_boss_hydra", "enemies": [ "venom_hydra", "greater_manticore" ] }
     },
     {
       "floor": 3,
       "normal": [
-        { "id": "f3_warden_imp", "enemies": [ "cinder_warden", "flame_imp" ] },
-        { "id": "f3_drake_armor", "enemies": [ "fire_drake", "living_armor" ] },
-        { "id": "f3_warden_drake_imp", "enemies": [ "cinder_warden", "fire_drake", "flame_imp" ] }
+        { "id": "fallback_f3_warden_imp", "enemies": [ "cinder_warden", "flame_imp" ] },
+        { "id": "fallback_f3_drake_armor", "enemies": [ "fire_drake", "living_armor" ] },
+        { "id": "fallback_f3_warden_drake_imp", "enemies": [ "cinder_warden", "fire_drake", "flame_imp" ] }
       ],
-      "elite": { "id": "f3_elite_giant_warden", "enemies": [ "fire_giant", "cinder_warden" ] },
-      "boss": { "id": "f3_boss_elder_dragon", "enemies": [ "elder_dragon", "fire_giant", "fire_drake" ] }
+      "elite": { "id": "fallback_f3_elite_giant_warden", "enemies": [ "fire_giant", "cinder_warden" ] },
+      "boss": { "id": "fallback_f3_boss_elder_dragon", "enemies": [ "elder_dragon", "fire_giant", "fire_drake" ] }
     },
     {
       "floor": 4,
       "normal": [
-        { "id": "f4_manticore_warden", "enemies": [ "greater_manticore", "cinder_warden" ] },
-        { "id": "f4_hydra_stalker", "enemies": [ "venom_hydra", "venom_stalker" ] },
-        { "id": "f4_giant_armor_imp", "enemies": [ "fire_giant", "living_armor", "flame_imp" ] }
+        { "id": "fallback_f4_manticore_warden", "enemies": [ "greater_manticore", "cinder_warden" ] },
+        { "id": "fallback_f4_hydra_stalker", "enemies": [ "venom_hydra", "venom_stalker" ] },
+        { "id": "fallback_f4_giant_armor_imp", "enemies": [ "fire_giant", "living_armor", "flame_imp" ] }
       ],
-      "elite": { "id": "f4_elite_dragon_warden", "enemies": [ "elder_dragon", "cinder_warden" ] },
-      "boss": { "id": "f4_boss_hydra_dragon", "enemies": [ "venom_hydra", "elder_dragon", "cinder_warden" ] }
+      "elite": { "id": "fallback_f4_elite_dragon_warden", "enemies": [ "elder_dragon", "cinder_warden" ] },
+      "boss": { "id": "fallback_f4_boss_hydra_dragon", "enemies": [ "venom_hydra", "elder_dragon", "cinder_warden" ] }
     },
     {
       "floor": 5,
       "normal": [
-        { "id": "f5_dragon_priest", "enemies": [ "elder_dragon", "venom_priest" ] },
-        { "id": "f5_giant_manticore_stalker", "enemies": [ "fire_giant", "greater_manticore", "venom_stalker" ] },
-        { "id": "f5_hydra_armor_warden", "enemies": [ "venom_hydra", "living_armor", "cinder_warden" ] }
+        { "id": "fallback_f5_dragon_priest", "enemies": [ "elder_dragon", "venom_priest" ] },
+        { "id": "fallback_f5_giant_manticore_stalker", "enemies": [ "fire_giant", "greater_manticore", "venom_stalker" ] },
+        { "id": "fallback_f5_hydra_armor_warden", "enemies": [ "venom_hydra", "living_armor", "cinder_warden" ] }
       ],
-      "elite": { "id": "f5_elite_dragon_giant", "enemies": [ "elder_dragon", "fire_giant" ] },
-      "boss": { "id": "f5_boss_ancient_conclave", "enemies": [ "elder_dragon", "venom_hydra", "fire_giant" ] }
+      "elite": { "id": "fallback_f5_elite_dragon_giant", "enemies": [ "elder_dragon", "fire_giant" ] },
+      "boss": { "id": "fallback_f5_boss_ancient_conclave", "enemies": [ "elder_dragon", "venom_hydra", "fire_giant" ] }
     }
   ]
 }

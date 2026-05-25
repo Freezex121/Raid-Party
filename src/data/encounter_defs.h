@@ -14,5 +14,9 @@ const EncounterDef *encounter_for_floor(int floor, int index);
 int encounter_count_for_floor(int floor);
 const EncounterDef *elite_for_floor(int floor);
 const EncounterDef *boss_for_floor(int floor);
+const EncounterDef *encounter_for_area_floor(const char *area_id, int floor, int index);
+int encounter_count_for_area_floor(const char *area_id, int floor);
+const EncounterDef *elite_for_area_floor(const char *area_id, int floor);
+const EncounterDef *boss_for_area_floor(const char *area_id, int floor);
 
 #endif

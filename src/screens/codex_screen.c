@@ -99,12 +99,12 @@ static void draw_synergies(int *y)
 
 static void draw_combos(int *y)
 {
-    draw_compact_line(y, "Guardian > Cleric", "Shield of Faith: next heal this turn is 50% stronger.", (Color){ 235, 205, 95, 255 });
+    draw_compact_line(y, "Guardian > Cleric", "Shield of Faith: next heal is 50% stronger.", (Color){ 235, 205, 95, 255 });
     draw_compact_line(y, "Mage > Rogue", "Arcane Assault: next attack applies 2 Burning.", (Color){ 235, 205, 95, 255 });
-    draw_compact_line(y, "Shaman > Ranger", "Storm Volley: next AoE this turn deals 50% more damage.", (Color){ 235, 205, 95, 255 });
+    draw_compact_line(y, "Shaman > Ranger", "Storm Volley: next AoE deals 50% more damage.", (Color){ 235, 205, 95, 255 });
     draw_compact_line(y, "Rogue > Cleric", "Shadow Dance: next heal costs 0.", (Color){ 235, 205, 95, 255 });
     draw_compact_line(y, "Shaman > Mage", "Elemental Fury: next Mage damage card costs 0.", (Color){ 235, 205, 95, 255 });
-    draw_compact_line(y, "Rogue > Mage", "Backdraft: next damage card this turn deals 25% more damage.", (Color){ 235, 205, 95, 255 });
+    draw_compact_line(y, "Rogue > Mage", "Backdraft: next damage card deals 25% more damage.", (Color){ 235, 205, 95, 255 });
     draw_compact_line(y, "Paladin > Bard", "Sacred Chorus: next group heal/shield is 50% stronger.", (Color){ 235, 205, 95, 255 });
     draw_compact_line(y, "Bard > Warlock", "Dark Refrain: next Warlock damage applies BLIGHT.", (Color){ 235, 205, 95, 255 });
     draw_compact_line(y, "Warlock > Paladin", "Absolution: next Paladin card consumes BLIGHT to heal.", (Color){ 235, 205, 95, 255 });

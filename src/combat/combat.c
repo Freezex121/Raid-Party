@@ -156,6 +156,7 @@ static void apply_damage_to_enemy(CombatState *cs, int enemy_idx, int damage)
     EnemyState *e = &cs->enemies[enemy_idx];
     if (!e->def || e->hp <= 0) return;
 
+    int before_hp = e->hp;
     int dmg = damage;
     if (e->shield > 0)
     {
@@ -172,6 +173,17 @@ static void apply_damage_to_enemy(CombatState *cs, int enemy_idx, int damage)
     vfx_spawn_burst((float)e->pos_x, (float)e->pos_y, (Color){ 255, 85, 65, 255 }, 6);
 
     LOG_I(CAT_CARD, "  enemy[%d] %s: %d damage (%d HP)", enemy_idx, e->def->name, damage, e->hp);
+
+    if (before_hp > 0 && e->hp <= 0 &&
+        !cs->executioner_used &&
+        relic_has(g_state.relics, g_state.relic_count, RELIC_EXECUTIONERS_SEAL))
+    {
+        cs->executioner_used = true;
+        deck_draw(&cs->deck);
+        if (cs->energy.current < cs->energy.max)
+            cs->energy.current++;
+        combat_feed_add(cs, "Executioner's Seal: drew 1, +1 energy");
+    }
 }
 
 static void apply_heal_to_ally(CombatState *cs, int ally_idx, int amount)
@@ -284,6 +296,16 @@ static void apply_damage_to_ally(CombatState *cs, int ally_idx, int damage, cons
     LOG_I(CAT_COMBAT, "%s hits %s for %d (%d -> %d)", source, pm->name, before - pm->hp, before, pm->hp);
     combat_feed_add(cs, "%s hit %s for %d", source, pm->name, before - pm->hp);
 
+    if (before > pm->hp &&
+        pm->hp > 0 &&
+        !cs->veil_pin_used &&
+        relic_has(g_state.relics, g_state.relic_count, RELIC_VEIL_PIN))
+    {
+        cs->veil_pin_used = true;
+        pm->shield += 6;
+        combat_feed_add(cs, "Veil Pin: %s gained 6 Shield", pm->name);
+    }
+
     if (pm->hp <= 0)
     {
         if (!cs->phoenix_used && relic_has(g_state.relics, g_state.relic_count, RELIC_PHOENIX_FEATHER))
@@ -305,6 +327,11 @@ static void apply_damage_to_ally(CombatState *cs, int ally_idx, int damage, cons
             LOG_I(CAT_COMBAT, "%s DOWNED! Removing %s cards.", pm->name, class_name(pm->class));
             combat_feed_add(cs, "%s is downed", pm->name);
             deck_remove_class_cards(&cs->deck, pm->class);
+            if (relic_has(g_state.relics, g_state.relic_count, RELIC_GRAVE_BELL))
+            {
+                deal_cards(&cs->deck, 2);
+                combat_feed_add(cs, "Grave Bell: drew 2");
+            }
             ft_spawn(p.x - 18.0f, p.y + 7.0f, "DOWNED", 10, (Color){ 240, 80, 80, 255 });
         }
     }
@@ -645,8 +672,16 @@ static int count_enemy_synergy_statuses(CombatState *cs)
     return count;
 }
 
+static bool is_enemy_synergy_status(StatusType type)
+{
+    return type == STATUS_MARKED || type == STATUS_CONDUCTIVE || type == STATUS_BLIGHT;
+}
+
 static int extend_enemy_synergy_statuses(CombatState *cs, int turns)
 {
+    if (turns > 0 && relic_has(g_state.relics, g_state.relic_count, RELIC_LINGERING_SIGIL))
+        turns++;
+
     int extended = 0;
     for (int ei = 0; ei < cs->enemy_count; ei++)
     {
@@ -655,7 +690,7 @@ static int extend_enemy_synergy_statuses(CombatState *cs, int turns)
         for (int s = 0; s < e->status_count; s++)
         {
             StatusType type = e->statuses[s].type;
-            if (type != STATUS_MARKED && type != STATUS_CONDUCTIVE && type != STATUS_BLIGHT)
+            if (!is_enemy_synergy_status(type))
                 continue;
             e->statuses[s].turns += turns;
             extended++;
@@ -669,6 +704,10 @@ static void apply_status_to_enemy(CombatState *cs, int enemy_idx, StatusType sta
     if (enemy_idx < 0 || enemy_idx >= cs->enemy_count) return;
     EnemyState *e = &cs->enemies[enemy_idx];
     if (!e->def || e->hp <= 0) return;
+
+    if (turns > 0 && is_enemy_synergy_status(status) &&
+        relic_has(g_state.relics, g_state.relic_count, RELIC_LINGERING_SIGIL))
+        turns++;
 
     status_apply(e->statuses, &e->status_count, status, turns, amount);
     LOG_I(CAT_CARD, "  enemy[%d]: +%s (%d for %d turns)", enemy_idx, status_label(status), amount, turns);
@@ -833,6 +872,7 @@ static void combo_prime_set(CombatState *cs, ComboPrime prime, const char *title
 {
     if (!cs || prime == COMBO_PRIME_NONE) return;
     cs->combo_prime = prime;
+    cs->combo_prime_turns_remaining = relic_has(g_state.relics, g_state.relic_count, RELIC_SYNERGY_HOURGLASS) ? 2 : 1;
     snprintf(cs->synergy_banner_title, sizeof(cs->synergy_banner_title), "%s", title);
     snprintf(cs->synergy_banner_subtitle, sizeof(cs->synergy_banner_subtitle), "%s", subtitle);
     cs->synergy_banner_timer = 1.35f;
@@ -841,6 +881,19 @@ static void combo_prime_set(CombatState *cs, ComboPrime prime, const char *title
     cs->combo_tween = tween_create(&cs->combo_scale, 1.35f, 0.12f, EASE_OUT_BACK);
     tween_chain(cs->combo_tween, &cs->combo_scale, 1.0f, 0.35f, EASE_OUT_ELASTIC);
     combat_feed_add(cs, "%s primed", title);
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_RESONANT_CHARM) &&
+        cs->energy.current < cs->energy.max)
+    {
+        cs->energy.current++;
+        combat_feed_add(cs, "Resonant Charm: +1 energy");
+    }
+}
+
+static void combo_prime_clear(CombatState *cs)
+{
+    if (!cs) return;
+    cs->combo_prime = COMBO_PRIME_NONE;
+    cs->combo_prime_turns_remaining = 0;
 }
 
 static void combo_check_chain(CombatState *cs, ClassType previous, ClassType current)
@@ -848,11 +901,11 @@ static void combo_check_chain(CombatState *cs, ClassType previous, ClassType cur
     if (!cs || previous == CLASS_NONE || current == CLASS_NONE || previous == current) return;
 
     if (previous == CLASS_GUARDIAN && current == CLASS_CLERIC)
-        combo_prime_set(cs, COMBO_PRIME_SHIELD_OF_FAITH, "SHIELD OF FAITH", "Next heal this turn +50%");
+        combo_prime_set(cs, COMBO_PRIME_SHIELD_OF_FAITH, "SHIELD OF FAITH", "Next heal +50%");
     else if (previous == CLASS_MAGE && current == CLASS_ROGUE)
         combo_prime_set(cs, COMBO_PRIME_ARCANE_ASSAULT, "ARCANE ASSAULT", "Next attack applies Burning");
     else if (previous == CLASS_SHAMAN && current == CLASS_RANGER)
-        combo_prime_set(cs, COMBO_PRIME_STORM_VOLLEY, "STORM VOLLEY", "Next AoE this turn +50%");
+        combo_prime_set(cs, COMBO_PRIME_STORM_VOLLEY, "STORM VOLLEY", "Next AoE +50%");
     else if (previous == CLASS_ROGUE && current == CLASS_CLERIC)
         combo_prime_set(cs, COMBO_PRIME_SHADOW_DANCE, "SHADOW DANCE", "Next heal costs 0");
     else if (previous == CLASS_SHAMAN && current == CLASS_MAGE)
@@ -878,10 +931,30 @@ static void apply_relic_combat_start(CombatState *cs)
         combat_feed_add(cs, "Battle Drum: +1 energy");
     }
 
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_ASHEN_CONTRACT))
+    {
+        cs->energy.current += 1;
+        if (cs->energy.current > cs->energy.max) cs->energy.current = cs->energy.max;
+        for (int i = 0; i < cs->party.count; i++)
+        {
+            PartyMember *pm = &cs->party.members[i];
+            if (!pm->alive) continue;
+            pm->hp -= 2;
+            if (pm->hp < 1) pm->hp = 1;
+        }
+        combat_feed_add(cs, "Ashen Contract: +1 energy, -2 HP");
+    }
+
     if (relic_has(g_state.relics, g_state.relic_count, RELIC_SCOUTING_MAP))
     {
         deck_draw(&cs->deck);
         combat_feed_add(cs, "Scouting Map: drew 1");
+    }
+
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_QUICKDRAW_GLOVE))
+    {
+        deck_draw(&cs->deck);
+        combat_feed_add(cs, "Quickdraw Glove: drew 1");
     }
 
     if (relic_has(g_state.relics, g_state.relic_count, RELIC_WARD_STONE))
@@ -890,6 +963,16 @@ static void apply_relic_combat_start(CombatState *cs)
             if (cs->party.members[i].alive)
                 cs->party.members[i].shield += 4;
         combat_feed_add(cs, "Ward Stone: +4 Shield");
+    }
+
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_WARDEN_CREST))
+    {
+        int lowest = party_lowest_hp(&cs->party);
+        if (lowest >= 0)
+        {
+            cs->party.members[lowest].shield += 8;
+            combat_feed_add(cs, "Warden Crest: +8 Shield");
+        }
     }
 
     if (relic_has(g_state.relics, g_state.relic_count, RELIC_MENDING_BEAD))
@@ -945,6 +1028,16 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
     combat_feed_add(cs, "Played %s", card->name);
 
     // ── Combo check ─────────────────────────────────────────
+    if (dmg > 0 && card_is_attack_card(card) && relic_has(g_state.relics, g_state.relic_count, RELIC_WHETSTONE))
+        dmg += 1;
+    if (dmg > 0 && target_enemy >= 0 && relic_has(g_state.relics, g_state.relic_count, RELIC_MARK_OF_THE_HUNT) &&
+        enemy_has_status(cs, target_enemy, STATUS_MARKED))
+        dmg += 2;
+    if (hl > 0 && card_is_heal_card(card) && relic_has(g_state.relics, g_state.relic_count, RELIC_PRAYER_BEADS))
+        hl += 2;
+    if (sh > 0 && relic_has(g_state.relics, g_state.relic_count, RELIC_BALLAST_RING))
+        sh += 2;
+
     ClassType previous_class = cs->last_played_class;
     ComboPrime spent_prime = cs->combo_prime;
 
@@ -952,36 +1045,36 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
     {
         hl = (hl * 3 + 1) / 2;
         combat_feed_add(cs, "Shield of Faith: heal +50%%");
-        cs->combo_prime = COMBO_PRIME_NONE;
+        combo_prime_clear(cs);
     }
     else if (spent_prime == COMBO_PRIME_SHADOW_DANCE && card_is_heal_card(card))
     {
         combat_feed_add(cs, "Shadow Dance: heal was free");
-        cs->combo_prime = COMBO_PRIME_NONE;
+        combo_prime_clear(cs);
     }
     else if (spent_prime == COMBO_PRIME_ELEMENTAL_FURY && card_is_fire_spell(card))
     {
         combat_feed_add(cs, "Elemental Fury: spell was free");
-        cs->combo_prime = COMBO_PRIME_NONE;
+        combo_prime_clear(cs);
     }
     else if (spent_prime == COMBO_PRIME_STORM_VOLLEY && card_is_aoe_card(card))
     {
         dmg = (dmg * 3 + 1) / 2;
         combat_feed_add(cs, "Storm Volley: AoE +50%%");
-        cs->combo_prime = COMBO_PRIME_NONE;
+        combo_prime_clear(cs);
     }
     else if (spent_prime == COMBO_PRIME_BACKDRAFT && dmg > 0)
     {
         dmg = (dmg * 5 + 2) / 4;
         combat_feed_add(cs, "Backdraft: damage +25%%");
-        cs->combo_prime = COMBO_PRIME_NONE;
+        combo_prime_clear(cs);
     }
     else if (spent_prime == COMBO_PRIME_SACRED_CHORUS && card->target == TARGET_ALL_ALLIES)
     {
         hl = (hl * 3 + 1) / 2;
         sh = (sh * 3 + 1) / 2;
         combat_feed_add(cs, "Sacred Chorus: group support +50%%");
-        cs->combo_prime = COMBO_PRIME_NONE;
+        combo_prime_clear(cs);
     }
 
     if (!cs->ambush_used && dmg > 0 && party_has_pair(cs, CLASS_ROGUE, CLASS_RANGER))
@@ -1198,6 +1291,27 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
             for (int hit = 0; hit < repeat_hits; hit++)
                 apply_damage_to_enemy(cs, target_enemy, dmg);
 
+            if (!cs->split_prism_used &&
+                relic_has(g_state.relics, g_state.relic_count, RELIC_SPLIT_PRISM))
+            {
+                int splash = dmg / 2;
+                if (splash < 1) splash = 1;
+                int splashed = 0;
+                for (int dir = -1; dir <= 1; dir += 2)
+                {
+                    int arc = target_enemy + dir;
+                    if (arc < 0 || arc >= cs->enemy_count) continue;
+                    if (!cs->enemies[arc].def || cs->enemies[arc].hp <= 0) continue;
+                    apply_damage_to_enemy(cs, arc, splash);
+                    splashed++;
+                }
+                if (splashed > 0)
+                {
+                    cs->split_prism_used = true;
+                    combat_feed_add(cs, "Split Prism: splashed %d", splashed);
+                }
+            }
+
             if (card_is(card, "mag_missiles") && marked_target)
             {
                 deck_draw(&cs->deck);
@@ -1247,12 +1361,12 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
 
         if (arcane_assault)
         {
-            cs->combo_prime = COMBO_PRIME_NONE;
+            combo_prime_clear(cs);
             combat_feed_add(cs, "Arcane Assault: Burning applied");
         }
         if (dark_refrain)
         {
-            cs->combo_prime = COMBO_PRIME_NONE;
+            combo_prime_clear(cs);
             combat_feed_add(cs, "Dark Refrain: BLIGHT applied");
         }
 
@@ -1375,7 +1489,7 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
     if (absolution)
     {
         int consumed = remove_all_enemy_status(cs, STATUS_BLIGHT) + blight_consumed_count;
-        cs->combo_prime = COMBO_PRIME_NONE;
+        combo_prime_clear(cs);
         if (consumed > 0)
         {
             int heal = consumed * 3;
@@ -1432,6 +1546,9 @@ static void check_victory(CombatState *cs)
         int gold_gain = g_state.encounter_is_boss ? 50 : (g_state.encounter_is_elite ? 25 : 10);
         if (relic_has(g_state.relics, g_state.relic_count, RELIC_GILDED_CHARM))
             gold_gain += 8;
+        if ((g_state.encounter_is_elite || g_state.encounter_is_boss) &&
+            relic_has(g_state.relics, g_state.relic_count, RELIC_VICTORY_PURSE))
+            gold_gain += 5;
         if (relic_has(g_state.relics, g_state.relic_count, RELIC_RABBIT_FOOT) && (rand() % 10) == 0)
             gold_gain *= 2;
         ft_spawn_gold(gold_gain);
@@ -1615,7 +1732,18 @@ static void advance_turn(CombatState *cs)
     cs->turn++;
     LOG_I(CAT_COMBAT, "=== Turn %d ===", cs->turn);
     cs->last_played_class = CLASS_NONE;
-    cs->combo_prime = COMBO_PRIME_NONE;
+    if (cs->combo_prime != COMBO_PRIME_NONE && cs->combo_prime_turns_remaining > 0)
+    {
+        cs->combo_prime_turns_remaining--;
+        if (cs->combo_prime_turns_remaining <= 0)
+            combo_prime_clear(cs);
+        else
+            combat_feed_add(cs, "Synergy Hourglass: prime carried over");
+    }
+    else
+    {
+        combo_prime_clear(cs);
+    }
     cs->combo_count = 0;
     cs->combo_class = CLASS_NONE;
     cs->combo_last_cost = -1;
@@ -1793,6 +1921,15 @@ static void advance_turn(CombatState *cs)
 
 static void combat_end_turn_internal(CombatState *cs)
 {
+    if (cs->deck.hand_count <= 0 &&
+        relic_has(g_state.relics, g_state.relic_count, RELIC_STEADFAST_BANNER))
+    {
+        for (int i = 0; i < cs->party.count; i++)
+            if (cs->party.members[i].alive)
+                cs->party.members[i].shield += 4;
+        combat_feed_add(cs, "Steadfast Banner: +4 Shield");
+    }
+
     cs->target_mode = TGT_NONE;
     cs->phase = COMBAT_ENEMY_TURN;
     cs->enemy_banner_timer = 0.55f;
@@ -1871,6 +2008,7 @@ void combat_start(CombatState *cs, const Party *party, const EncounterDef *encou
     cs->combo_count = 0;
     cs->last_played_class = CLASS_NONE;
     cs->combo_prime = COMBO_PRIME_NONE;
+    cs->combo_prime_turns_remaining = 0;
     cs->combo_scale = 1.0f;
     cs->combo_tween = -1;
     cs->combo_shake = 0;
@@ -1961,6 +2099,53 @@ void combat_start(CombatState *cs, const Party *party, const EncounterDef *encou
             }
         }
         combat_feed_add(cs, "Toxic Vial: applied Burning");
+    }
+
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_LANTERN_OIL))
+    {
+        for (int i = 0; i < cs->enemy_count; i++)
+            if (cs->enemies[i].def && cs->enemies[i].hp > 0)
+                status_apply(cs->enemies[i].statuses, &cs->enemies[i].status_count, STATUS_BURNING, 3, 1);
+        combat_feed_add(cs, "Lantern Oil: +1 Burning");
+    }
+
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_GLASS_CALTROPS))
+    {
+        for (int i = 0; i < cs->enemy_count; i++)
+            if (cs->enemies[i].def && cs->enemies[i].hp > 0)
+                status_apply(cs->enemies[i].statuses, &cs->enemies[i].status_count, STATUS_TRAP, 2, 2);
+        combat_feed_add(cs, "Glass Caltrops: trapped enemies");
+    }
+
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_HUNTERS_COMPASS))
+    {
+        int living = 0;
+        for (int i = 0; i < cs->enemy_count; i++)
+            if (cs->enemies[i].def && cs->enemies[i].hp > 0) living++;
+        if (living > 0)
+        {
+            int pick = rand() % living;
+            int idx = 0;
+            for (int i = 0; i < cs->enemy_count; i++)
+            {
+                if (!cs->enemies[i].def || cs->enemies[i].hp <= 0) continue;
+                if (idx == pick)
+                {
+                    status_apply(cs->enemies[i].statuses, &cs->enemies[i].status_count, STATUS_MARKED, 2, 1);
+                    break;
+                }
+                idx++;
+            }
+            combat_feed_add(cs, "Hunter's Compass: marked target");
+        }
+    }
+
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_BOTTLED_STORM))
+    {
+        for (int i = 0; i < cs->enemy_count; i++)
+            if (cs->enemies[i].def && cs->enemies[i].hp > 0)
+                status_apply(cs->enemies[i].statuses, &cs->enemies[i].status_count, STATUS_CONDUCTIVE, 2, 1);
+        combat_feed_add(cs, "Bottled Storm: enemies Conductive");
     }
 
     if (relic_has(g_state.relics, g_state.relic_count, RELIC_TITAN_HEART) && g_state.titan_heart_bonus == 0)

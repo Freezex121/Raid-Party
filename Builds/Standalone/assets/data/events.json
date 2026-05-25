@@ -30,6 +30,256 @@
         { "label": "Sell Trinkets", "description": "Gain 20g.", "effect": "gain_gold", "gold": 20 },
         { "label": "Patch Wounds", "description": "Heal all allies for 8.", "effect": "heal_party", "amount": 8 }
       ]
+    },
+    {
+      "id": "fallen_caravan",
+      "name": "Fallen Caravan",
+      "body": "Broken wagons block the trail. Something valuable is buried under the wreckage.",
+      "choices": [
+        { "label": "Dig Carefully", "description": "Gain 18g.", "effect": "gain_gold", "gold": 18 },
+        { "label": "Pry Open Lockbox", "description": "Gain 45g. Add Doubt.", "effect": "gain_gold_add_curse", "gold": 45, "curse": "curse_doubt" },
+        { "label": "Salvage Gear", "description": "Pay 18g. Add a card.", "effect": "pay_gold_add_card", "gold": 18 }
+      ]
+    },
+    {
+      "id": "quiet_spring",
+      "name": "Quiet Spring",
+      "body": "Clear water gathers in a stone basin untouched by the surrounding rot.",
+      "choices": [
+        { "label": "Drink Deep", "description": "Heal all allies for 14.", "effect": "heal_party", "amount": 14 },
+        { "label": "Wash Ailments", "description": "Remove a card.", "effect": "remove_card" },
+        { "label": "Bottle Water", "description": "Pay 15g. Gain a relic.", "effect": "pay_gold_gain_relic", "gold": 15 }
+      ]
+    },
+    {
+      "id": "goblet_of_oaths",
+      "name": "Goblet of Oaths",
+      "body": "A silver goblet waits on a plinth, filled with red-gold light.",
+      "choices": [
+        { "label": "Swear Oath", "description": "Upgrade a card. Lose 8 HP each.", "effect": "upgrade_random_card_hurt_party", "hp_loss": 8 },
+        { "label": "Take Offering", "description": "Gain 28g. Add Doubt.", "effect": "gain_gold_add_curse", "gold": 28, "curse": "curse_doubt" },
+        { "label": "Bow Away", "description": "No effect.", "effect": "none" }
+      ]
+    },
+    {
+      "id": "runic_anvil",
+      "name": "Runic Anvil",
+      "body": "A warm anvil rings once when the party approaches.",
+      "choices": [
+        { "label": "Temper Steel", "description": "Upgrade a card. Lose 5 HP each.", "effect": "upgrade_random_card_hurt_party", "hp_loss": 5 },
+        { "label": "Buy Ingot", "description": "Pay 30g. Gain a relic.", "effect": "pay_gold_gain_relic", "gold": 30 },
+        { "label": "Sell Scraps", "description": "Gain 16g.", "effect": "gain_gold", "gold": 16 }
+      ]
+    },
+    {
+      "id": "lost_squire",
+      "name": "Lost Squire",
+      "body": "A nervous squire asks for escort money and offers a bundle of training notes.",
+      "choices": [
+        { "label": "Buy Notes", "description": "Pay 22g. Add a card.", "effect": "pay_gold_add_card", "gold": 22 },
+        { "label": "Share Food", "description": "Heal all allies for 10.", "effect": "heal_party", "amount": 10 },
+        { "label": "Ask Payment", "description": "Gain 12g.", "effect": "gain_gold", "gold": 12 }
+      ]
+    },
+    {
+      "id": "hanging_market",
+      "name": "Hanging Market",
+      "body": "Lanterns sway from twisted branches while hidden vendors whisper prices.",
+      "choices": [
+        { "label": "Rare Charm", "description": "Pay 35g. Gain a relic.", "effect": "pay_gold_gain_relic", "gold": 35 },
+        { "label": "Cheap Spell", "description": "Pay 16g. Add a card.", "effect": "pay_gold_add_card", "gold": 16 },
+        { "label": "Fence Loot", "description": "Gain 24g.", "effect": "gain_gold", "gold": 24 }
+      ]
+    },
+    {
+      "id": "memory_mirror",
+      "name": "Memory Mirror",
+      "body": "The mirror shows a card in your deck making a choice you have not made yet.",
+      "choices": [
+        { "label": "Study Reflection", "description": "Upgrade a card. Lose 4 HP each.", "effect": "upgrade_random_card_hurt_party", "hp_loss": 4 },
+        { "label": "Break Mirror", "description": "Remove a card.", "effect": "remove_card" },
+        { "label": "Ignore It", "description": "No effect.", "effect": "none" }
+      ]
+    },
+    {
+      "id": "wounded_scout",
+      "name": "Wounded Scout",
+      "body": "A scout clutches a map and asks whether the road ahead is worth the price.",
+      "choices": [
+        { "label": "Treat Wounds", "description": "Heal all allies for 9.", "effect": "heal_party", "amount": 9 },
+        { "label": "Buy Map", "description": "Pay 20g. Gain a relic.", "effect": "pay_gold_gain_relic", "gold": 20 },
+        { "label": "Take Toll", "description": "Gain 14g.", "effect": "gain_gold", "gold": 14 }
+      ]
+    },
+    {
+      "id": "sealed_cache",
+      "name": "Sealed Cache",
+      "body": "A military cache sits half-buried under cracked stone and old warning marks.",
+      "choices": [
+        { "label": "Pick Seal", "description": "Gain 40g. Add Doubt.", "effect": "gain_gold_add_curse", "gold": 40, "curse": "curse_doubt" },
+        { "label": "Buy Key", "description": "Pay 18g. Add a card.", "effect": "pay_gold_add_card", "gold": 18 },
+        { "label": "Leave Cache", "description": "No effect.", "effect": "none" }
+      ]
+    },
+    {
+      "id": "field_surgeon",
+      "name": "Field Surgeon",
+      "body": "A surgeon with clean tools and tired eyes offers help without warmth.",
+      "choices": [
+        { "label": "Full Triage", "description": "Heal all allies for 16.", "effect": "heal_party", "amount": 16 },
+        { "label": "Cut Dead Weight", "description": "Remove a card.", "effect": "remove_card" },
+        { "label": "Buy Supplies", "description": "Pay 24g. Add a card.", "effect": "pay_gold_add_card", "gold": 24 }
+      ]
+    },
+    {
+      "id": "echoing_altar",
+      "name": "Echoing Altar",
+      "body": "Every word spoken here returns as a stronger, stranger version of itself.",
+      "choices": [
+        { "label": "Offer Blood", "description": "Upgrade a card. Lose 7 HP each.", "effect": "upgrade_random_card_hurt_party", "hp_loss": 7 },
+        { "label": "Offer Gold", "description": "Pay 28g. Gain a relic.", "effect": "pay_gold_gain_relic", "gold": 28 },
+        { "label": "Offer Silence", "description": "No effect.", "effect": "none" }
+      ]
+    },
+    {
+      "id": "ashen_waystation",
+      "name": "Ashen Waystation",
+      "body": "The waystation stove still burns, though nobody living tends it.",
+      "choices": [
+        { "label": "Warm Rest", "description": "Heal all allies for 11.", "effect": "heal_party", "amount": 11 },
+        { "label": "Raid Till", "description": "Gain 30g. Add Doubt.", "effect": "gain_gold_add_curse", "gold": 30, "curse": "curse_doubt" },
+        { "label": "Buy Charms", "description": "Pay 26g. Gain a relic.", "effect": "pay_gold_gain_relic", "gold": 26 }
+      ]
+    },
+    {
+      "id": "bardic_crossroads",
+      "name": "Bardic Crossroads",
+      "body": "A travelling performer trades songs, stories, and suspiciously useful secrets.",
+      "choices": [
+        { "label": "Learn Verse", "description": "Pay 21g. Add a card.", "effect": "pay_gold_add_card", "gold": 21 },
+        { "label": "Pass Hat", "description": "Gain 18g.", "effect": "gain_gold", "gold": 18 },
+        { "label": "Rest By Music", "description": "Heal all allies for 7.", "effect": "heal_party", "amount": 7 }
+      ]
+    },
+    {
+      "id": "cracked_obelisk",
+      "name": "Cracked Obelisk",
+      "body": "A black obelisk leaks violet sparks into the dirt around it.",
+      "choices": [
+        { "label": "Channel Sparks", "description": "Upgrade a card. Lose 9 HP each.", "effect": "upgrade_random_card_hurt_party", "hp_loss": 9 },
+        { "label": "Pry Gem", "description": "Gain 34g. Add Doubt.", "effect": "gain_gold_add_curse", "gold": 34, "curse": "curse_doubt" },
+        { "label": "Step Back", "description": "No effect.", "effect": "none" }
+      ]
+    },
+    {
+      "id": "pilgrims_table",
+      "name": "Pilgrim's Table",
+      "body": "A long table is set for more people than could possibly fit on this road.",
+      "choices": [
+        { "label": "Take Meal", "description": "Heal all allies for 13.", "effect": "heal_party", "amount": 13 },
+        { "label": "Leave Donation", "description": "Pay 17g. Gain a relic.", "effect": "pay_gold_gain_relic", "gold": 17 },
+        { "label": "Trade Recipe", "description": "Pay 14g. Add a card.", "effect": "pay_gold_add_card", "gold": 14 }
+      ]
+    },
+    {
+      "id": "broken_standard",
+      "name": "Broken Standard",
+      "body": "A torn war banner still stands. The emblem almost looks familiar.",
+      "choices": [
+        { "label": "Rally Around It", "description": "Heal all allies for 6.", "effect": "heal_party", "amount": 6 },
+        { "label": "Mend Banner", "description": "Upgrade a card. Lose 3 HP each.", "effect": "upgrade_random_card_hurt_party", "hp_loss": 3 },
+        { "label": "Strip Thread", "description": "Gain 15g.", "effect": "gain_gold", "gold": 15 }
+      ]
+    },
+    {
+      "id": "whispering_deck",
+      "name": "Whispering Deck",
+      "body": "A deck of cards whispers names, debts, and tactical advice.",
+      "choices": [
+        { "label": "Draw One", "description": "Pay 19g. Add a card.", "effect": "pay_gold_add_card", "gold": 19 },
+        { "label": "Burn One", "description": "Remove a card.", "effect": "remove_card" },
+        { "label": "Sell Secret", "description": "Gain 22g.", "effect": "gain_gold", "gold": 22 }
+      ]
+    },
+    {
+      "id": "living_library",
+      "name": "Living Library",
+      "body": "Books crawl across the shelves, arranging themselves into arguments about your future.",
+      "choices": [
+        { "label": "Forbidden Page", "description": "Add a card. Add Doubt.", "effect": "add_card_add_curse", "curse": "curse_doubt" },
+        { "label": "Edit the Margin", "description": "Transform a random card.", "effect": "transform_random_card" },
+        { "label": "Pay Late Fees", "description": "Pay 22g. Upgrade a card.", "effect": "pay_gold_upgrade_random_card", "gold": 22 }
+      ]
+    },
+    {
+      "id": "fateweaver_loom",
+      "name": "Fateweaver Loom",
+      "body": "Three silver threads hum between bone hooks. Tugging one changes the route before you understand the cost.",
+      "choices": [
+        { "label": "Pull Gold Thread", "description": "Gain 50g. Lose 9 HP each.", "effect": "gain_gold_hurt_party", "gold": 50, "hp_loss": 9 },
+        { "label": "Tie Red Thread", "description": "All party members gain +3 max HP.", "effect": "gain_max_hp", "amount": 3 },
+        { "label": "Cut Loose Thread", "description": "Gain 1 reroll token.", "effect": "gain_reroll_token", "amount": 1 }
+      ]
+    },
+    {
+      "id": "mirror_of_duplicates",
+      "name": "Mirror of Duplicates",
+      "body": "Your reflections hold different hands of cards and smile as if they won already.",
+      "choices": [
+        { "label": "Echo a Card", "description": "Duplicate a random card. Lose 6 HP each.", "effect": "duplicate_random_card_hurt_party", "hp_loss": 6 },
+        { "label": "Crack the Glass", "description": "Transform a random card.", "effect": "transform_random_card" },
+        { "label": "Look Away", "description": "Heal all allies for 10.", "effect": "heal_party", "amount": 10 }
+      ]
+    },
+    {
+      "id": "sealed_reliquary",
+      "name": "Sealed Reliquary",
+      "body": "A relic beats inside a glass casket. The lock has no keyhole, only a place for a name.",
+      "choices": [
+        { "label": "Speak Your Name", "description": "Gain a relic. Add Doubt.", "effect": "gain_relic_add_curse", "curse": "curse_doubt" },
+        { "label": "Buy the Seal", "description": "Pay 38g. Gain a relic.", "effect": "pay_gold_gain_relic", "gold": 38 },
+        { "label": "Leave Sealed", "description": "Gain 1 reroll token.", "effect": "gain_reroll_token", "amount": 1 }
+      ]
+    },
+    {
+      "id": "war_room_table",
+      "name": "War Room Table",
+      "body": "Miniature soldiers march on their own across a carved map of battles that have not happened yet.",
+      "choices": [
+        { "label": "Study Assault", "description": "Pay 18g. Upgrade a card.", "effect": "pay_gold_upgrade_random_card", "gold": 18 },
+        { "label": "Change Orders", "description": "Gain 2 reroll tokens.", "effect": "gain_reroll_token", "amount": 2 },
+        { "label": "Draft Tactic", "description": "Add a card. Add Doubt.", "effect": "add_card_add_curse", "curse": "curse_doubt" }
+      ]
+    },
+    {
+      "id": "hollow_tollgate",
+      "name": "Hollow Tollgate",
+      "body": "A gate with no walls demands payment anyway. Coins vanish before they touch the tray.",
+      "choices": [
+        { "label": "Pay in Coin", "description": "Pay 16g. Upgrade a card.", "effect": "pay_gold_upgrade_random_card", "gold": 16 },
+        { "label": "Pay in Blood", "description": "Gain 42g. Lose 7 HP each.", "effect": "gain_gold_hurt_party", "gold": 42, "hp_loss": 7 },
+        { "label": "Slip Through", "description": "Transform a random card.", "effect": "transform_random_card" }
+      ]
+    },
+    {
+      "id": "starlit_orchard",
+      "name": "Starlit Orchard",
+      "body": "Fruit glows above the road, each one reflecting a different party member's face.",
+      "choices": [
+        { "label": "Eat Starfruit", "description": "All party members gain +2 max HP.", "effect": "gain_max_hp", "amount": 2 },
+        { "label": "Bottle Juice", "description": "Heal all allies for 18.", "effect": "heal_party", "amount": 18 },
+        { "label": "Shake Branches", "description": "Gain 35g. Add Doubt.", "effect": "gain_gold_add_curse", "gold": 35, "curse": "curse_doubt" }
+      ]
+    },
+    {
+      "id": "black_card_table",
+      "name": "Black Card Table",
+      "body": "A dealer in white gloves offers one hand. The cards are blank until you ante.",
+      "choices": [
+        { "label": "Ante Gold", "description": "Pay 24g. Add a card.", "effect": "pay_gold_add_card", "gold": 24 },
+        { "label": "Ante Memory", "description": "Transform a random card.", "effect": "transform_random_card" },
+        { "label": "Cheat", "description": "Gain a relic. Add Doubt.", "effect": "gain_relic_add_curse", "curse": "curse_doubt" }
+      ]
     }
   ]
 }

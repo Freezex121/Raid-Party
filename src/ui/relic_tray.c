@@ -1,4 +1,5 @@
 #include "relic_tray.h"
+#include "assets.h"
 #include "constants.h"
 #include "util/text.h"
 #include "util/math_utils.h"
@@ -86,7 +87,20 @@ void relic_tray_draw(const RelicId *relics, int count, Rectangle bounds)
         bool hover = CheckCollisionPointRec(mouse, r);
         DrawRectangleRec(r, hover ? (Color){ 90, 82, 42, 255 } : (Color){ 48, 42, 28, 255 });
         DrawRectangleLinesEx(r, hover ? 2.0f : 1.0f, (Color){ 225, 205, 105, hover ? 255 : 185 });
-        DrawText(def->icon, snap_i(r.x + r.width * 0.5f - MeasureText(def->icon, 10) / 2), snap_i(r.y) + 6, 10, RAYWHITE);
+        Texture2D icon_tex = g_assets.relic_icons[relics[i]];
+        if (icon_tex.id != 0)
+        {
+            float icon_draw = 16.0f;
+            float off = (icon_size - icon_draw) * 0.5f;
+            DrawTexturePro(icon_tex,
+                (Rectangle){ 0.0f, 0.0f, (float)icon_tex.width, (float)icon_tex.height },
+                (Rectangle){ r.x + off, r.y + off, icon_draw, icon_draw },
+                (Vector2){ 0, 0 }, 0.0f, WHITE);
+        }
+        else
+        {
+            DrawText(def->icon, snap_i(r.x + r.width * 0.5f - MeasureText(def->icon, 10) / 2), snap_i(r.y) + 6, 10, RAYWHITE);
+        }
 
         if (hover)
         {

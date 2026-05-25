@@ -644,6 +644,635 @@
           "shield_amount": 20
         }
       ]
+    },
+    {
+      "id": "thorn_sprite",
+      "name": "Thorn Sprite",
+      "max_hp": 28,
+      "abilities": [
+        {
+          "name": "Needle Dart",
+          "intent": "attack",
+          "base_damage": 5,
+          "cast_time": 1,
+          "description": "Deals 5 damage.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        },
+        {
+          "name": "Barbed Cloud",
+          "intent": "aoe",
+          "base_damage": 3,
+          "cast_time": 2,
+          "description": "Deals 3 damage to all and 1 Bleed for 2 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "bleed",
+          "status_amount": 1,
+          "status_turns": 2
+        }
+      ]
+    },
+    {
+      "id": "briar_archer",
+      "name": "Briar Archer",
+      "max_hp": 38,
+      "abilities": [
+        {
+          "name": "Pinning Shot",
+          "intent": "attack",
+          "base_damage": 7,
+          "cast_time": 1,
+          "description": "Deals 7 damage.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        },
+        {
+          "name": "Barbed Volley",
+          "intent": "aoe",
+          "base_damage": 4,
+          "cast_time": 2,
+          "description": "Deals 4 damage to all and 1 Bleed for 2 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "bleed",
+          "status_amount": 1,
+          "status_turns": 2
+        }
+      ]
+    },
+    {
+      "id": "mossback_guard",
+      "name": "Mossback Guard",
+      "max_hp": 54,
+      "abilities": [
+        {
+          "name": "Crushing Root",
+          "intent": "tank_buster",
+          "base_damage": 11,
+          "cast_time": 2,
+          "description": "Deals 11 damage.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        },
+        {
+          "name": "Spore Shell",
+          "intent": "shield",
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains 12 shield.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 12
+        }
+      ]
+    },
+    {
+      "id": "bramble_matron",
+      "name": "Bramble Matron",
+      "max_hp": 100,
+      "abilities": [
+        {
+          "name": "Bramble Lash",
+          "intent": "attack",
+          "base_damage": 10,
+          "cast_time": 1,
+          "description": "Deals 10 damage and 1 Bleed for 2 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "bleed",
+          "status_amount": 1,
+          "status_turns": 2
+        },
+        {
+          "name": "Root Screen",
+          "intent": "shield",
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains 16 shield.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 16
+        },
+        {
+          "name": "Pollen Haze",
+          "intent": "aoe",
+          "base_damage": 6,
+          "cast_time": 2,
+          "description": "Deals 6 damage to all and applies 15% Weakness for 2 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "weakness",
+          "status_amount": 15,
+          "status_turns": 2
+        },
+        {
+          "name": "Feed Roots",
+          "intent": "heal",
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Heals an ally for 14.",
+          "is_wipe": false,
+          "heal_amount": 14,
+          "shield_amount": 0
+        }
+      ]
+    },
+    {
+      "id": "heartwood_colossus",
+      "name": "Heartwood Colossus",
+      "max_hp": 135,
+      "abilities": [
+        {
+          "name": "Splinter Fist",
+          "intent": "tank_buster",
+          "base_damage": 15,
+          "cast_time": 2,
+          "description": "Deals 15 damage.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        },
+        {
+          "name": "Root Quake",
+          "intent": "aoe",
+          "base_damage": 7,
+          "cast_time": 2,
+          "description": "Deals 7 damage to all.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        },
+        {
+          "name": "Barkskin",
+          "intent": "shield",
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains 18 shield.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 18
+        },
+        {
+          "name": "Reclaim",
+          "intent": "heal",
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Heals self or an ally for 14.",
+          "is_wipe": false,
+          "heal_amount": 14,
+          "shield_amount": 0
+        }
+      ]
+    },
+    {
+      "id": "mire_leech",
+      "name": "Mire Leech",
+      "max_hp": 42,
+      "abilities": [
+        {
+          "name": "Blood Siphon",
+          "intent": "attack",
+          "base_damage": 7,
+          "cast_time": 1,
+          "description": "Deals 7 damage and heals self for 4.",
+          "is_wipe": false,
+          "heal_amount": 4,
+          "shield_amount": 0
+        },
+        {
+          "name": "Leech Cloud",
+          "intent": "aoe",
+          "base_damage": 5,
+          "cast_time": 2,
+          "description": "Deals 5 damage to all and 1 Bleed for 2 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "bleed",
+          "status_amount": 1,
+          "status_turns": 2
+        }
+      ]
+    },
+    {
+      "id": "plague_alchemist",
+      "name": "Plague Alchemist",
+      "max_hp": 46,
+      "abilities": [
+        {
+          "name": "Acid Flask",
+          "intent": "attack",
+          "base_damage": 8,
+          "cast_time": 1,
+          "description": "Deals 8 damage and applies 15% Weakness for 2 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "weakness",
+          "status_amount": 15,
+          "status_turns": 2
+        },
+        {
+          "name": "Foul Mist",
+          "intent": "aoe",
+          "base_damage": 5,
+          "cast_time": 2,
+          "description": "Deals 5 damage to all and 1 Bleed for 3 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "bleed",
+          "status_amount": 1,
+          "status_turns": 3
+        },
+        {
+          "name": "Emergency Tonic",
+          "intent": "heal",
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Heals an ally for 12.",
+          "is_wipe": false,
+          "heal_amount": 12,
+          "shield_amount": 0
+        }
+      ]
+    },
+    {
+      "id": "bog_brute",
+      "name": "Bog Brute",
+      "max_hp": 68,
+      "abilities": [
+        {
+          "name": "Muck Slam",
+          "intent": "tank_buster",
+          "base_damage": 14,
+          "cast_time": 2,
+          "description": "Deals 14 damage and applies 15% Weakness for 2 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "weakness",
+          "status_amount": 15,
+          "status_turns": 2
+        },
+        {
+          "name": "Bog Roar",
+          "intent": "buff",
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains 12 shield.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 12
+        }
+      ]
+    },
+    {
+      "id": "rot_basilisk",
+      "name": "Rot Basilisk",
+      "max_hp": 95,
+      "abilities": [
+        {
+          "name": "Rot Gaze",
+          "intent": "tank_buster",
+          "base_damage": 15,
+          "cast_time": 2,
+          "description": "Deals 15 damage and applies 25% Weakness for 2 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "weakness",
+          "status_amount": 25,
+          "status_turns": 2
+        },
+        {
+          "name": "Venom Snap",
+          "intent": "attack",
+          "base_damage": 9,
+          "cast_time": 1,
+          "description": "Deals 9 damage and 2 Bleed for 2 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "bleed",
+          "status_amount": 2,
+          "status_turns": 2
+        },
+        {
+          "name": "Scale Harden",
+          "intent": "shield",
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains 14 shield.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 14
+        }
+      ]
+    },
+    {
+      "id": "mire_queen",
+      "name": "Mire Queen",
+      "max_hp": 170,
+      "abilities": [
+        {
+          "name": "Queen's Bite",
+          "intent": "tank_buster",
+          "base_damage": 16,
+          "cast_time": 2,
+          "description": "Deals 16 damage and 2 Bleed for 3 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "bleed",
+          "status_amount": 2,
+          "status_turns": 3
+        },
+        {
+          "name": "Brood Cloud",
+          "intent": "aoe",
+          "base_damage": 8,
+          "cast_time": 2,
+          "description": "Deals 8 damage to all and 1 Bleed for 3 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "bleed",
+          "status_amount": 1,
+          "status_turns": 3
+        },
+        {
+          "name": "Royal Mending",
+          "intent": "heal",
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Heals an ally for 18.",
+          "is_wipe": false,
+          "heal_amount": 18,
+          "shield_amount": 0
+        },
+        {
+          "name": "Mire Command",
+          "intent": "shield",
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains 16 shield.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 16
+        }
+      ]
+    },
+    {
+      "id": "plague_titan",
+      "name": "Plague Titan",
+      "max_hp": 210,
+      "abilities": [
+        {
+          "name": "Noxious Grasp",
+          "intent": "tank_buster",
+          "base_damage": 18,
+          "cast_time": 2,
+          "description": "Deals 18 damage and applies 25% Weakness for 2 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "weakness",
+          "status_amount": 25,
+          "status_turns": 2
+        },
+        {
+          "name": "Toxic Stomp",
+          "intent": "aoe",
+          "base_damage": 10,
+          "cast_time": 2,
+          "description": "Deals 10 damage to all and 1 Bleed for 3 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "bleed",
+          "status_amount": 1,
+          "status_turns": 3
+        },
+        {
+          "name": "Regenerate",
+          "intent": "heal",
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Heals self for 22.",
+          "is_wipe": false,
+          "heal_amount": 22,
+          "shield_amount": 0
+        },
+        {
+          "name": "Spore Burst",
+          "intent": "wipe",
+          "base_damage": 12,
+          "cast_time": 3,
+          "description": "Deals 12 damage to all and 1 Bleed for 3 turns.",
+          "is_wipe": true,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "bleed",
+          "status_amount": 1,
+          "status_turns": 3
+        }
+      ]
+    },
+    {
+      "id": "ash_cultist",
+      "name": "Ash Cultist",
+      "max_hp": 44,
+      "abilities": [
+        {
+          "name": "Ember Hex",
+          "intent": "attack",
+          "base_damage": 7,
+          "cast_time": 1,
+          "description": "Deals 7 damage. Drains 1 energy next turn.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "energy_drain",
+          "status_amount": 1,
+          "status_turns": 1
+        },
+        {
+          "name": "Fan Flames",
+          "intent": "heal",
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Heals an ally for 8.",
+          "is_wipe": false,
+          "heal_amount": 8,
+          "shield_amount": 0
+        }
+      ]
+    },
+    {
+      "id": "magma_hound",
+      "name": "Magma Hound",
+      "max_hp": 52,
+      "abilities": [
+        {
+          "name": "Lava Bite",
+          "intent": "attack",
+          "base_damage": 10,
+          "cast_time": 1,
+          "description": "Deals 10 damage.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        },
+        {
+          "name": "Char",
+          "intent": "aoe",
+          "base_damage": 6,
+          "cast_time": 2,
+          "description": "Deals 6 damage to all. Drains 1 energy next turn.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "energy_drain",
+          "status_amount": 1,
+          "status_turns": 1
+        }
+      ]
+    },
+    {
+      "id": "ember_knight",
+      "name": "Ember Knight",
+      "max_hp": 75,
+      "abilities": [
+        {
+          "name": "Shield Bash",
+          "intent": "attack",
+          "base_damage": 8,
+          "cast_time": 1,
+          "description": "Deals 8 damage and gains 8 shield.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 8
+        },
+        {
+          "name": "Molten Guard",
+          "intent": "shield",
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains 16 shield.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 16
+        },
+        {
+          "name": "Cleave",
+          "intent": "aoe",
+          "base_damage": 7,
+          "cast_time": 2,
+          "description": "Deals 7 damage to all.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        }
+      ]
+    },
+    {
+      "id": "obsidian_sentinel",
+      "name": "Obsidian Sentinel",
+      "max_hp": 125,
+      "abilities": [
+        {
+          "name": "Crush",
+          "intent": "tank_buster",
+          "base_damage": 18,
+          "cast_time": 2,
+          "description": "Deals 18 damage.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        },
+        {
+          "name": "Obsidian Shell",
+          "intent": "shield",
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains 20 shield.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 20
+        },
+        {
+          "name": "Ashen Wave",
+          "intent": "aoe",
+          "base_damage": 8,
+          "cast_time": 2,
+          "description": "Deals 8 damage to all and applies 15% Weakness for 2 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "weakness",
+          "status_amount": 15,
+          "status_turns": 2
+        }
+      ]
+    },
+    {
+      "id": "forge_tyrant",
+      "name": "Forge Tyrant",
+      "max_hp": 240,
+      "abilities": [
+        {
+          "name": "Hammerfall",
+          "intent": "tank_buster",
+          "base_damage": 22,
+          "cast_time": 2,
+          "description": "Deals 22 damage.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        },
+        {
+          "name": "Furnace Pulse",
+          "intent": "aoe",
+          "base_damage": 11,
+          "cast_time": 2,
+          "description": "Deals 11 damage to all. Drains 1 energy next turn.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "status": "energy_drain",
+          "status_amount": 1,
+          "status_turns": 1
+        },
+        {
+          "name": "Tempered Plate",
+          "intent": "shield",
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains 24 shield.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 24
+        },
+        {
+          "name": "Overheat",
+          "intent": "wipe",
+          "base_damage": 14,
+          "cast_time": 3,
+          "description": "Deals 14 damage to all.",
+          "is_wipe": true,
+          "heal_amount": 0,
+          "shield_amount": 0
+        }
+      ]
     }
   ]
 }

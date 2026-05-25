@@ -47,6 +47,14 @@ EVENT_EFFECTS = {
     "none",
     "pay_gold_add_card",
     "gain_gold",
+    "gain_reroll_token",
+    "pay_gold_upgrade_random_card",
+    "gain_gold_hurt_party",
+    "add_card_add_curse",
+    "gain_relic_add_curse",
+    "duplicate_random_card_hurt_party",
+    "transform_random_card",
+    "gain_max_hp",
 }
 NODE_TYPES = {"start", "combat", "elite", "rest", "shop", "event", "boss"}
 
@@ -316,7 +324,7 @@ def validate_events(data: dict, card_ids: set[str], errors: list[str]) -> set[st
             require_text(choice, "description", choice_label, errors)
             if choice.get("effect") not in EVENT_EFFECTS:
                 errors.append(f"{choice_label}: unsupported event effect {choice.get('effect')!r}")
-            if choice.get("effect") == "gain_gold_add_curse" and choice.get("curse") not in card_ids:
+            if choice.get("effect") in {"gain_gold_add_curse", "add_card_add_curse", "gain_relic_add_curse"} and choice.get("curse") not in card_ids:
                 errors.append(f"{choice_label}: unknown curse card {choice.get('curse')!r}")
     return seen
 

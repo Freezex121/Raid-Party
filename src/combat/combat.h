@@ -92,6 +92,7 @@ typedef struct {
     int combo_count;
     ClassType last_played_class;
     ComboPrime combo_prime;
+    int combo_prime_turns_remaining;
     float synergy_banner_timer;
     float synergy_flash_timer;
     char synergy_banner_title[32];
@@ -121,6 +122,9 @@ typedef struct {
     bool phoenix_used;
     bool echo_used;
     bool ambush_used;
+    bool executioner_used;
+    bool veil_pin_used;
+    bool split_prism_used;
     bool vengeful_active;
     int vengeful_ally;
     int mana_gem_bonus;

@@ -200,6 +200,174 @@
       "description": "At combat start, a random enemy gains 3 Burning.",
       "trigger": "combat_start",
       "rarity": 3
+    },
+    {
+      "id": "whetstone",
+      "name": "Whetstone",
+      "icon": "WH",
+      "description": "Attack cards deal +1 damage.",
+      "trigger": "combat",
+      "rarity": 1
+    },
+    {
+      "id": "prayer_beads",
+      "name": "Prayer Beads",
+      "icon": "PB",
+      "description": "Healing cards restore +2 HP.",
+      "trigger": "combat",
+      "rarity": 1
+    },
+    {
+      "id": "ballast_ring",
+      "name": "Ballast Ring",
+      "icon": "BL",
+      "description": "Shield cards grant +2 Shield.",
+      "trigger": "combat",
+      "rarity": 1
+    },
+    {
+      "id": "quickdraw_glove",
+      "name": "Quickdraw Glove",
+      "icon": "QG",
+      "description": "At combat start, draw 1 extra card.",
+      "trigger": "combat_start",
+      "rarity": 2
+    },
+    {
+      "id": "warden_crest",
+      "name": "Warden Crest",
+      "icon": "WC",
+      "description": "At combat start, the lowest HP ally gains 8 Shield.",
+      "trigger": "combat_start",
+      "rarity": 1
+    },
+    {
+      "id": "glass_caltrops",
+      "name": "Glass Caltrops",
+      "icon": "CT",
+      "description": "At combat start, all enemies gain Trap 2 for 2 turns.",
+      "trigger": "combat_start",
+      "rarity": 2
+    },
+    {
+      "id": "lantern_oil",
+      "name": "Lantern Oil",
+      "icon": "LO",
+      "description": "At combat start, all enemies gain 1 Burning for 3 turns.",
+      "trigger": "combat_start",
+      "rarity": 1
+    },
+    {
+      "id": "hunters_compass",
+      "name": "Hunter's Compass",
+      "icon": "HC",
+      "description": "At combat start, a random enemy is Marked for 2 turns.",
+      "trigger": "combat_start",
+      "rarity": 2
+    },
+    {
+      "id": "field_rations",
+      "name": "Field Rations",
+      "icon": "FR",
+      "description": "After each combat, heal all living allies for 3.",
+      "trigger": "combat_reward",
+      "rarity": 1
+    },
+    {
+      "id": "victory_purse",
+      "name": "Victory Purse",
+      "icon": "VP",
+      "description": "Elite and boss fights award +5 gold.",
+      "trigger": "combat_reward",
+      "rarity": 2
+    },
+    {
+      "id": "resonant_charm",
+      "name": "Resonant Charm",
+      "icon": "RC",
+      "description": "When you prime a class synergy, gain 1 energy if not full.",
+      "trigger": "combat",
+      "rarity": 3
+    },
+    {
+      "id": "executioners_seal",
+      "name": "Executioner's Seal",
+      "icon": "EX",
+      "description": "The first enemy killed each combat draws 1 card and restores 1 energy.",
+      "trigger": "combat",
+      "rarity": 3
+    },
+    {
+      "id": "bottled_storm",
+      "name": "Bottled Storm",
+      "icon": "BS",
+      "description": "At combat start, all enemies gain Conductive for 2 turns.",
+      "trigger": "combat_start",
+      "rarity": 2
+    },
+    {
+      "id": "veil_pin",
+      "name": "Veil Pin",
+      "icon": "VI",
+      "description": "The first ally damaged each combat gains 6 Shield after the hit.",
+      "trigger": "combat",
+      "rarity": 2
+    },
+    {
+      "id": "split_prism",
+      "name": "Split Prism",
+      "icon": "SP",
+      "description": "Your first single-target damage card each combat splashes half damage to adjacent enemies.",
+      "trigger": "combat",
+      "rarity": 3
+    },
+    {
+      "id": "steadfast_banner",
+      "name": "Steadfast Banner",
+      "icon": "SB",
+      "description": "When you end a turn with an empty hand, all allies gain 4 Shield.",
+      "trigger": "combat",
+      "rarity": 2
+    },
+    {
+      "id": "ashen_contract",
+      "name": "Ashen Contract",
+      "icon": "AC",
+      "description": "At combat start, gain 1 energy and each living ally loses 2 HP, never below 1.",
+      "trigger": "combat_start",
+      "rarity": 3
+    },
+    {
+      "id": "mark_of_the_hunt",
+      "name": "Mark of the Hunt",
+      "icon": "MH",
+      "description": "Single-target damage cards deal +2 damage to Marked enemies.",
+      "trigger": "combat",
+      "rarity": 2
+    },
+    {
+      "id": "grave_bell",
+      "name": "Grave Bell",
+      "icon": "GB",
+      "description": "When an ally is downed, draw 2 cards.",
+      "trigger": "combat",
+      "rarity": 3
+    },
+    {
+      "id": "synergy_hourglass",
+      "name": "Synergy Hourglass",
+      "icon": "SH",
+      "description": "Class combo primes last 1 additional turn.",
+      "trigger": "combat",
+      "rarity": 3
+    },
+    {
+      "id": "lingering_sigil",
+      "name": "Lingering Sigil",
+      "icon": "LS",
+      "description": "Marked, Conductive, and Blight last 1 additional turn when applied or extended.",
+      "trigger": "combat",
+      "rarity": 2
     }
   ]
 }

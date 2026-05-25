@@ -50,10 +50,16 @@ static bool choice_available(const EventChoiceDef *choice)
         case EVENT_EFFECT_PAY_GOLD_GAIN_RELIC:
         case EVENT_EFFECT_PAY_GOLD_ADD_CARD:
             return g_state.gold >= choice->gold;
+        case EVENT_EFFECT_PAY_GOLD_UPGRADE_RANDOM_CARD:
+            return g_state.gold >= choice->gold && deck_browser_has_upgradeable(&g_state.run_deck);
         case EVENT_EFFECT_REMOVE_CARD:
+        case EVENT_EFFECT_TRANSFORM_RANDOM_CARD:
             return g_state.run_deck.card_count > 3;
         case EVENT_EFFECT_UPGRADE_RANDOM_CARD_HURT_PARTY:
             return deck_browser_has_upgradeable(&g_state.run_deck);
+        case EVENT_EFFECT_ADD_CARD_ADD_CURSE:
+        case EVENT_EFFECT_DUPLICATE_RANDOM_CARD_HURT_PARTY:
+            return g_state.run_deck.card_count < MAX_DECK_SIZE;
         default:
             return true;
     }
@@ -73,11 +79,22 @@ static void describe_unavailable(const EventChoiceDef *choice)
         case EVENT_EFFECT_PAY_GOLD_ADD_CARD:
             snprintf(event_msg, sizeof(event_msg), "Need %dg.", choice->gold);
             break;
+        case EVENT_EFFECT_PAY_GOLD_UPGRADE_RANDOM_CARD:
+            if (g_state.gold < choice->gold)
+                snprintf(event_msg, sizeof(event_msg), "Need %dg.", choice->gold);
+            else
+                snprintf(event_msg, sizeof(event_msg), "No cards left to upgrade.");
+            break;
         case EVENT_EFFECT_REMOVE_CARD:
+        case EVENT_EFFECT_TRANSFORM_RANDOM_CARD:
             snprintf(event_msg, sizeof(event_msg), "Deck is too small.");
             break;
         case EVENT_EFFECT_UPGRADE_RANDOM_CARD_HURT_PARTY:
             snprintf(event_msg, sizeof(event_msg), "No cards left to upgrade.");
+            break;
+        case EVENT_EFFECT_ADD_CARD_ADD_CURSE:
+        case EVENT_EFFECT_DUPLICATE_RANDOM_CARD_HURT_PARTY:
+            snprintf(event_msg, sizeof(event_msg), "Deck is full.");
             break;
         default:
             event_msg[0] = '\0';
@@ -151,6 +168,16 @@ static bool upgrade_random_card(char *out, int out_size)
     if (out && out_size > 0)
         snprintf(out, out_size, "%s upgraded.", g_state.run_deck.cards[idx].def->name);
     return true;
+}
+
+static int random_deck_card_index(void)
+{
+    int candidates[MAX_DECK_SIZE];
+    int count = 0;
+    for (int i = 0; i < g_state.run_deck.card_count; i++)
+        if (g_state.run_deck.cards[i].def && g_state.run_deck.cards[i].def->name)
+            candidates[count++] = i;
+    return count > 0 ? candidates[rand() % count] : -1;
 }
 
 static const CardDef *random_party_card(void)
@@ -281,6 +308,113 @@ static void apply_choice(int choice)
         {
             g_state.gold += choice_def->gold;
             finish_event("Sold odd trinkets for %dg.", choice_def->gold);
+            break;
+        }
+        case EVENT_EFFECT_GAIN_REROLL_TOKEN:
+        {
+            int tokens = choice_def->amount > 0 ? choice_def->amount : 1;
+            g_state.reroll_tokens += tokens;
+            finish_event("Fate bends. Gained %d reroll token%s.", tokens, tokens == 1 ? "" : "s");
+            break;
+        }
+        case EVENT_EFFECT_PAY_GOLD_UPGRADE_RANDOM_CARD:
+        {
+            if (g_state.gold < choice_def->gold)
+            {
+                finish_event("Not enough gold for the work.");
+            }
+            else if (upgrade_random_card(detail, sizeof(detail)))
+            {
+                g_state.gold -= choice_def->gold;
+                finish_event("%s Paid %dg.", detail, choice_def->gold);
+            }
+            else
+            {
+                finish_event("No card is ready to improve.");
+            }
+            break;
+        }
+        case EVENT_EFFECT_GAIN_GOLD_HURT_PARTY:
+        {
+            g_state.gold += choice_def->gold;
+            bool downed = hurt_party(choice_def->hp_loss);
+            finish_event("Gained %dg. The price was paid in blood%s.", choice_def->gold, downed ? " and someone fell" : "");
+            break;
+        }
+        case EVENT_EFFECT_ADD_CARD_ADD_CURSE:
+        {
+            const CardDef *card = random_party_card();
+            const CardDef *curse = card_def_by_id(choice_def->curse);
+            if (card)
+                deck_add_card(&g_state.run_deck, card);
+            if (curse)
+                deck_add_card(&g_state.run_deck, curse);
+            finish_event("Added %s%s.", card ? card->name : "a card", curse ? " and Doubt" : "");
+            break;
+        }
+        case EVENT_EFFECT_GAIN_RELIC_ADD_CURSE:
+        {
+            RelicId relic = relic_random_unowned(g_state.relics, g_state.relic_count);
+            const CardDef *curse = card_def_by_id(choice_def->curse);
+            if (relic == RELIC_NONE)
+            {
+                finish_event("No relic answers the bargain.");
+            }
+            else
+            {
+                const RelicDef *def = relic_def(relic);
+                relic_add_unique(g_state.relics, &g_state.relic_count, relic);
+                if (curse)
+                    deck_add_card(&g_state.run_deck, curse);
+                finish_event("Gained %s%s.", def ? def->name : "a relic", curse ? ", but Doubt follows" : "");
+            }
+            break;
+        }
+        case EVENT_EFFECT_DUPLICATE_RANDOM_CARD_HURT_PARTY:
+        {
+            int idx = random_deck_card_index();
+            if (idx < 0 || g_state.run_deck.card_count >= MAX_DECK_SIZE)
+            {
+                finish_event("The deck cannot hold another echo.");
+            }
+            else
+            {
+                CardInstance inst = g_state.run_deck.cards[idx];
+                deck_add_card_upgraded(&g_state.run_deck, inst.def, inst.upgraded);
+                bool downed = hurt_party(choice_def->hp_loss);
+                finish_event("%s was duplicated%s.", inst.def ? inst.def->name : "A card", downed ? ", but the echo cut deep" : "");
+            }
+            break;
+        }
+        case EVENT_EFFECT_TRANSFORM_RANDOM_CARD:
+        {
+            int idx = random_deck_card_index();
+            const CardDef *next = random_party_card();
+            if (idx < 0 || !next || g_state.run_deck.card_count <= 3)
+            {
+                finish_event("The deck resists the change.");
+            }
+            else
+            {
+                const CardDef *old = g_state.run_deck.cards[idx].def;
+                int uid = g_state.run_deck.cards[idx].uid;
+                deck_remove_card_by_uid(&g_state.run_deck, uid);
+                deck_add_card(&g_state.run_deck, next);
+                finish_event("%s became %s.", old ? old->name : "A card", next->name);
+            }
+            break;
+        }
+        case EVENT_EFFECT_GAIN_MAX_HP:
+        {
+            int amount = choice_def->amount > 0 ? choice_def->amount : 1;
+            for (int i = 0; i < g_state.run_party.count; i++)
+            {
+                PartyMember *pm = &g_state.run_party.members[i];
+                pm->max_hp += amount;
+                if (pm->alive)
+                    pm->hp += amount;
+            }
+            finish_event("Every party member gained +%d max HP.", amount);
             break;
         }
         case EVENT_EFFECT_NONE:

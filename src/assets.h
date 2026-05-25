@@ -3,6 +3,7 @@
 
 #include "raylib.h"
 #include "systems/party.h"
+#include "systems/relic.h"
 #include "constants.h"
 #include <stdbool.h>
 
@@ -53,6 +54,8 @@ typedef struct {
     Texture2D card_template_upgraded;
     Texture2D relic_template;
     Texture2D class_icons[CLASS_COUNT];
+    Texture2D relic_icons[RELIC_COUNT];
+    Texture2D relic_icon_placeholder;
     Sound sfx[SFX_COUNT];
     bool sfx_loaded[SFX_COUNT];
     Music music[MUSIC_COUNT];

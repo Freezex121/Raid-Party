@@ -449,6 +449,9 @@ void run_screen_update(void)
         int gold_gain = g_state.encounter_is_boss ? 50 : (g_state.encounter_is_elite ? 25 : 10);
         if (relic_has(g_state.relics, g_state.relic_count, RELIC_GILDED_CHARM))
             gold_gain += 8;
+        if ((g_state.encounter_is_elite || g_state.encounter_is_boss) &&
+            relic_has(g_state.relics, g_state.relic_count, RELIC_VICTORY_PURSE))
+            gold_gain += 5;
         if (relic_has(g_state.relics, g_state.relic_count, RELIC_RABBIT_FOOT) && (rand() % 10) == 0)
             gold_gain *= 2;
         g_state.gold += gold_gain;
@@ -463,6 +466,18 @@ void run_screen_update(void)
                 g_state.run_party.members[lowest].hp += 8;
                 if (g_state.run_party.members[lowest].hp > g_state.run_party.members[lowest].max_hp)
                     g_state.run_party.members[lowest].hp = g_state.run_party.members[lowest].max_hp;
+            }
+        }
+
+        if (relic_has(g_state.relics, g_state.relic_count, RELIC_FIELD_RATIONS))
+        {
+            for (int i = 0; i < g_state.run_party.count; i++)
+            {
+                PartyMember *pm = &g_state.run_party.members[i];
+                if (!pm->alive) continue;
+                pm->hp += 3;
+                if (pm->hp > pm->max_hp)
+                    pm->hp = pm->max_hp;
             }
         }
 

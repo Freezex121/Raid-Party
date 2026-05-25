@@ -34,6 +34,27 @@ static const char *relic_ids[RELIC_COUNT] = {
     [RELIC_ECHO_BELL] = "echo_bell",
     [RELIC_LEECH_BLADE] = "leech_blade",
     [RELIC_TOXIC_VIAL] = "toxic_vial",
+    [RELIC_WHETSTONE] = "whetstone",
+    [RELIC_PRAYER_BEADS] = "prayer_beads",
+    [RELIC_BALLAST_RING] = "ballast_ring",
+    [RELIC_QUICKDRAW_GLOVE] = "quickdraw_glove",
+    [RELIC_WARDEN_CREST] = "warden_crest",
+    [RELIC_GLASS_CALTROPS] = "glass_caltrops",
+    [RELIC_LANTERN_OIL] = "lantern_oil",
+    [RELIC_HUNTERS_COMPASS] = "hunters_compass",
+    [RELIC_FIELD_RATIONS] = "field_rations",
+    [RELIC_VICTORY_PURSE] = "victory_purse",
+    [RELIC_RESONANT_CHARM] = "resonant_charm",
+    [RELIC_EXECUTIONERS_SEAL] = "executioners_seal",
+    [RELIC_BOTTLED_STORM] = "bottled_storm",
+    [RELIC_VEIL_PIN] = "veil_pin",
+    [RELIC_SPLIT_PRISM] = "split_prism",
+    [RELIC_STEADFAST_BANNER] = "steadfast_banner",
+    [RELIC_ASHEN_CONTRACT] = "ashen_contract",
+    [RELIC_MARK_OF_THE_HUNT] = "mark_of_the_hunt",
+    [RELIC_GRAVE_BELL] = "grave_bell",
+    [RELIC_SYNERGY_HOURGLASS] = "synergy_hourglass",
+    [RELIC_LINGERING_SIGIL] = "lingering_sigil",
 };
 
 static char *copy_text(const char *text)
@@ -58,6 +79,12 @@ static RelicId relic_id_from_text(const char *id)
         if (relic_ids[i] && strcmp(relic_ids[i], id) == 0)
             return (RelicId)i;
     return RELIC_NONE;
+}
+
+const char *relic_id_string(RelicId id)
+{
+    if (id < 0 || id >= RELIC_COUNT) return NULL;
+    return relic_ids[id];
 }
 
 bool relic_defs_load_json(const char *path)

@@ -299,6 +299,7 @@ void assets_load(void)
         SetTextureFilter(g_assets.card_template_upgraded, TEXTURE_FILTER_POINT);
 
     g_assets.relic_template = load_art_texture("relic_template.png");
+    g_assets.relic_icon_placeholder = load_art_texture("relic_icon.png");
 
     const char *icon_files[CLASS_COUNT] = {
         [CLASS_GUARDIAN] = "guardian_icon.png",
@@ -315,6 +316,20 @@ void assets_load(void)
     for (int i = 0; i < CLASS_COUNT; i++)
         if (icon_files[i])
             g_assets.class_icons[i] = load_art_texture(icon_files[i]);
+
+    for (int i = 0; i < RELIC_COUNT; i++)
+    {
+        g_assets.relic_icons[i] = (Texture2D){0};
+        const char *id = relic_id_string((RelicId)i);
+        if (id)
+        {
+            char filename[64];
+            snprintf(filename, sizeof(filename), "relic_%s.png", id);
+            g_assets.relic_icons[i] = load_art_texture(filename);
+        }
+        if (g_assets.relic_icons[i].id == 0 && g_assets.relic_icon_placeholder.id != 0)
+            g_assets.relic_icons[i] = g_assets.relic_icon_placeholder;
+    }
 
     load_audio_assets();
 
@@ -356,6 +371,11 @@ void assets_unload(void)
     for (int i = 0; i < CLASS_COUNT; i++)
         if (g_assets.class_icons[i].id != 0)
             UnloadTexture(g_assets.class_icons[i]);
+    for (int i = 0; i < RELIC_COUNT; i++)
+        if (g_assets.relic_icons[i].id != 0 && g_assets.relic_icons[i].id != g_assets.relic_icon_placeholder.id)
+            UnloadTexture(g_assets.relic_icons[i]);
+    if (g_assets.relic_icon_placeholder.id != 0)
+        UnloadTexture(g_assets.relic_icon_placeholder);
     g_assets.loaded = false;
 }
 

@@ -102,22 +102,24 @@ void map_screen_update(void)
         g_state.encounter = NULL;
         g_state.encounter_is_elite = false;
         g_state.encounter_is_boss = false;
+        const AreaDef *area = area_def(g_state.current_area);
+        const char *area_id = area ? area->id : NULL;
 
         if (t == NODE_COMBAT)
         {
             int idx = 0;
             for (int i = 0; i < g_state.map.node_count && i < ci; i++)
                 if (g_state.map.nodes[i].type == NODE_COMBAT) idx++;
-            g_state.encounter = encounter_for_floor(g_state.map.floor, idx);
+            g_state.encounter = encounter_for_area_floor(area_id, g_state.map.floor, idx);
         }
         else if (t == NODE_ELITE)
         {
-            g_state.encounter = elite_for_floor(g_state.map.floor);
+            g_state.encounter = elite_for_area_floor(area_id, g_state.map.floor);
             g_state.encounter_is_elite = true;
         }
         else if (t == NODE_BOSS)
         {
-            g_state.encounter = boss_for_floor(g_state.map.floor);
+            g_state.encounter = boss_for_area_floor(area_id, g_state.map.floor);
             g_state.encounter_is_boss = true;
         }
         else if (t == NODE_START)
@@ -299,6 +301,5 @@ void map_screen_draw(void)
             "Click to travel", 10, 0, (Color){ 175, 178, 205, 220 }, TEXT_ALIGN_CENTER);
     }
 }
-
 
 

@@ -5,6 +5,8 @@
 #include <string.h>
 
 typedef struct {
+    char *area_id;
+    int floor_index;
     EncounterDef *normal;
     int normal_count;
     EncounterDef elite;
@@ -12,7 +14,7 @@ typedef struct {
 } EncounterFloor;
 
 static EncounterFloor *floors_storage = NULL;
-static int floors_count = 0;
+static int floor_layout_count = 0;
 static int loaded = 0;
 
 static const JsonValue *field(const JsonValue *object, const char *key)
@@ -22,12 +24,25 @@ static const JsonValue *field(const JsonValue *object, const char *key)
 
 static void free_encounters(void)
 {
-    for (int i = 0; i < floors_count; i++)
+    for (int i = 0; i < floor_layout_count; i++)
+    {
+        free(floors_storage[i].area_id);
         free(floors_storage[i].normal);
+    }
     free(floors_storage);
     floors_storage = NULL;
-    floors_count = 0;
+    floor_layout_count = 0;
     loaded = 0;
+}
+
+static char *copy_text(const char *text)
+{
+    if (!text || !text[0]) return NULL;
+    size_t len = strlen(text);
+    char *out = (char *)malloc(len + 1);
+    if (!out) return NULL;
+    memcpy(out, text, len + 1);
+    return out;
 }
 
 static bool load_encounter(const JsonValue *object, EncounterDef *out, const char *label)
@@ -74,41 +89,38 @@ bool encounter_defs_load_json(const char *path)
     free_encounters();
 
     int json_floor_count = json_array_count(floors);
-    int max_floor_index = -1;
-    for (int i = 0; i < json_floor_count; i++)
-    {
-        const JsonValue *floor_obj = json_array_get(floors, i);
-        if (!floor_obj || floor_obj->type != JSON_OBJECT) continue;
-        int floor_index = json_int(field(floor_obj, "floor"), i + 1) - 1;
-        if (floor_index > max_floor_index)
-            max_floor_index = floor_index;
-    }
-
-    if (max_floor_index < 0)
+    if (json_floor_count <= 0)
     {
         json_free(root);
         return false;
     }
 
-    floors_count = max_floor_index + 1;
-    floors_storage = (EncounterFloor *)calloc((size_t)floors_count, sizeof(EncounterFloor));
+    floor_layout_count = json_floor_count;
+    floors_storage = (EncounterFloor *)calloc((size_t)floor_layout_count, sizeof(EncounterFloor));
     if (!floors_storage)
     {
-        floors_count = 0;
+        floor_layout_count = 0;
         json_free(root);
         return false;
     }
 
+    int loaded_floors = 0;
     for (int i = 0; i < json_floor_count; i++)
     {
         const JsonValue *floor_obj = json_array_get(floors, i);
         if (!floor_obj || floor_obj->type != JSON_OBJECT) continue;
 
         int floor_index = json_int(field(floor_obj, "floor"), i + 1) - 1;
-        if (floor_index < 0 || floor_index >= floors_count)
+        if (floor_index < 0)
             continue;
 
-        EncounterFloor *out = &floors_storage[floor_index];
+        EncounterFloor *out = &floors_storage[i];
+        out->floor_index = floor_index;
+        const char *area_id = json_string(field(floor_obj, "area"), NULL);
+        if (!area_id)
+            area_id = json_string(field(floor_obj, "area_id"), NULL);
+        out->area_id = copy_text(area_id);
+
         const JsonValue *normal = field(floor_obj, "normal");
         int normal_count = json_array_count(normal);
         if (normal_count > 0)
@@ -127,53 +139,92 @@ bool encounter_defs_load_json(const char *path)
 
         load_encounter(field(floor_obj, "elite"), &out->elite, "elite");
         load_encounter(field(floor_obj, "boss"), &out->boss, "boss");
+        loaded_floors++;
     }
 
     json_free(root);
     loaded = 1;
-    LOG_I(CAT_SCREEN, "Loaded %d encounter floors from %s", floors_count, path);
-    return floors_count > 0;
+    LOG_I(CAT_SCREEN, "Loaded %d encounter floors from %s", loaded_floors, path);
+    return loaded_floors > 0;
 }
 
-static int clamp_floor(int floor)
+static bool area_matches(const char *layout_area, const char *area_id)
+{
+    bool layout_empty = !layout_area || !layout_area[0];
+    bool area_empty = !area_id || !area_id[0];
+    if (layout_empty && area_empty) return true;
+    if (layout_empty || area_empty) return false;
+    return strcmp(layout_area, area_id) == 0;
+}
+
+static EncounterFloor *find_floor_exact(const char *area_id, int floor)
 {
     if (floor < 0) floor = 0;
-    if (floors_count <= 0) return -1;
-    if (floor >= floors_count) floor = floors_count - 1;
-    return floor;
+    for (int i = 0; i < floor_layout_count; i++)
+        if (floors_storage[i].floor_index == floor &&
+            area_matches(floors_storage[i].area_id, area_id))
+            return &floors_storage[i];
+    return NULL;
+}
+
+static EncounterFloor *find_floor(const char *area_id, int floor)
+{
+    EncounterFloor *data = find_floor_exact(area_id, floor);
+    if (data) return data;
+    if (area_id && area_id[0])
+        return find_floor_exact(NULL, floor);
+    return NULL;
 }
 
 const EncounterDef *encounter_for_floor(int floor, int index)
 {
+    return encounter_for_area_floor(NULL, floor, index);
+}
+
+int encounter_count_for_floor(int floor)
+{
+    return encounter_count_for_area_floor(NULL, floor);
+}
+
+const EncounterDef *elite_for_floor(int floor)
+{
+    return elite_for_area_floor(NULL, floor);
+}
+
+const EncounterDef *boss_for_floor(int floor)
+{
+    return boss_for_area_floor(NULL, floor);
+}
+
+const EncounterDef *encounter_for_area_floor(const char *area_id, int floor, int index)
+{
     if (!loaded) return NULL;
-    floor = clamp_floor(floor);
-    if (floor < 0) return NULL;
-    EncounterFloor *data = &floors_storage[floor];
+    EncounterFloor *data = find_floor(area_id, floor);
+    if (!data) return NULL;
     if (data->normal_count <= 0 || !data->normal) return NULL;
     if (index < 0) index = 0;
     if (index >= data->normal_count) index %= data->normal_count;
     return &data->normal[index];
 }
 
-int encounter_count_for_floor(int floor)
+int encounter_count_for_area_floor(const char *area_id, int floor)
 {
-    floor = clamp_floor(floor);
-    if (floor < 0) return 0;
-    return floors_storage[floor].normal_count;
+    EncounterFloor *data = find_floor(area_id, floor);
+    return data ? data->normal_count : 0;
 }
 
-const EncounterDef *elite_for_floor(int floor)
+const EncounterDef *elite_for_area_floor(const char *area_id, int floor)
 {
     if (!loaded) return NULL;
-    floor = clamp_floor(floor);
-    if (floor < 0 || floors_storage[floor].elite.count <= 0) return NULL;
-    return &floors_storage[floor].elite;
+    EncounterFloor *data = find_floor(area_id, floor);
+    if (!data || data->elite.count <= 0) return NULL;
+    return &data->elite;
 }
 
-const EncounterDef *boss_for_floor(int floor)
+const EncounterDef *boss_for_area_floor(const char *area_id, int floor)
 {
     if (!loaded) return NULL;
-    floor = clamp_floor(floor);
-    if (floor < 0 || floors_storage[floor].boss.count <= 0) return NULL;
-    return &floors_storage[floor].boss;
+    EncounterFloor *data = find_floor(area_id, floor);
+    if (!data || data->boss.count <= 0) return NULL;
+    return &data->boss;
 }
