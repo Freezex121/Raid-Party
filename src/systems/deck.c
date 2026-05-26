@@ -4,20 +4,30 @@
 #include <stdlib.h>
 #include <string.h>
 
-int card_damage(const CardDef *def, bool upgraded)
+int card_upgrade_value(int base_value, int upgrade_level)
 {
-    if (!def) return 0;
-    return upgraded ? (def->damage * 3 + 1) / 2 : def->damage;
+    int value = base_value;
+    if (upgrade_level < 0) upgrade_level = 0;
+    if (upgrade_level > 2) upgrade_level = 2;
+    for (int i = 0; i < upgrade_level; i++)
+        value = (value * 3 + 1) / 2;
+    return value;
 }
-int card_heal(const CardDef *def, bool upgraded)
+
+int card_damage(const CardDef *def, int upgrade_level)
 {
     if (!def) return 0;
-    return upgraded ? (def->heal * 3 + 1) / 2 : def->heal;
+    return card_upgrade_value(def->damage, upgrade_level);
 }
-int card_shield(const CardDef *def, bool upgraded)
+int card_heal(const CardDef *def, int upgrade_level)
 {
     if (!def) return 0;
-    return upgraded ? (def->shield * 3 + 1) / 2 : def->shield;
+    return card_upgrade_value(def->heal, upgrade_level);
+}
+int card_shield(const CardDef *def, int upgrade_level)
+{
+    if (!def) return 0;
+    return card_upgrade_value(def->shield, upgrade_level);
 }
 
 int card_repeat_hits(const CardDef *def)
@@ -37,10 +47,24 @@ bool card_has_effect(const CardDef *def, CardEffectType type)
 
 bool card_upgrade_changes_values(const CardDef *def)
 {
-    if (!def) return false;
-    return card_damage(def, true) != card_damage(def, false) ||
-           card_heal(def, true) != card_heal(def, false) ||
-           card_shield(def, true) != card_shield(def, false);
+    return card_upgrade_changes_values_at(def, 0);
+}
+
+bool card_upgrade_changes_values_at(const CardDef *def, int upgrade_level)
+{
+    if (!def || upgrade_level < 0 || upgrade_level >= 2) return false;
+    return card_damage(def, upgrade_level + 1) != card_damage(def, upgrade_level) ||
+           card_heal(def, upgrade_level + 1) != card_heal(def, upgrade_level) ||
+           card_shield(def, upgrade_level + 1) != card_shield(def, upgrade_level);
+}
+
+int card_clamp_upgrade_level(const CardDef *def, int upgrade_level)
+{
+    if (upgrade_level < 0) upgrade_level = 0;
+    if (upgrade_level > 2) upgrade_level = 2;
+    while (upgrade_level > 0 && !card_upgrade_changes_values_at(def, upgrade_level - 1))
+        upgrade_level--;
+    return upgrade_level;
 }
 
 void deck_init(Deck *deck)
@@ -50,19 +74,23 @@ void deck_init(Deck *deck)
 
 void deck_add_card(Deck *deck, const CardDef *def)
 {
-    deck_add_card_upgraded(deck, def, false);
+    deck_add_card_with_level(deck, def, 0);
 }
 
 void deck_add_card_upgraded(Deck *deck, const CardDef *def, bool upgraded)
 {
+    deck_add_card_with_level(deck, def, upgraded ? 1 : 0);
+}
+
+void deck_add_card_with_level(Deck *deck, const CardDef *def, int upgrade_level)
+{
     if (!def || !def->id || !def->name) return;
     if (deck->card_count >= MAX_DECK_SIZE) return;
-    if (upgraded && !card_upgrade_changes_values(def))
-        upgraded = false;
+    upgrade_level = card_clamp_upgrade_level(def, upgrade_level);
     int idx = deck->card_count++;
     deck->cards[idx].def = def;
     deck->cards[idx].uid = deck->next_uid++;
-    deck->cards[idx].upgraded = upgraded;
+    deck->cards[idx].upgrade_level = upgrade_level;
     deck->draw[deck->draw_count++] = idx;
 }
 

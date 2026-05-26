@@ -505,7 +505,7 @@ static Vector2 combat_card_throw_target(CombatState *cs, const CardDef *card, in
     return combat_discard_target();
 }
 
-static void combat_spawn_card_throw(CombatState *cs, int hand_idx, const CardDef *card, bool upgraded, int target_enemy, int target_ally)
+static void combat_spawn_card_throw(CombatState *cs, int hand_idx, const CardDef *card, int upgrade_level, int target_enemy, int target_ally)
 {
     if (!cs || !card || hand_idx < 0 || hand_idx >= cs->deck.hand_count) return;
 
@@ -534,7 +534,7 @@ static void combat_spawn_card_throw(CombatState *cs, int hand_idx, const CardDef
     CardThrowAnim *anim = &cs->card_throws[slot];
     anim->active = true;
     anim->card = card;
-    anim->upgraded = upgraded;
+    anim->upgrade_level = upgrade_level;
     anim->t = 0.0f;
     anim->duration = 0.32f;
     anim->start = start;
@@ -581,7 +581,7 @@ void combat_draw_card_throws(CombatState *cs)
             (float)anim->width,
             (float)anim->height
         };
-        theme_draw_card_art(r, anim->card, anim->upgraded);
+        theme_draw_card_art(r, anim->card, anim->upgrade_level);
     }
 }
 
@@ -965,6 +965,34 @@ static void apply_relic_combat_start(CombatState *cs)
         combat_feed_add(cs, "Ward Stone: +4 Shield");
     }
 
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_PROSPERITY_CHARM))
+    {
+        int shield = g_state.gold / 20;
+        if (shield > 0)
+        {
+            for (int i = 0; i < cs->party.count; i++)
+                if (cs->party.members[i].alive)
+                    cs->party.members[i].shield += shield;
+            combat_feed_add(cs, "Prosperity Charm: +%d Shield", shield);
+        }
+    }
+
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_GOLDEN_IDOL))
+    {
+        int hp = g_state.gold / 25;
+        if (hp > 0)
+        {
+            for (int i = 0; i < cs->party.count; i++)
+            {
+                PartyMember *pm = &cs->party.members[i];
+                pm->max_hp += hp;
+                if (pm->alive)
+                    pm->hp += hp;
+            }
+            combat_feed_add(cs, "Golden Idol: +%d max HP", hp);
+        }
+    }
+
     if (relic_has(g_state.relics, g_state.relic_count, RELIC_WARDEN_CREST))
     {
         int lowest = party_lowest_hp(&cs->party);
@@ -1016,20 +1044,27 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
     if (!card || !card->name) return;
     int played_uid = inst->uid;
 
-    bool ug = inst->upgraded;
+    int upgrade_level = inst->upgrade_level;
 
-    int dmg = card_damage(card, ug) + meta_dmg_bonus(&g_state.meta);
-    int hl  = card_heal(card, ug);
-    int sh  = card_shield(card, ug) + meta_shield_bonus(&g_state.meta);
+    int dmg = card_damage(card, upgrade_level) + meta_dmg_bonus(&g_state.meta);
+    int hl  = card_heal(card, upgrade_level);
+    int sh  = card_shield(card, upgrade_level) + meta_shield_bonus(&g_state.meta);
 
-    LOG_I(CAT_CARD, "Playing %s (enemy=%d, ally=%d) upgraded=%d channel=%d", card->name, target_enemy, target_ally, ug, card->channel);
-    combat_spawn_card_throw(cs, hand_idx, card, ug, target_enemy, target_ally);
+    LOG_I(CAT_CARD, "Playing %s (enemy=%d, ally=%d) upgrade_level=%d channel=%d", card->name, target_enemy, target_ally, upgrade_level, card->channel);
+    combat_spawn_card_throw(cs, hand_idx, card, upgrade_level, target_enemy, target_ally);
     combat_flash_played_card(cs, card, target_enemy, target_ally);
     combat_feed_add(cs, "Played %s", card->name);
 
     // ── Combo check ─────────────────────────────────────────
     if (dmg > 0 && card_is_attack_card(card) && relic_has(g_state.relics, g_state.relic_count, RELIC_WHETSTONE))
         dmg += 1;
+    if (dmg > 0 && relic_has(g_state.relics, g_state.relic_count, RELIC_GILDED_BLADE))
+    {
+        int bonus = g_state.gold / 50;
+        if (bonus > 6) bonus = 6;
+        if (bonus > 0)
+            dmg += bonus;
+    }
     if (dmg > 0 && target_enemy >= 0 && relic_has(g_state.relics, g_state.relic_count, RELIC_MARK_OF_THE_HUNT) &&
         enemy_has_status(cs, target_enemy, STATUS_MARKED))
         dmg += 2;
@@ -1142,7 +1177,7 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
 
     if (card_is(card, "rng_pounce") && marked_target)
     {
-        dmg = ug ? 18 : 12;
+        dmg = card_damage(card, upgrade_level);
         combat_feed_add(cs, "[MARKED] Pounce found the opening");
     }
     if (card_is(card, "rog_evis") && marked_target)
@@ -1549,8 +1584,11 @@ static void check_victory(CombatState *cs)
         if ((g_state.encounter_is_elite || g_state.encounter_is_boss) &&
             relic_has(g_state.relics, g_state.relic_count, RELIC_VICTORY_PURSE))
             gold_gain += 5;
+        if (relic_has(g_state.relics, g_state.relic_count, RELIC_HOARDERS_SCALES))
+            gold_gain += g_state.gold / 20;
         if (relic_has(g_state.relics, g_state.relic_count, RELIC_RABBIT_FOOT) && (rand() % 10) == 0)
             gold_gain *= 2;
+        cs->gold_reward = gold_gain;
         ft_spawn_gold(gold_gain);
         cs->gold_spawned = true;
     }
@@ -1764,15 +1802,15 @@ static void advance_turn(CombatState *cs)
             if (cc->damage > 0)
                 for (int ei = 0; ei < cs->enemy_count; ei++)
                     if (cs->enemies[ei].def && cs->enemies[ei].hp > 0)
-                        apply_damage_to_enemy(cs, ei, card_damage(cc, false));
+                        apply_damage_to_enemy(cs, ei, card_damage(cc, 0));
             if (cc->heal > 0)
                 for (int i = 0; i < cs->party.count; i++)
                     if (cs->party.members[i].alive)
-                        apply_heal_to_ally(cs, i, card_heal(cc, false));
+                        apply_heal_to_ally(cs, i, card_heal(cc, 0));
             if (cc->shield > 0)
                 for (int i = 0; i < cs->party.count; i++)
                     if (cs->party.members[i].alive)
-                        apply_shield_to_ally(cs, i, card_shield(cc, false));
+                        apply_shield_to_ally(cs, i, card_shield(cc, 0));
             cs->channel_card = NULL;
             cs->channel_class = CLASS_NONE;
         }
@@ -1911,8 +1949,19 @@ static void advance_turn(CombatState *cs)
         if (cs->energy.current < 0) cs->energy.current = 0;
         combat_feed_add(cs, "Energy drain: -%d", drain);
     }
+    bool boon_active = cs->boon_turns_remaining > 0;
+    if (boon_active && cs->boon_energy_bonus > 0)
+    {
+        cs->energy.current += cs->boon_energy_bonus;
+        if (cs->energy.current > cs->energy.max) cs->energy.current = cs->energy.max;
+        combat_feed_add(cs, "Shop boon: +%d energy", cs->boon_energy_bonus);
+    }
     deck_discard_hand(&cs->deck);
-    deal_cards(&cs->deck, cs->turn_draw_count);
+    if (boon_active && cs->boon_draw_bonus > 0)
+        combat_feed_add(cs, "Shop boon: +%d draw", cs->boon_draw_bonus);
+    deal_cards(&cs->deck, cs->turn_draw_count + (boon_active ? cs->boon_draw_bonus : 0));
+    if (boon_active)
+        cs->boon_turns_remaining--;
 
     cs->target_mode = TGT_NONE;
     cs->phase = COMBAT_PLAYER_TURN;
@@ -1969,6 +2018,12 @@ void combat_start(CombatState *cs, const Party *party, const EncounterDef *encou
     if (asc >= 8)
         cs->turn_draw_count--;
     if (cs->turn_draw_count < 1) cs->turn_draw_count = 1;
+    cs->boon_energy_bonus = g_state.next_combat_energy_bonus;
+    cs->boon_draw_bonus = g_state.next_combat_draw_bonus;
+    cs->boon_turns_remaining = g_state.next_combat_boon_turns;
+    g_state.next_combat_energy_bonus = 0;
+    g_state.next_combat_draw_bonus = 0;
+    g_state.next_combat_boon_turns = 0;
 
     deal_opening_hand(&cs->deck, cs->party.count, asc);
     LOG_T("  hand dealt: hand_count=%d draw_count=%d", cs->deck.hand_count, cs->deck.draw_count);

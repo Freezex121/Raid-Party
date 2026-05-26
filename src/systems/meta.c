@@ -287,14 +287,15 @@ int meta_next_travel_fund_cost(const MetaProgress *meta)
 {
     if (!meta || meta->starting_gold_rank >= META_TRAVEL_FUND_MAX_RANK)
         return 0;
-    return (meta->starting_gold_rank + 1) * 3;
+    static const int costs[META_TRAVEL_FUND_MAX_RANK] = { 6, 12, 18 };
+    return costs[meta->starting_gold_rank];
 }
 
 int meta_next_legacy_cost(const MetaProgress *meta)
 {
     if (!meta || meta->starting_relic_rank >= META_LEGACY_MAX_RANK)
         return 0;
-    static const int costs[META_LEGACY_MAX_RANK] = { 5, 10, 15 };
+    static const int costs[META_LEGACY_MAX_RANK] = { 20, 30, 45 };
     return costs[meta->starting_relic_rank];
 }
 

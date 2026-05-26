@@ -169,14 +169,14 @@ static int add_token(char tokens[][12], int count, int max_tokens, const char *f
     return count + 1;
 }
 
-static int build_card_tokens(const CardDef *card, bool upgraded, char tokens[][12], int max_tokens)
+static int build_card_tokens(const CardDef *card, int upgrade_level, char tokens[][12], int max_tokens)
 {
     if (!card) return 0;
 
     int count = 0;
-    int dmg = card_damage(card, upgraded);
-    int heal = card_heal(card, upgraded);
-    int shield = card_shield(card, upgraded);
+    int dmg = card_damage(card, upgrade_level);
+    int heal = card_heal(card, upgrade_level);
+    int shield = card_shield(card, upgrade_level);
     int hits = card_repeat_hits(card);
 
     if (dmg > 0 && !card_id_is(card, "wlk_dark_harvest"))
@@ -224,10 +224,10 @@ static int build_card_tokens(const CardDef *card, bool upgraded, char tokens[][1
     return count;
 }
 
-static void draw_card_tokens(Rectangle dest, const CardDef *card, bool upgraded, Color fallback)
+static void draw_card_tokens(Rectangle dest, const CardDef *card, int upgrade_level, Color fallback)
 {
     char tokens[12][12];
-    int token_count = build_card_tokens(card, upgraded, tokens, 12);
+    int token_count = build_card_tokens(card, upgrade_level, tokens, 12);
     int size = 10;
     int x0 = scaled_x(dest, 6);
     int x = x0;
@@ -256,9 +256,9 @@ static void draw_card_tokens(Rectangle dest, const CardDef *card, bool upgraded,
     }
 }
 
-static int card_stat_heal(const CardDef *card, bool upgraded)
+static int card_stat_heal(const CardDef *card, int upgrade_level)
 {
-    int heal = card_heal(card, upgraded);
+    int heal = card_heal(card, upgrade_level);
     if (card && card->heal2 > 0)
         heal += card->heal2;
 
@@ -276,9 +276,9 @@ static int card_stat_heal(const CardDef *card, bool upgraded)
     return 0;
 }
 
-static int card_stat_damage(const CardDef *card, bool upgraded)
+static int card_stat_damage(const CardDef *card, int upgrade_level)
 {
-    return card_damage(card, upgraded) * card_repeat_hits(card);
+    return card_damage(card, upgrade_level) * card_repeat_hits(card);
 }
 
 static int card_stat_target_count(const CardDef *card)
@@ -337,14 +337,14 @@ static void add_detail_line(char lines[][80], int *count, int max_lines, const c
     (*count)++;
 }
 
-static int build_card_detail_lines(const CardDef *card, bool upgraded, char lines[][80], int max_lines)
+static int build_card_detail_lines(const CardDef *card, int upgrade_level, char lines[][80], int max_lines)
 {
     if (!card) return 0;
 
     int count = 0;
-    int dmg = card_damage(card, upgraded);
-    int heal = card_heal(card, upgraded);
-    int shield = card_shield(card, upgraded);
+    int dmg = card_damage(card, upgrade_level);
+    int heal = card_heal(card, upgrade_level);
+    int shield = card_shield(card, upgrade_level);
     int hits = card_repeat_hits(card);
 
     if (card->channel)
@@ -695,13 +695,15 @@ void theme_draw_class_portrait(ClassType ct, int cx, int cy, int radius, bool al
     }
 }
 
-void theme_draw_card_art(Rectangle bounds, const CardDef *card, bool upgraded)
+void theme_draw_card_art(Rectangle bounds, const CardDef *card, int upgrade_level)
 {
     bounds = snap_rect(bounds);
 
-    Texture2D template = upgraded && g_assets.card_template_upgraded.id != 0
-        ? g_assets.card_template_upgraded
-        : g_assets.card_template;
+    Texture2D template = g_assets.card_template;
+    if (upgrade_level >= 2 && g_assets.card_template_maxed.id != 0)
+        template = g_assets.card_template_maxed;
+    else if (upgrade_level >= 1 && g_assets.card_template_upgraded.id != 0)
+        template = g_assets.card_template_upgraded;
 
     if (template.id != 0)
     {
@@ -731,9 +733,9 @@ void theme_draw_card_art(Rectangle bounds, const CardDef *card, bool upgraded)
         card->name, 10, 0, RAYWHITE, TEXT_ALIGN_LEFT);
 
     draw_card_stat_number(dest, 0, card->cost, (Color){ 255, 255, 0, 255 });
-    draw_card_stat_number(dest, 1, card_stat_heal(card, upgraded), (Color){ 255, 255, 255, 255 });
-    draw_card_stat_number(dest, 2, card_stat_damage(card, upgraded), (Color){ 200, 0, 0, 255 });
-    draw_card_stat_number(dest, 3, card_shield(card, upgraded), (Color){ 0, 0, 255, 255 });
+    draw_card_stat_number(dest, 1, card_stat_heal(card, upgrade_level), (Color){ 255, 255, 255, 255 });
+    draw_card_stat_number(dest, 2, card_stat_damage(card, upgrade_level), (Color){ 200, 0, 0, 255 });
+    draw_card_stat_number(dest, 3, card_shield(card, upgrade_level), (Color){ 0, 0, 255, 255 });
     draw_card_stat_number(dest, 4, card_stat_target_count(card), (Color){ 128, 128, 128, 255 });
 
     Rectangle icon_box = snap_rect((Rectangle){
@@ -764,18 +766,18 @@ void theme_draw_card_art(Rectangle bounds, const CardDef *card, bool upgraded)
     }
 }
 
-Rectangle theme_draw_card_tooltip_limited(Rectangle bounds, const CardDef *card, bool upgraded, int explicit_max_bottom)
+Rectangle theme_draw_card_tooltip_limited(Rectangle bounds, const CardDef *card, int upgrade_level, int explicit_max_bottom)
 {
     if (!card) return bounds;
 
     static TextScroll tooltip_scroll = { 0 };
     static const CardDef *last_card = NULL;
-    static bool last_upgraded = false;
-    if (last_card != card || last_upgraded != upgraded)
+    static int last_upgrade_level = -1;
+    if (last_card != card || last_upgrade_level != upgrade_level)
     {
         tooltip_scroll.offset_y = 0;
         last_card = card;
-        last_upgraded = upgraded;
+        last_upgrade_level = upgrade_level;
     }
 
     if (bounds.x < 2.0f) bounds.x = 2.0f;
@@ -812,7 +814,7 @@ Rectangle theme_draw_card_tooltip_limited(Rectangle bounds, const CardDef *card,
     }
 
     char lines[12][80];
-    int line_count = build_card_detail_lines(card, upgraded, lines, 12);
+    int line_count = build_card_detail_lines(card, upgrade_level, lines, 12);
     for (int i = 0; i < line_count; i++)
     {
         append_detail_text(details, sizeof(details), lines[i]);
@@ -862,7 +864,7 @@ Rectangle theme_draw_card_tooltip_limited(Rectangle bounds, const CardDef *card,
     return bounds;
 }
 
-Rectangle theme_draw_card_tooltip(Rectangle bounds, const CardDef *card, bool upgraded)
+Rectangle theme_draw_card_tooltip(Rectangle bounds, const CardDef *card, int upgrade_level)
 {
-    return theme_draw_card_tooltip_limited(bounds, card, upgraded, 0);
+    return theme_draw_card_tooltip_limited(bounds, card, upgrade_level, 0);
 }

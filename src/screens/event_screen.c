@@ -156,15 +156,15 @@ static bool upgrade_random_card(char *out, int out_size)
     int count = 0;
     for (int i = 0; i < g_state.run_deck.card_count; i++)
         if (g_state.run_deck.cards[i].def &&
-            !g_state.run_deck.cards[i].upgraded &&
-            card_upgrade_changes_values(g_state.run_deck.cards[i].def))
+            g_state.run_deck.cards[i].upgrade_level == 0 &&
+            card_upgrade_changes_values_at(g_state.run_deck.cards[i].def, 0))
             candidates[count++] = i;
 
     if (count <= 0)
         return false;
 
     int idx = candidates[rand() % count];
-    g_state.run_deck.cards[idx].upgraded = true;
+    g_state.run_deck.cards[idx].upgrade_level = 1;
     if (out && out_size > 0)
         snprintf(out, out_size, "%s upgraded.", g_state.run_deck.cards[idx].def->name);
     return true;
@@ -232,7 +232,7 @@ static void apply_choice(int choice)
         case EVENT_EFFECT_GAIN_GOLD_ADD_CURSE:
         {
             const CardDef *curse = card_def_by_id(choice_def->curse);
-            g_state.gold += choice_def->gold;
+            game_gain_gold(choice_def->gold, "event_gain_gold_curse");
             if (curse)
                 deck_add_card(&g_state.run_deck, curse);
             finish_event("Found %dg%s.", choice_def->gold, curse ? ", but Doubt enters the deck" : "");
@@ -276,7 +276,7 @@ static void apply_choice(int choice)
             else
             {
                 const RelicDef *def = relic_def(relic);
-                g_state.gold -= choice_def->gold;
+                game_spend_gold(choice_def->gold, "event_buy_relic");
                 relic_add_unique(g_state.relics, &g_state.relic_count, relic);
                 finish_event("The shrine grants %s.", def ? def->name : "a relic");
             }
@@ -293,7 +293,7 @@ static void apply_choice(int choice)
                 const CardDef *card = random_party_card();
                 if (card)
                 {
-                    g_state.gold -= choice_def->gold;
+                    game_spend_gold(choice_def->gold, "event_buy_card");
                     deck_add_card(&g_state.run_deck, card);
                     finish_event("Bought %s for %dg.", card->name, choice_def->gold);
                 }
@@ -306,15 +306,8 @@ static void apply_choice(int choice)
         }
         case EVENT_EFFECT_GAIN_GOLD:
         {
-            g_state.gold += choice_def->gold;
+            game_gain_gold(choice_def->gold, "event_gain_gold");
             finish_event("Sold odd trinkets for %dg.", choice_def->gold);
-            break;
-        }
-        case EVENT_EFFECT_GAIN_REROLL_TOKEN:
-        {
-            int tokens = choice_def->amount > 0 ? choice_def->amount : 1;
-            g_state.reroll_tokens += tokens;
-            finish_event("Fate bends. Gained %d reroll token%s.", tokens, tokens == 1 ? "" : "s");
             break;
         }
         case EVENT_EFFECT_PAY_GOLD_UPGRADE_RANDOM_CARD:
@@ -325,7 +318,7 @@ static void apply_choice(int choice)
             }
             else if (upgrade_random_card(detail, sizeof(detail)))
             {
-                g_state.gold -= choice_def->gold;
+                game_spend_gold(choice_def->gold, "event_upgrade_card");
                 finish_event("%s Paid %dg.", detail, choice_def->gold);
             }
             else
@@ -336,7 +329,7 @@ static void apply_choice(int choice)
         }
         case EVENT_EFFECT_GAIN_GOLD_HURT_PARTY:
         {
-            g_state.gold += choice_def->gold;
+            game_gain_gold(choice_def->gold, "event_gain_gold_hurt");
             bool downed = hurt_party(choice_def->hp_loss);
             finish_event("Gained %dg. The price was paid in blood%s.", choice_def->gold, downed ? " and someone fell" : "");
             break;
@@ -380,7 +373,7 @@ static void apply_choice(int choice)
             else
             {
                 CardInstance inst = g_state.run_deck.cards[idx];
-                deck_add_card_upgraded(&g_state.run_deck, inst.def, inst.upgraded);
+                deck_add_card_with_level(&g_state.run_deck, inst.def, inst.upgrade_level);
                 bool downed = hurt_party(choice_def->hp_loss);
                 finish_event("%s was duplicated%s.", inst.def ? inst.def->name : "A card", downed ? ", but the echo cut deep" : "");
             }
@@ -477,7 +470,7 @@ void event_screen_update(void)
     }
     else if (mode == EVENT_REMOVE_CARD)
     {
-        int selected = deck_browser_update(&event_browser, &g_state.run_deck, layout_deck_browser_viewport(), false);
+        int selected = deck_browser_update(&event_browser, &g_state.run_deck, layout_deck_browser_viewport(), 0);
         hovered_deck = event_browser.hovered_deck_index;
         if (selected >= 0)
         {
@@ -508,9 +501,9 @@ void event_screen_draw(void)
     {
         draw_text_box((Rectangle){ 80.0f, 16.0f, 480.0f, 20.0f }, "TRAVEL LIGHT", 18, 0, RAYWHITE, TEXT_ALIGN_CENTER);
         draw_text_box((Rectangle){ 80.0f, 34.0f, 480.0f, 14.0f }, "Pick a card to remove. Right-click cancels.", 10, 0, (Color){ 160, 160, 180, 180 }, TEXT_ALIGN_CENTER);
-        deck_browser_draw(&event_browser, &g_state.run_deck, false, (Color){ 255, 115, 115, 255 });
+        deck_browser_draw(&event_browser, &g_state.run_deck, 0, (Color){ 255, 115, 115, 255 });
         if (hovered_deck >= 0 && g_state.run_deck.cards[hovered_deck].def)
-            theme_draw_card_tooltip(layout_deck_inspector_panel(), g_state.run_deck.cards[hovered_deck].def, g_state.run_deck.cards[hovered_deck].upgraded);
+            theme_draw_card_tooltip(layout_deck_inspector_panel(), g_state.run_deck.cards[hovered_deck].def, g_state.run_deck.cards[hovered_deck].upgrade_level);
         return;
     }
 

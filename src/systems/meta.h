@@ -4,13 +4,13 @@
 #include <stdbool.h>
 #include "systems/achievements.h"
 
-#define META_SLOT4_COST 4
-#define META_SLOT5_COST 8
+#define META_SLOT4_COST 20
+#define META_SLOT5_COST 40
 #define META_TRAVEL_FUND_MAX_RANK 3
 #define META_TRAVEL_FUND_GOLD_PER_RANK 10
 #define META_ASCENSION_MAX 10
 #define META_LEGACY_MAX_RANK 3
-#define META_CLASS_UNLOCK_COST 12
+#define META_CLASS_UNLOCK_COST 20
 
 typedef struct {
     int runs_completed;

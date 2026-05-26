@@ -368,6 +368,46 @@
       "description": "Marked, Conductive, and Blight last 1 additional turn when applied or extended.",
       "trigger": "combat",
       "rarity": 2
+    },
+    {
+      "id": "gilded_blade",
+      "name": "Gilded Blade",
+      "icon": "GB",
+      "description": "Damage cards deal +1 damage per 50g held, up to +6.",
+      "trigger": "combat",
+      "rarity": 2
+    },
+    {
+      "id": "prosperity_charm",
+      "name": "Prosperity Charm",
+      "icon": "PC",
+      "description": "At combat start, all allies gain 1 Shield per 20g held.",
+      "trigger": "combat_start",
+      "rarity": 1
+    },
+    {
+      "id": "golden_idol",
+      "name": "Golden Idol",
+      "icon": "GI",
+      "description": "At combat start, all allies gain +1 max HP per 25g held.",
+      "trigger": "combat_start",
+      "rarity": 3
+    },
+    {
+      "id": "hoarders_scales",
+      "name": "Hoarder's Scales",
+      "icon": "HS",
+      "description": "Combat rewards grant +1g per 20g held.",
+      "trigger": "combat_reward",
+      "rarity": 2
+    },
+    {
+      "id": "fates_interest",
+      "name": "Fate's Interest",
+      "icon": "FI",
+      "description": "Shop boons cost 30g and last 3 turns instead of 1.",
+      "trigger": "shop",
+      "rarity": 2
     }
   ]
 }

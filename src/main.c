@@ -19,7 +19,6 @@ int main(void)
     InitAudioDevice();
     SetTargetFPS(60);
     SetExitKey(0); // Disable default exit key (ESC)
-    SetMouseScale(1.0f / (float)SCALE, 1.0f / (float)SCALE);
 
     RenderTexture2D target = LoadRenderTexture(VIRT_W, VIRT_H);
     SetTextureFilter(target.texture, TEXTURE_FILTER_POINT);
@@ -43,6 +42,7 @@ int main(void)
     {
         float dt = GetFrameTime();
         GameScreen prev = g_state.screen;
+        game_update_mouse_transform();
 
         game_update_transition(dt);
 
@@ -65,6 +65,7 @@ int main(void)
                 case SCREEN_GAME_OVER: game_over_screen_update(); break;
                 case SCREEN_DECK: deck_screen_update(); break;
                 case SCREEN_ACHIEVEMENTS: achievements_screen_update(); break;
+                case SCREEN_SETTINGS: settings_screen_update(); break;
                 default: break;
             }
         }
@@ -96,20 +97,23 @@ int main(void)
                 case SCREEN_GAME_OVER: game_over_screen_draw(); break;
                 case SCREEN_DECK: deck_screen_draw(); break;
                 case SCREEN_ACHIEVEMENTS: achievements_screen_draw(); break;
+                case SCREEN_SETTINGS: settings_screen_draw(); break;
                 default: break;
         }
 
         ft_draw();
+        game_draw_gold_overlay();
         game_draw_transition();
         EndTextureMode();
 
         BeginDrawing();
         ClearBackground(BLACK);
         SetTextureFilter(target.texture, TEXTURE_FILTER_POINT);
+        Rectangle dest = game_render_destination();
         DrawTexturePro(
             target.texture,
             (Rectangle){ 0.0f, 0.0f, (float)VIRT_W, (float)-VIRT_H },
-            (Rectangle){ 0.0f, 0.0f, (float)SCREEN_W, (float)SCREEN_H },
+            dest,
             (Vector2){ 0.0f, 0.0f },
             0.0f,
             WHITE);

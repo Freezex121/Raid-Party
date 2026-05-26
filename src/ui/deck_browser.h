@@ -15,8 +15,9 @@ typedef struct {
 } DeckBrowser;
 
 void deck_browser_reset(DeckBrowser *browser);
-int  deck_browser_update(DeckBrowser *browser, Deck *deck, Rectangle viewport, bool require_unupgraded);
-void deck_browser_draw(DeckBrowser *browser, Deck *deck, bool require_unupgraded, Color highlight);
+int  deck_browser_update(DeckBrowser *browser, Deck *deck, Rectangle viewport, int upgrade_target_level);
+void deck_browser_draw(DeckBrowser *browser, Deck *deck, int upgrade_target_level, Color highlight);
 bool deck_browser_has_upgradeable(Deck *deck);
+bool deck_browser_has_upgradeable_at(Deck *deck, int upgrade_target_level);
 
 #endif

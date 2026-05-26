@@ -1,24 +1,32 @@
 #include "screens.h"
 #include "game.h"
 #include "constants.h"
+#include "data/card_defs.h"
 #include "systems/relic.h"
 #include "util/log.h"
 #include "ui/deck_browser.h"
 #include "ui/theme.h"
 #include "ui/layout.h"
-#include "util/math_utils.h"
 #include "util/text.h"
 #include "raylib.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 #define UPGRADE_COST 30
+#define SUPER_UPGRADE_COST 60
 #define REMOVE_COST 20
+#define CARD_SALE_COST 25
+#define CARD_REROLL_COST 5
+#define HP_BOOST_COST 15
+#define BOON_COST 20
+#define FATE_INTEREST_BOON_COST 30
 
 typedef enum {
     SHOP_MAIN,
-    SHOP_UPGRADE,
+    SHOP_UPGRADE_1,
+    SHOP_UPGRADE_2,
     SHOP_REMOVE,
-    SHOP_DONE,
+    SHOP_HP_BOOST,
 } ShopMode;
 
 static ShopMode mode = SHOP_MAIN;
@@ -26,227 +34,436 @@ static int hovered_deck = -1;
 static DeckBrowser shop_browser;
 static char msg[128] = "";
 static bool lucky_coin_given = false;
-
-static Rectangle shop_upgrade_button(void)
-{
-    return (Rectangle){ (float)((VIRT_W / 2) - 190), 154.0f, 170.0f, 44.0f };
-}
-
-static Rectangle shop_remove_button(void)
-{
-    return (Rectangle){ (float)((VIRT_W / 2) + 20), 154.0f, 170.0f, 44.0f };
-}
+static int active_shop_key = -99999;
+static const CardDef *shop_card = NULL;
 
 static Rectangle shop_browser_bounds(void)
 {
     return layout_deck_browser_viewport();
 }
 
+static int valid_card_count(const Deck *deck)
+{
+    int count = 0;
+    if (!deck) return 0;
+    for (int i = 0; i < deck->card_count; i++)
+        if (deck->cards[i].def)
+            count++;
+    return count;
+}
+
+static const CardDef *random_party_card(void)
+{
+    const CardDef *pool[96];
+    int count = 0;
+
+    for (int i = 0; i < g_state.selected_count; i++)
+    {
+        ClassType ct = (ClassType)g_state.selected_classes[i];
+        if (ct < 0 || ct >= CLASS_COUNT || !class_card_sets[ct]) continue;
+        for (int c = 0; c < class_card_counts[ct] && count < 96; c++)
+            pool[count++] = &class_card_sets[ct][c];
+    }
+
+    for (int c = 0; c < utility_card_count && count < 96; c++)
+        pool[count++] = &utility_cards[c];
+
+    if (count <= 0)
+        return utility_card_count > 0 ? &utility_cards[0] : card_def_by_id("util_prep");
+    return pool[rand() % count];
+}
+
+static void reset_shop_for_visit(void)
+{
+    int key = g_state.map.floor * 1000 + g_state.map.current_index;
+    if (key == active_shop_key) return;
+    active_shop_key = key;
+    mode = SHOP_MAIN;
+    hovered_deck = -1;
+    deck_browser_reset(&shop_browser);
+    msg[0] = '\0';
+    lucky_coin_given = false;
+    shop_card = random_party_card();
+}
+
+static void complete_shop(void)
+{
+    int ci = g_state.map.current_index;
+    if (ci >= 0 && ci < g_state.map.node_count)
+        g_state.map.nodes[ci].completed = true;
+    g_state.map.current_index = -1;
+    map_unlock_next(&g_state.map);
+    active_shop_key = -99999;
+    lucky_coin_given = false;
+    mode = SHOP_MAIN;
+    game_change_screen(SCREEN_MAP);
+}
+
+static int shop_boon_cost(void)
+{
+    return relic_has(g_state.relics, g_state.relic_count, RELIC_FATES_INTEREST) ? FATE_INTEREST_BOON_COST : BOON_COST;
+}
+
+static int shop_boon_turns(void)
+{
+    return relic_has(g_state.relics, g_state.relic_count, RELIC_FATES_INTEREST) ? 3 : 1;
+}
+
+static void buy_boon(bool energy)
+{
+    int cost = shop_boon_cost();
+    if (!game_spend_gold(cost, energy ? "shop_boon_energy" : "shop_boon_draw"))
+    {
+        snprintf(msg, sizeof(msg), "Need %dg.", cost);
+        return;
+    }
+
+    if (energy)
+    {
+        g_state.next_combat_energy_bonus += 1;
+        snprintf(msg, sizeof(msg), "Next combat: +1 energy.");
+    }
+    else
+    {
+        g_state.next_combat_draw_bonus += 2;
+        snprintf(msg, sizeof(msg), "Next combat: +2 draw.");
+    }
+
+    int turns = shop_boon_turns();
+    if (g_state.next_combat_boon_turns < turns)
+        g_state.next_combat_boon_turns = turns;
+}
+
+static Rectangle sale_card_rect(void)
+{
+    return (Rectangle){ 42.0f, 76.0f, 96.0f, 120.0f };
+}
+
+static Rectangle sale_buy_button(void)
+{
+    return (Rectangle){ 34.0f, 204.0f, 54.0f, 22.0f };
+}
+
+static Rectangle sale_reroll_button(void)
+{
+    return (Rectangle){ 92.0f, 204.0f, 58.0f, 22.0f };
+}
+
+static Rectangle option_rect(int col, int row)
+{
+    return (Rectangle){ 178.0f + col * 150.0f, 98.0f + row * 34.0f, 138.0f, 24.0f };
+}
+
+static Rectangle leave_button(void)
+{
+    return (Rectangle){ 500.0f, 286.0f, 92.0f, 24.0f };
+}
+
+static bool clicked(Rectangle r)
+{
+    return IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(GetMousePosition(), r);
+}
+
 void shop_screen_update(void)
 {
-    // Lucky Coin: gain 10g once per shop visit
+    reset_shop_for_visit();
+
     if (!lucky_coin_given && relic_has(g_state.relics, g_state.relic_count, RELIC_LUCKY_COIN))
     {
-        g_state.gold += 10;
+        game_gain_gold(10, "lucky_coin_shop");
         lucky_coin_given = true;
     }
 
     if (mode == SHOP_MAIN)
     {
-        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-        {
-            Vector2 m = GetMousePosition();
-            Rectangle upg_btn = shop_upgrade_button();
-            Rectangle rem_btn = shop_remove_button();
+        bool can_upg1 = deck_browser_has_upgradeable_at(&g_state.run_deck, 1);
+        bool can_upg2 = deck_browser_has_upgradeable_at(&g_state.run_deck, 2);
+        bool can_remove = valid_card_count(&g_state.run_deck) > 3;
+        bool deck_space = g_state.run_deck.card_count < MAX_DECK_SIZE;
 
-            if (CheckCollisionPointRec(m, upg_btn) && g_state.gold >= UPGRADE_COST && deck_browser_has_upgradeable(&g_state.run_deck))
+        if (clicked(sale_buy_button()))
+        {
+            if (!deck_space)
+                snprintf(msg, sizeof(msg), "Deck is full.");
+            else if (!game_spend_gold(CARD_SALE_COST, "shop_buy_card"))
+                snprintf(msg, sizeof(msg), "Need %dg.", CARD_SALE_COST);
+            else
             {
-                mode = SHOP_UPGRADE;
+                deck_add_card(&g_state.run_deck, shop_card);
+                snprintf(msg, sizeof(msg), "Bought %s.", shop_card ? shop_card->name : "a card");
+                shop_card = random_party_card();
+            }
+        }
+        else if (clicked(sale_reroll_button()))
+        {
+            if (!game_spend_gold(CARD_REROLL_COST, "shop_reroll_card"))
+                snprintf(msg, sizeof(msg), "Need %dg.", CARD_REROLL_COST);
+            else
+            {
+                shop_card = random_party_card();
+                snprintf(msg, sizeof(msg), "Shop card rerolled.");
+            }
+        }
+        else if (clicked(option_rect(0, 0)))
+        {
+            if (g_state.gold < UPGRADE_COST)
+                snprintf(msg, sizeof(msg), "Need %dg.", UPGRADE_COST);
+            else if (!can_upg1)
+                snprintf(msg, sizeof(msg), "No base cards can improve.");
+            else
+            {
+                mode = SHOP_UPGRADE_1;
                 deck_browser_reset(&shop_browser);
                 msg[0] = '\0';
             }
-            else if (CheckCollisionPointRec(m, upg_btn) && g_state.gold < UPGRADE_COST)
+        }
+        else if (clicked(option_rect(1, 0)))
+        {
+            if (g_state.gold < SUPER_UPGRADE_COST)
+                snprintf(msg, sizeof(msg), "Need %dg.", SUPER_UPGRADE_COST);
+            else if (!can_upg2)
+                snprintf(msg, sizeof(msg), "No upgraded cards can improve.");
+            else
             {
-                snprintf(msg, sizeof(msg), "Not enough gold! Need %dg", UPGRADE_COST);
+                mode = SHOP_UPGRADE_2;
+                deck_browser_reset(&shop_browser);
+                msg[0] = '\0';
             }
-            else if (CheckCollisionPointRec(m, upg_btn))
-            {
-                snprintf(msg, sizeof(msg), "No cards left to upgrade!");
-            }
-
-            if (CheckCollisionPointRec(m, rem_btn) && g_state.gold >= REMOVE_COST && g_state.run_deck.card_count > 3)
+        }
+        else if (clicked(option_rect(0, 1)))
+        {
+            if (g_state.gold < REMOVE_COST)
+                snprintf(msg, sizeof(msg), "Need %dg.", REMOVE_COST);
+            else if (!can_remove)
+                snprintf(msg, sizeof(msg), "Deck too small.");
+            else
             {
                 mode = SHOP_REMOVE;
                 deck_browser_reset(&shop_browser);
                 msg[0] = '\0';
             }
-            else if (CheckCollisionPointRec(m, rem_btn) && g_state.gold < REMOVE_COST)
+        }
+        else if (clicked(option_rect(1, 1)))
+        {
+            if (g_state.gold < HP_BOOST_COST)
+                snprintf(msg, sizeof(msg), "Need %dg.", HP_BOOST_COST);
+            else
             {
-                snprintf(msg, sizeof(msg), "Not enough gold! Need %dg", REMOVE_COST);
-            }
-            else if (CheckCollisionPointRec(m, rem_btn) && g_state.run_deck.card_count <= 3)
-            {
-                snprintf(msg, sizeof(msg), "Deck too small to remove!");
-            }
-
-            // Leave button
-            Rectangle leave_btn = { (float)(VIRT_W / 2 - 40), 214.0f, 80.0f, 22.0f };
-            if (CheckCollisionPointRec(m, leave_btn))
-            {
-                g_state.map.nodes[g_state.map.current_index].completed = true;
-                g_state.map.current_index = -1;
-                map_unlock_next(&g_state.map);
-                lucky_coin_given = false;
-                game_change_screen(SCREEN_MAP);
+                mode = SHOP_HP_BOOST;
+                msg[0] = '\0';
             }
         }
+        else if (clicked(option_rect(0, 2)))
+        {
+            buy_boon(true);
+        }
+        else if (clicked(option_rect(1, 2)))
+        {
+            buy_boon(false);
+        }
+        else if (clicked(leave_button()))
+        {
+            complete_shop();
+        }
     }
-    else if (mode == SHOP_UPGRADE || mode == SHOP_REMOVE)
+    else if (mode == SHOP_UPGRADE_1 || mode == SHOP_UPGRADE_2 || mode == SHOP_REMOVE)
     {
-        int selected = deck_browser_update(&shop_browser, &g_state.run_deck, shop_browser_bounds(), mode == SHOP_UPGRADE);
+        int target_level = mode == SHOP_UPGRADE_1 ? 1 : (mode == SHOP_UPGRADE_2 ? 2 : 0);
+        int selected = deck_browser_update(&shop_browser, &g_state.run_deck, shop_browser_bounds(), target_level);
         hovered_deck = shop_browser.hovered_deck_index;
 
         if (selected >= 0)
         {
-            if (mode == SHOP_UPGRADE)
+            CardInstance *inst = &g_state.run_deck.cards[selected];
+            if (mode == SHOP_UPGRADE_1)
             {
-                g_state.gold -= UPGRADE_COST;
-                g_state.run_deck.cards[selected].upgraded = true;
-                LOG_I(CAT_SCREEN, "Shop: upgraded %s", g_state.run_deck.cards[selected].def->name);
-                snprintf(msg, sizeof(msg), "Card upgraded!");
+                if (game_spend_gold(UPGRADE_COST, "shop_upgrade"))
+                {
+                    inst->upgrade_level = 1;
+                    snprintf(msg, sizeof(msg), "%s upgraded.", inst->def ? inst->def->name : "Card");
+                    mode = SHOP_MAIN;
+                }
+            }
+            else if (mode == SHOP_UPGRADE_2)
+            {
+                if (game_spend_gold(SUPER_UPGRADE_COST, "shop_super_upgrade"))
+                {
+                    inst->upgrade_level = 2;
+                    snprintf(msg, sizeof(msg), "%s maxed.", inst->def ? inst->def->name : "Card");
+                    mode = SHOP_MAIN;
+                }
             }
             else
             {
-                g_state.gold -= REMOVE_COST;
-                for (int j = selected; j < g_state.run_deck.card_count - 1; j++)
-                    g_state.run_deck.cards[j] = g_state.run_deck.cards[j + 1];
-                g_state.run_deck.card_count--;
-                LOG_I(CAT_SCREEN, "Shop: removed card at index %d", selected);
-                snprintf(msg, sizeof(msg), "Card removed!");
+                if (game_spend_gold(REMOVE_COST, "shop_remove"))
+                {
+                    const CardDef *def = inst->def;
+                    int uid = inst->uid;
+                    deck_remove_card_by_uid(&g_state.run_deck, uid);
+                    snprintf(msg, sizeof(msg), "Removed %s.", def ? def->name : "a card");
+                    mode = SHOP_MAIN;
+                }
             }
-            mode = SHOP_DONE;
         }
 
         if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
         {
             mode = SHOP_MAIN;
-            msg[0] = '\0';
+            hovered_deck = -1;
         }
     }
-    else if (mode == SHOP_DONE)
+    else if (mode == SHOP_HP_BOOST)
     {
-        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+        Vector2 mouse = GetMousePosition();
+        for (int i = 0; i < g_state.run_party.count; i++)
         {
-            mode = SHOP_MAIN;
-            g_state.map.nodes[g_state.map.current_index].completed = true;
-            g_state.map.current_index = -1;
-            map_unlock_next(&g_state.map);
-            lucky_coin_given = false;
-            game_change_screen(SCREEN_MAP);
+            Rectangle r = { 170.0f, 86.0f + i * 38.0f, 300.0f, 28.0f };
+            if (!CheckCollisionPointRec(mouse, r) || !IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+                continue;
+            if (game_spend_gold(HP_BOOST_COST, "shop_hp_boost"))
+            {
+                PartyMember *pm = &g_state.run_party.members[i];
+                pm->max_hp += 5;
+                pm->hp += 5;
+                if (pm->hp > pm->max_hp) pm->hp = pm->max_hp;
+                pm->alive = true;
+                snprintf(msg, sizeof(msg), "%s gained +5 max HP.", pm->name);
+                mode = SHOP_MAIN;
+            }
+            break;
         }
+        if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
+            mode = SHOP_MAIN;
     }
+}
+
+static void draw_shop_button(Rectangle r, const char *label, const char *body, bool enabled, Color accent)
+{
+    Vector2 mouse = GetMousePosition();
+    bool hover = enabled && CheckCollisionPointRec(mouse, r);
+    Color bg = !enabled ? (Color){ 28, 29, 38, 230 } :
+        hover ? (Color){ accent.r, accent.g, accent.b, 210 } : (Color){ accent.r / 3, accent.g / 3, accent.b / 3, 235 };
+    Color border = !enabled ? (Color){ 70, 72, 88, 165 } :
+        hover ? RAYWHITE : (Color){ accent.r, accent.g, accent.b, 190 };
+    Color title_col = enabled ? RAYWHITE : (Color){ 110, 112, 130, 215 };
+    Color body_col = enabled ? (Color){ 185, 190, 215, 220 } : (Color){ 95, 98, 115, 200 };
+
+    DrawRectangleRec(r, bg);
+    DrawRectangleLinesEx(r, hover ? 2.0f : 1.0f, border);
+    draw_text_box((Rectangle){ r.x + 6.0f, r.y + 3.0f, r.width - 12.0f, 11.0f },
+        label, 10, 0, title_col, TEXT_ALIGN_CENTER);
+    if (body && body[0])
+        draw_text_box((Rectangle){ r.x + 6.0f, r.y + 14.0f, r.width - 12.0f, 10.0f },
+            body, 10, 0, body_col, TEXT_ALIGN_CENTER);
+}
+
+static void draw_upgrade_preview(const CardDef *cd, int level, Rectangle tip)
+{
+    int preview_y = (int)(tip.y + tip.height + 5.0f);
+    if (!cd || !card_upgrade_changes_values_at(cd, level))
+    {
+        draw_text_box((Rectangle){ tip.x, (float)preview_y, tip.width, 24.0f },
+            "Upgrade has no value changes", 10, 0, (Color){ 160, 160, 180, 220 }, TEXT_ALIGN_LEFT);
+        return;
+    }
+
+    int od = card_damage(cd, level), oh = card_heal(cd, level), os = card_shield(cd, level);
+    int nd = card_damage(cd, level + 1), nh = card_heal(cd, level + 1), ns = card_shield(cd, level + 1);
+    int y = preview_y;
+    if (nd != od) { char b[32]; snprintf(b, sizeof(b), "DMG %d>%d", od, nd); DrawText(b, (int)tip.x, y, 10, (Color){ 220, 110, 100, 255 }); y += 14; }
+    if (nh != oh) { char b[32]; snprintf(b, sizeof(b), "HEAL %d>%d", oh, nh); DrawText(b, (int)tip.x, y, 10, (Color){ 105, 220, 125, 255 }); y += 14; }
+    if (ns != os) { char b[32]; snprintf(b, sizeof(b), "SHIELD %d>%d", os, ns); DrawText(b, (int)tip.x, y, 10, (Color){ 125, 190, 255, 255 }); }
 }
 
 void shop_screen_draw(void)
 {
     theme_draw_background();
 
-    draw_text_box((Rectangle){ 80.0f, 72.0f, 480.0f, 22.0f }, "SHOP", 18, 0, (Color){ 220, 200, 60, 255 }, TEXT_ALIGN_CENTER);
-
-    char gold_text[32];
-    snprintf(gold_text, sizeof(gold_text), "Gold: %d", g_state.gold);
-    draw_text_box((Rectangle){ 80.0f, 100.0f, 480.0f, 14.0f }, gold_text, 10, 0, (Color){ 220, 200, 60, 220 }, TEXT_ALIGN_CENTER);
-
     if (mode == SHOP_MAIN)
     {
-        Vector2 m = GetMousePosition();
-        Rectangle upg_btn = shop_upgrade_button();
-        Rectangle rem_btn = shop_remove_button();
+        draw_text_box((Rectangle){ 80.0f, 30.0f, 480.0f, 22.0f }, "SHOP", 18, 0, (Color){ 220, 200, 60, 255 }, TEXT_ALIGN_CENTER);
 
-        bool can_upg = g_state.gold >= UPGRADE_COST && deck_browser_has_upgradeable(&g_state.run_deck);
-        bool can_rem = g_state.gold >= REMOVE_COST && g_state.run_deck.card_count > 3;
+        Rectangle card_rect = sale_card_rect();
+        if (shop_card)
+            theme_draw_card_art(card_rect, shop_card, 0);
+        theme_draw_card_tooltip((Rectangle){ 34.0f, 232.0f, 222.0f, 78.0f }, shop_card, 0);
 
-        bool hu = CheckCollisionPointRec(m, upg_btn);
-        bool hr = CheckCollisionPointRec(m, rem_btn);
+        bool deck_space = g_state.run_deck.card_count < MAX_DECK_SIZE;
+        draw_shop_button(sale_buy_button(), "BUY 25g", "", g_state.gold >= CARD_SALE_COST && deck_space, (Color){ 80, 150, 220, 255 });
+        draw_shop_button(sale_reroll_button(), "ROLL 5g", "", g_state.gold >= CARD_REROLL_COST, (Color){ 95, 190, 110, 255 });
 
-        Color uc = can_upg ? (hu ? (Color){ 80, 140, 220, 255 } : (Color){ 50, 80, 140, 255 }) : (Color){ 40, 40, 60, 255 };
-        Color rc = can_rem ? (hr ? (Color){ 220, 100, 100, 255 } : (Color){ 160, 60, 60, 255 }) : (Color){ 40, 40, 60, 255 };
+        bool can_upg1 = g_state.gold >= UPGRADE_COST && deck_browser_has_upgradeable_at(&g_state.run_deck, 1);
+        bool can_upg2 = g_state.gold >= SUPER_UPGRADE_COST && deck_browser_has_upgradeable_at(&g_state.run_deck, 2);
+        bool can_remove = g_state.gold >= REMOVE_COST && valid_card_count(&g_state.run_deck) > 3;
+        int boon_cost = shop_boon_cost();
+        bool can_boon = g_state.gold >= boon_cost;
 
-        DrawRectangleRec(upg_btn, uc);
-        char ul[64]; snprintf(ul, sizeof(ul), "UPGRADE (%dg)", UPGRADE_COST);
-        draw_text_box((Rectangle){ upg_btn.x + 6.0f, upg_btn.y + 8.0f, upg_btn.width - 12.0f, upg_btn.height - 14.0f },
-            ul, 10, 0, can_upg ? RAYWHITE : (Color){ 100, 100, 120, 200 }, TEXT_ALIGN_CENTER);
+        draw_shop_button(option_rect(0, 0), "UPGRADE 30g", "base -> upgraded", can_upg1, (Color){ 80, 140, 220, 255 });
+        draw_shop_button(option_rect(1, 0), "SUPER 60g", "upgraded -> max", can_upg2, (Color){ 205, 165, 70, 255 });
+        draw_shop_button(option_rect(0, 1), "REMOVE 20g", "trim a card", can_remove, (Color){ 220, 100, 100, 255 });
+        draw_shop_button(option_rect(1, 1), "HP +5 15g", "pick a hero", g_state.gold >= HP_BOOST_COST, (Color){ 90, 200, 120, 255 });
 
-        DrawRectangleRec(rem_btn, rc);
-        char rl[64]; snprintf(rl, sizeof(rl), "REMOVE (%dg)", REMOVE_COST);
-        draw_text_box((Rectangle){ rem_btn.x + 6.0f, rem_btn.y + 8.0f, rem_btn.width - 12.0f, rem_btn.height - 14.0f },
-            rl, 10, 0, can_rem ? RAYWHITE : (Color){ 100, 100, 120, 200 }, TEXT_ALIGN_CENTER);
+        char boon_label[32];
+        snprintf(boon_label, sizeof(boon_label), "ENERGY %dg", boon_cost);
+        draw_shop_button(option_rect(0, 2), boon_label, "+1 next combat", can_boon, (Color){ 230, 205, 70, 255 });
+        snprintf(boon_label, sizeof(boon_label), "DRAW %dg", boon_cost);
+        draw_shop_button(option_rect(1, 2), boon_label, "+2 next combat", can_boon, (Color){ 135, 190, 245, 255 });
 
-        if (msg[0])
-            draw_text_box((Rectangle){ 96.0f, 224.0f, 448.0f, 28.0f }, msg, 10, 0, (Color){ 200, 150, 100, 220 }, TEXT_ALIGN_CENTER);
-
-        // Leave button
-        Rectangle leave_btn = { (float)(VIRT_W / 2 - 40), 214.0f, 80.0f, 22.0f };
-        bool leave_hover = CheckCollisionPointRec(m, leave_btn);
-        Color leave_col = leave_hover ? (Color){ 100, 100, 100, 255 } : (Color){ 60, 60, 60, 255 };
-        DrawRectangleRec(leave_btn, leave_col);
-        DrawRectangleLinesEx(leave_btn, 1.0f, (Color){ 120, 120, 120, 200 });
-        draw_text_box((Rectangle){ leave_btn.x + 4.0f, leave_btn.y + 4.0f, leave_btn.width - 8.0f, leave_btn.height - 8.0f },
-            "Leave", 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
-    }
-    else if (mode == SHOP_UPGRADE)
-    {
-        draw_text_box((Rectangle){ 80.0f, 16.0f, 480.0f, 22.0f }, "PICK A CARD TO UPGRADE", 18, 0, RAYWHITE, TEXT_ALIGN_CENTER);
-        char hint[80];
-        snprintf(hint, sizeof(hint), "%d cards  |  wheel scroll  |  right-click cancel", g_state.run_deck.card_count);
-        draw_text_box((Rectangle){ 80.0f, 34.0f, 480.0f, 14.0f }, hint, 10, 0, (Color){ 160, 160, 180, 180 }, TEXT_ALIGN_CENTER);
-        deck_browser_draw(&shop_browser, &g_state.run_deck, true, RAYWHITE);
-        if (hovered_deck >= 0)
+        if (g_state.next_combat_energy_bonus > 0 || g_state.next_combat_draw_bonus > 0)
         {
-            const CardDef *cd = g_state.run_deck.cards[hovered_deck].def;
-            if (cd)
-            {
-                Rectangle tip = theme_draw_card_tooltip_limited(layout_deck_inspector_panel(), cd, g_state.run_deck.cards[hovered_deck].upgraded, 268);
-                int preview_y = (int)(tip.y + tip.height + 5.0f);
-                if (g_state.run_deck.cards[hovered_deck].upgraded)
-                {
-                    draw_text_box((Rectangle){ tip.x, (float)preview_y, tip.width, 24.0f },
-                        "Already upgraded", 10, 0, (Color){ 160, 160, 180, 220 }, TEXT_ALIGN_LEFT);
-                }
-                else if (!card_upgrade_changes_values(cd))
-                {
-                    draw_text_box((Rectangle){ tip.x, (float)preview_y, tip.width, 24.0f },
-                        "Upgrade has no value changes", 10, 0, (Color){ 160, 160, 180, 220 }, TEXT_ALIGN_LEFT);
-                }
-                else
-                {
-                    int od = cd->damage, oh = cd->heal, os = cd->shield;
-                    int nd = card_damage(cd, true), nh = card_heal(cd, true), ns = card_shield(cd, true);
-                    int y = preview_y;
-                    if (nd != od) { char b[32]; snprintf(b, sizeof(b), "DMG %d>%d", od, nd); DrawText(b, (int)tip.x, y, 10, (Color){ 220, 110, 100, 255 }); y += 14; }
-                    if (nh != oh) { char b[32]; snprintf(b, sizeof(b), "HEAL %d>%d", oh, nh); DrawText(b, (int)tip.x, y, 10, (Color){ 105, 220, 125, 255 }); y += 14; }
-                    if (ns != os) { char b[32]; snprintf(b, sizeof(b), "SHIELD %d>%d", os, ns); DrawText(b, (int)tip.x, y, 10, (Color){ 125, 190, 255, 255 }); }
-                }
-            }
+            char boon[96];
+            snprintf(boon, sizeof(boon), "Queued boon: +%d energy, +%d draw for %d turn%s",
+                g_state.next_combat_energy_bonus,
+                g_state.next_combat_draw_bonus,
+                g_state.next_combat_boon_turns,
+                g_state.next_combat_boon_turns == 1 ? "" : "s");
+            draw_text_box((Rectangle){ 180.0f, 208.0f, 412.0f, 24.0f }, boon, 10, 0, (Color){ 230, 220, 140, 230 }, TEXT_ALIGN_CENTER);
+        }
+
+        draw_shop_button(leave_button(), "LEAVE", "", true, (Color){ 120, 120, 145, 255 });
+        if (msg[0])
+            draw_text_box((Rectangle){ 180.0f, 236.0f, 412.0f, 28.0f }, msg, 10, 0, (Color){ 230, 205, 115, 240 }, TEXT_ALIGN_CENTER);
+    }
+    else if (mode == SHOP_UPGRADE_1 || mode == SHOP_UPGRADE_2)
+    {
+        int target_level = mode == SHOP_UPGRADE_1 ? 1 : 2;
+        draw_text_box((Rectangle){ 80.0f, 16.0f, 480.0f, 22.0f },
+            target_level == 1 ? "PICK A CARD TO UPGRADE" : "PICK A CARD TO MAX",
+            18, 0, RAYWHITE, TEXT_ALIGN_CENTER);
+        draw_text_box((Rectangle){ 80.0f, 34.0f, 480.0f, 14.0f },
+            "wheel scroll  |  right-click cancel", 10, 0, (Color){ 160, 160, 180, 180 }, TEXT_ALIGN_CENTER);
+        deck_browser_draw(&shop_browser, &g_state.run_deck, target_level, RAYWHITE);
+        if (hovered_deck >= 0 && g_state.run_deck.cards[hovered_deck].def)
+        {
+            CardInstance *inst = &g_state.run_deck.cards[hovered_deck];
+            Rectangle tip = theme_draw_card_tooltip_limited(layout_deck_inspector_panel(), inst->def, inst->upgrade_level, 268);
+            draw_upgrade_preview(inst->def, inst->upgrade_level, tip);
         }
     }
     else if (mode == SHOP_REMOVE)
     {
         draw_text_box((Rectangle){ 80.0f, 16.0f, 480.0f, 22.0f }, "PICK A CARD TO REMOVE", 18, 0, (Color){ 220, 120, 120, 255 }, TEXT_ALIGN_CENTER);
-        char hint[80];
-        snprintf(hint, sizeof(hint), "%d cards  |  wheel scroll  |  right-click cancel", g_state.run_deck.card_count);
-        draw_text_box((Rectangle){ 80.0f, 34.0f, 480.0f, 14.0f }, hint, 10, 0, (Color){ 160, 160, 180, 180 }, TEXT_ALIGN_CENTER);
-        deck_browser_draw(&shop_browser, &g_state.run_deck, false, (Color){ 255, 100, 100, 255 });
+        draw_text_box((Rectangle){ 80.0f, 34.0f, 480.0f, 14.0f }, "wheel scroll  |  right-click cancel", 10, 0, (Color){ 160, 160, 180, 180 }, TEXT_ALIGN_CENTER);
+        deck_browser_draw(&shop_browser, &g_state.run_deck, 0, (Color){ 255, 100, 100, 255 });
         if (hovered_deck >= 0 && g_state.run_deck.cards[hovered_deck].def)
-            theme_draw_card_tooltip(layout_deck_inspector_panel(), g_state.run_deck.cards[hovered_deck].def, g_state.run_deck.cards[hovered_deck].upgraded);
+            theme_draw_card_tooltip(layout_deck_inspector_panel(), g_state.run_deck.cards[hovered_deck].def, g_state.run_deck.cards[hovered_deck].upgrade_level);
     }
-    else if (mode == SHOP_DONE)
+    else if (mode == SHOP_HP_BOOST)
     {
-        Color c = (Color){ 100, 220, 120, 255 };
-        draw_text_box((Rectangle){ 80.0f, 164.0f, 480.0f, 22.0f }, msg, 18, 0, c, TEXT_ALIGN_CENTER);
-        draw_text_box((Rectangle){ 80.0f, 190.0f, 480.0f, 14.0f }, "Click to continue.", 10, 0, (Color){ 160, 160, 180, 200 }, TEXT_ALIGN_CENTER);
+        draw_text_box((Rectangle){ 80.0f, 36.0f, 480.0f, 22.0f }, "TRAIN A HERO", 18, 0, (Color){ 120, 230, 150, 255 }, TEXT_ALIGN_CENTER);
+        draw_text_box((Rectangle){ 80.0f, 58.0f, 480.0f, 14.0f }, "Pick one party member. Right-click cancels.", 10, 0, (Color){ 170, 180, 205, 210 }, TEXT_ALIGN_CENTER);
+        Vector2 mouse = GetMousePosition();
+        for (int i = 0; i < g_state.run_party.count; i++)
+        {
+            PartyMember *pm = &g_state.run_party.members[i];
+            Rectangle r = { 170.0f, 86.0f + i * 38.0f, 300.0f, 28.0f };
+            bool hover = CheckCollisionPointRec(mouse, r);
+            DrawRectangleRec(r, hover ? (Color){ 36, 72, 48, 245 } : (Color){ 22, 36, 30, 235 });
+            DrawRectangleLinesEx(r, 1.0f, hover ? RAYWHITE : (Color){ 95, 210, 130, 180 });
+            char line[96];
+            snprintf(line, sizeof(line), "%s  %d/%d HP  ->  max %d", pm->name, pm->hp, pm->max_hp, pm->max_hp + 5);
+            draw_text_box((Rectangle){ r.x + 8.0f, r.y + 8.0f, r.width - 16.0f, 12.0f },
+                line, 10, 0, RAYWHITE, TEXT_ALIGN_LEFT);
+        }
     }
 }
-
-
-

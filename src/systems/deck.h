@@ -69,15 +69,18 @@ typedef struct {
 typedef struct {
     const CardDef *def;
     int uid;
-    bool upgraded;
+    int upgrade_level;
 } CardInstance;
 
-int  card_damage(const CardDef *def, bool upgraded);
-int  card_heal(const CardDef *def, bool upgraded);
-int  card_shield(const CardDef *def, bool upgraded);
+int  card_upgrade_value(int base_value, int upgrade_level);
+int  card_damage(const CardDef *def, int upgrade_level);
+int  card_heal(const CardDef *def, int upgrade_level);
+int  card_shield(const CardDef *def, int upgrade_level);
 int  card_repeat_hits(const CardDef *def);
 bool card_has_effect(const CardDef *def, CardEffectType type);
 bool card_upgrade_changes_values(const CardDef *def);
+bool card_upgrade_changes_values_at(const CardDef *def, int upgrade_level);
+int  card_clamp_upgrade_level(const CardDef *def, int upgrade_level);
 
 typedef struct {
     CardInstance cards[MAX_DECK_SIZE];
@@ -97,6 +100,7 @@ void deck_init(Deck *deck);
 void deck_init_from_classes(Deck *deck, int *class_indices, int count);
 void deck_add_card(Deck *deck, const CardDef *def);
 void deck_add_card_upgraded(Deck *deck, const CardDef *def, bool upgraded);
+void deck_add_card_with_level(Deck *deck, const CardDef *def, int upgrade_level);
 void deck_prepare_for_combat(Deck *deck);
 void deck_shuffle(Deck *deck);
 int  deck_draw(Deck *deck);

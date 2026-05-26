@@ -33,7 +33,6 @@ static EventEffectType parse_effect(const char *text)
     if (text && strcmp(text, "pay_gold_gain_relic") == 0) return EVENT_EFFECT_PAY_GOLD_GAIN_RELIC;
     if (text && strcmp(text, "pay_gold_add_card") == 0) return EVENT_EFFECT_PAY_GOLD_ADD_CARD;
     if (text && strcmp(text, "gain_gold") == 0) return EVENT_EFFECT_GAIN_GOLD;
-    if (text && strcmp(text, "gain_reroll_token") == 0) return EVENT_EFFECT_GAIN_REROLL_TOKEN;
     if (text && strcmp(text, "pay_gold_upgrade_random_card") == 0) return EVENT_EFFECT_PAY_GOLD_UPGRADE_RANDOM_CARD;
     if (text && strcmp(text, "gain_gold_hurt_party") == 0) return EVENT_EFFECT_GAIN_GOLD_HURT_PARTY;
     if (text && strcmp(text, "add_card_add_curse") == 0) return EVENT_EFFECT_ADD_CARD_ADD_CURSE;

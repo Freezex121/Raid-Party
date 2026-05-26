@@ -52,6 +52,7 @@ typedef struct {
     Texture2D paper_texture;
     Texture2D card_template;
     Texture2D card_template_upgraded;
+    Texture2D card_template_maxed;
     Texture2D relic_template;
     Texture2D class_icons[CLASS_COUNT];
     Texture2D relic_icons[RELIC_COUNT];
@@ -60,6 +61,8 @@ typedef struct {
     bool sfx_loaded[SFX_COUNT];
     Music music[MUSIC_COUNT];
     bool music_loaded[MUSIC_COUNT];
+    float music_volume;
+    float sfx_volume;
     GameMusic current_music;
     bool music_playing;
     bool audio_loaded;
@@ -74,5 +77,7 @@ void assets_update_audio(void);
 void assets_play_sfx(GameSfx sfx);
 void assets_play_music(GameMusic music);
 void assets_stop_music(void);
+void assets_set_music_volume(float volume);
+void assets_set_sfx_volume(float volume);
 
 #endif

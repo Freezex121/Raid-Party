@@ -179,7 +179,7 @@ void discard_screen_draw(void)
         for (int j = 0; j < g_state.discard_selected; j++)
             if (g_state.discard_uids[j] == deck->cards[di].uid) { selected = true; break; }
 
-        theme_draw_card_art(r, deck->cards[di].def, deck->cards[di].upgraded);
+        theme_draw_card_art(r, deck->cards[di].def, deck->cards[di].upgrade_level);
 
         if (selected)
             DrawRectangleRec(r, (Color){ 255, 80, 80, 50 });

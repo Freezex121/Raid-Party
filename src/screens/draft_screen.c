@@ -197,7 +197,8 @@ void draft_screen_update(void)
             map_clear(&g_state.map);
             g_state.map.floor = 0;
             g_state.current_area = area_clamp_index(g_state.current_area);
-            g_state.gold = meta_starting_gold(&g_state.meta);
+            g_state.gold = 0;
+            game_gain_gold(meta_starting_gold(&g_state.meta), "run_start");
             g_state.relic_count = 0;
             g_state.relic_reward_pending = false;
             g_state.relic_reward_count = 0;
@@ -213,11 +214,14 @@ void draft_screen_update(void)
             g_state.result_unlocked_party_size = 0;
             g_state.result_unlocked_area = -1;
             g_state.result_renown_gained = 0;
+            g_state.result_gold_renown = 0;
             g_state.run_won = false;
             g_state.run_deaths = 0;
             g_state.run_interrupts = 0;
             g_state.run_best_combat_turns = 0;
-            g_state.reroll_tokens = 0;
+            g_state.next_combat_energy_bonus = 0;
+            g_state.next_combat_draw_bonus = 0;
+            g_state.next_combat_boon_turns = 0;
             g_state.result_reason[0] = '\0';
             party_create(&g_state.run_party, g_state.selected_classes, g_state.selected_count);
             g_state.run_party_active = true;

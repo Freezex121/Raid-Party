@@ -218,7 +218,7 @@
       "choices": [
         { "label": "Pull Gold Thread", "description": "Gain 50g. Lose 9 HP each.", "effect": "gain_gold_hurt_party", "gold": 50, "hp_loss": 9 },
         { "label": "Tie Red Thread", "description": "All party members gain +3 max HP.", "effect": "gain_max_hp", "amount": 3 },
-        { "label": "Cut Loose Thread", "description": "Gain 1 reroll token.", "effect": "gain_reroll_token", "amount": 1 }
+        { "label": "Cut Loose Thread", "description": "Gain 16g.", "effect": "gain_gold", "gold": 16 }
       ]
     },
     {
@@ -238,7 +238,7 @@
       "choices": [
         { "label": "Speak Your Name", "description": "Gain a relic. Add Doubt.", "effect": "gain_relic_add_curse", "curse": "curse_doubt" },
         { "label": "Buy the Seal", "description": "Pay 38g. Gain a relic.", "effect": "pay_gold_gain_relic", "gold": 38 },
-        { "label": "Leave Sealed", "description": "Gain 1 reroll token.", "effect": "gain_reroll_token", "amount": 1 }
+        { "label": "Leave Sealed", "description": "Gain 15g.", "effect": "gain_gold", "gold": 15 }
       ]
     },
     {
@@ -247,7 +247,7 @@
       "body": "Miniature soldiers march on their own across a carved map of battles that have not happened yet.",
       "choices": [
         { "label": "Study Assault", "description": "Pay 18g. Upgrade a card.", "effect": "pay_gold_upgrade_random_card", "gold": 18 },
-        { "label": "Change Orders", "description": "Gain 2 reroll tokens.", "effect": "gain_reroll_token", "amount": 2 },
+        { "label": "Change Orders", "description": "Gain 18g.", "effect": "gain_gold", "gold": 18 },
         { "label": "Draft Tactic", "description": "Add a card. Add Doubt.", "effect": "add_card_add_curse", "curse": "curse_doubt" }
       ]
     },

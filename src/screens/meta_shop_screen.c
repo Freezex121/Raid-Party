@@ -11,29 +11,75 @@
 static Button back_btn;
 static bool initialized = false;
 static char shop_msg[128] = "";
+static float shop_scroll_y = 0.0f;
+
+#define META_ITEM_COUNT 15
+#define META_ITEM_W 292.0f
+#define META_ITEM_H 70.0f
+#define META_ITEM_GAP_X 12.0f
+#define META_ITEM_GAP_Y 8.0f
+
+static Rectangle shop_viewport(void)
+{
+    return (Rectangle){ 18.0f, 80.0f, 604.0f, 228.0f };
+}
+
+static float shop_content_height(void)
+{
+    int rows = (META_ITEM_COUNT + 1) / 2;
+    return rows * META_ITEM_H + (rows - 1) * META_ITEM_GAP_Y;
+}
+
+static float shop_max_scroll(void)
+{
+    Rectangle view = shop_viewport();
+    float max_scroll = shop_content_height() - view.height;
+    return max_scroll > 0.0f ? max_scroll : 0.0f;
+}
+
+static void clamp_shop_scroll(void)
+{
+    float max_scroll = shop_max_scroll();
+    if (shop_scroll_y < 0.0f) shop_scroll_y = 0.0f;
+    if (shop_scroll_y > max_scroll) shop_scroll_y = max_scroll;
+}
 
 static Rectangle item_rect(int index)
 {
-    const float w = 178.0f;
-    const float h = 56.0f;
-    const float gap_x = 14.0f;
-    const float gap_y = 6.0f;
-    int col = index % 3;
-    int row = index / 3;
-    float start_x = (VIRT_W - (3.0f * w + 2.0f * gap_x)) * 0.5f;
-    return (Rectangle){ start_x + col * (w + gap_x), 82.0f + row * (h + gap_y), w, h };
+    Rectangle view = shop_viewport();
+    int col = index % 2;
+    int row = index / 2;
+    float total_w = 2.0f * META_ITEM_W + META_ITEM_GAP_X;
+    float start_x = view.x + (view.width - total_w) * 0.5f;
+    return (Rectangle){
+        start_x + col * (META_ITEM_W + META_ITEM_GAP_X),
+        view.y + row * (META_ITEM_H + META_ITEM_GAP_Y) - shop_scroll_y,
+        META_ITEM_W,
+        META_ITEM_H
+    };
+}
+
+static bool item_hit(int index, Vector2 mouse)
+{
+    Rectangle view = shop_viewport();
+    Rectangle r = item_rect(index);
+    return CheckCollisionPointRec(mouse, view) &&
+           r.y >= view.y &&
+           r.y + r.height <= view.y + view.height &&
+           CheckCollisionPointRec(mouse, r);
 }
 
 static void init_if_needed(void)
 {
     if (initialized) return;
     back_btn = button_create(
-        (Rectangle){ (float)(VIRT_W / 2 - 64), 316.0f, 128.0f, (float)BTN_H },
+        (Rectangle){ (float)(VIRT_W / 2 - 64), 330.0f, 128.0f, (float)BTN_H },
         "BACK",
         (Color){ 42, 48, 70, 255 },
         (Color){ 70, 78, 110, 255 },
         RAYWHITE);
     shop_msg[0] = '\0';
+    shop_scroll_y = 0.0f;
     initialized = true;
 }
 
@@ -188,31 +234,48 @@ void meta_shop_screen_update(void)
         return;
     }
 
+    Vector2 mouse = GetMousePosition();
+    Rectangle view = shop_viewport();
+    float wheel = GetMouseWheelMove();
+    if (wheel != 0.0f && CheckCollisionPointRec(mouse, view))
+        shop_scroll_y -= wheel * 28.0f;
+    if (IsKeyDown(KEY_DOWN)) shop_scroll_y += 3.0f;
+    if (IsKeyDown(KEY_UP)) shop_scroll_y -= 3.0f;
+    if (IsKeyPressed(KEY_PAGE_DOWN)) shop_scroll_y += view.height * 0.85f;
+    if (IsKeyPressed(KEY_PAGE_UP)) shop_scroll_y -= view.height * 0.85f;
+    clamp_shop_scroll();
+
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
     {
-        Vector2 mouse = GetMousePosition();
-        if (CheckCollisionPointRec(mouse, item_rect(0))) try_buy_slot4();
-        else if (CheckCollisionPointRec(mouse, item_rect(1))) try_buy_slot5();
-        else if (CheckCollisionPointRec(mouse, item_rect(2))) try_buy_travel_fund();
-        else if (CheckCollisionPointRec(mouse, item_rect(3))) try_buy_legacy();
-        else if (CheckCollisionPointRec(mouse, item_rect(4))) try_buy_class(CLASS_PALADIN);
-        else if (CheckCollisionPointRec(mouse, item_rect(5))) try_buy_class(CLASS_WARLOCK);
-        else if (CheckCollisionPointRec(mouse, item_rect(6))) try_buy_class(CLASS_BARD);
-        else if (CheckCollisionPointRec(mouse, item_rect(7))) try_buy_start_bool(&g_state.meta.start_prep, "Scout's Kit", 5);
-        else if (CheckCollisionPointRec(mouse, item_rect(8))) try_buy_start_bool(&g_state.meta.start_energize, "Mana Crystal", 6);
-        else if (CheckCollisionPointRec(mouse, item_rect(9))) try_buy_start_bool(&g_state.meta.start_fortify, "Traveler's Pack", 8);
-        else if (CheckCollisionPointRec(mouse, item_rect(10))) try_buy_start_bool(&g_state.meta.start_rejuv, "First Aid", 8);
-        else if (CheckCollisionPointRec(mouse, item_rect(11))) try_buy_stat(&g_state.meta.dmg_bonus, "Sharpened Blades", 5, 3);
-        else if (CheckCollisionPointRec(mouse, item_rect(12))) try_buy_stat(&g_state.meta.shield_bonus, "Reinforced Armor", 5, 3);
-        else if (CheckCollisionPointRec(mouse, item_rect(13))) try_buy_start_bool(&g_state.meta.seasoned_adventurer, "Seasoned Adventurer", 8);
-        else if (CheckCollisionPointRec(mouse, item_rect(14))) try_buy_start_bool(&g_state.meta.master_raider, "Master Raider", 12);
+        if (!CheckCollisionPointRec(mouse, view))
+            return;
+
+        if (item_hit(0, mouse)) try_buy_slot4();
+        else if (item_hit(1, mouse)) try_buy_slot5();
+        else if (item_hit(2, mouse)) try_buy_travel_fund();
+        else if (item_hit(3, mouse)) try_buy_legacy();
+        else if (item_hit(4, mouse)) try_buy_class(CLASS_PALADIN);
+        else if (item_hit(5, mouse)) try_buy_class(CLASS_WARLOCK);
+        else if (item_hit(6, mouse)) try_buy_class(CLASS_BARD);
+        else if (item_hit(7, mouse)) try_buy_start_bool(&g_state.meta.start_prep, "Scout's Kit", 10);
+        else if (item_hit(8, mouse)) try_buy_start_bool(&g_state.meta.start_energize, "Mana Crystal", 10);
+        else if (item_hit(9, mouse)) try_buy_start_bool(&g_state.meta.start_fortify, "Traveler's Pack", 15);
+        else if (item_hit(10, mouse)) try_buy_start_bool(&g_state.meta.start_rejuv, "First Aid", 15);
+        else if (item_hit(11, mouse)) try_buy_stat(&g_state.meta.dmg_bonus, "Sharpened Blades", 10, 3);
+        else if (item_hit(12, mouse)) try_buy_stat(&g_state.meta.shield_bonus, "Reinforced Armor", 10, 3);
+        else if (item_hit(13, mouse)) try_buy_start_bool(&g_state.meta.seasoned_adventurer, "Seasoned Adventurer", 15);
+        else if (item_hit(14, mouse)) try_buy_start_bool(&g_state.meta.master_raider, "Master Raider", 25);
     }
 }
 
 static void draw_item(Rectangle r, const char *title, const char *body, const char *status, int cost, bool can_buy, bool complete)
 {
     Vector2 mouse = GetMousePosition();
-    bool hover = CheckCollisionPointRec(mouse, r);
+    Rectangle view = shop_viewport();
+    if (r.y < view.y || r.y + r.height > view.y + view.height)
+        return;
+
+    bool hover = CheckCollisionPointRec(mouse, r) && CheckCollisionPointRec(mouse, view);
     Color bg = complete ? (Color){ 25, 44, 35, 238 } :
                can_buy && hover ? (Color){ 38, 55, 78, 245 } :
                can_buy ? (Color){ 24, 33, 50, 238 } :
@@ -226,12 +289,12 @@ static void draw_item(Rectangle r, const char *title, const char *body, const ch
 
     DrawRectangleRec(r, bg);
     DrawRectangleLinesEx(r, hover && can_buy ? 2.0f : 1.0f, border);
-    draw_text_box((Rectangle){ r.x + 9.0f, r.y + 7.0f, r.width - 18.0f, 14.0f },
+    draw_text_box((Rectangle){ r.x + 10.0f, r.y + 7.0f, r.width - 20.0f, 14.0f },
         title, 10, 0, title_col, TEXT_ALIGN_LEFT);
-    draw_text_box((Rectangle){ r.x + 9.0f, r.y + 24.0f, r.width - 18.0f, r.height - 48.0f },
+    draw_text_box((Rectangle){ r.x + 10.0f, r.y + 23.0f, r.width - 20.0f, 24.0f },
         body, 10, 0, body_col, TEXT_ALIGN_LEFT);
 
-    Rectangle buy = { r.x + 9.0f, r.y + r.height - 22.0f, r.width - 18.0f, 16.0f };
+    Rectangle buy = { r.x + 10.0f, r.y + r.height - 20.0f, r.width - 20.0f, 15.0f };
     Color buy_bg = complete ? (Color){ 42, 95, 58, 255 } :
                    can_buy ? (Color){ 46, 117, 182, 255 } :
                    (Color){ 38, 39, 50, 255 };
@@ -247,11 +310,27 @@ static void draw_item(Rectangle r, const char *title, const char *body, const ch
         label, 10, 0, label_col, TEXT_ALIGN_CENTER);
 }
 
+static void draw_scrollbar(Rectangle view)
+{
+    float max_scroll = shop_max_scroll();
+    if (max_scroll <= 0.0f) return;
+
+    Rectangle track = { view.x + view.width - 5.0f, view.y + 2.0f, 3.0f, view.height - 4.0f };
+    float thumb_h = (view.height / shop_content_height()) * track.height;
+    if (thumb_h < 24.0f) thumb_h = 24.0f;
+    float travel = track.height - thumb_h;
+    float t = max_scroll > 0.0f ? shop_scroll_y / max_scroll : 0.0f;
+    Rectangle thumb = { track.x, track.y + travel * t, track.width, thumb_h };
+
+    DrawRectangleRec(track, (Color){ 26, 28, 40, 230 });
+    DrawRectangleRec(thumb, (Color){ 120, 152, 210, 230 });
+}
+
 void meta_shop_screen_draw(void)
 {
     theme_draw_background();
 
-    draw_text_box((Rectangle){ 80.0f, 34.0f, 480.0f, 22.0f }, "META SHOP", 18, 0, RAYWHITE, TEXT_ALIGN_CENTER);
+    draw_text_box((Rectangle){ 80.0f, 22.0f, 480.0f, 22.0f }, "META SHOP", 18, 0, RAYWHITE, TEXT_ALIGN_CENTER);
 
     char line[96];
     snprintf(line, sizeof(line), "Renown: %d    Party max: %d/5    Gold: %d    Asc max: %d",
@@ -259,7 +338,11 @@ void meta_shop_screen_draw(void)
         meta_party_slots(&g_state.meta),
         meta_starting_gold(&g_state.meta),
         g_state.meta.max_ascension_unlocked);
-    draw_text_box((Rectangle){ 80.0f, 62.0f, 480.0f, 14.0f }, line, 10, 0, (Color){ 190, 195, 220, 230 }, TEXT_ALIGN_CENTER);
+    Rectangle summary = { 84.0f, 50.0f, 472.0f, 25.0f };
+    DrawRectangleRec(summary, (Color){ 10, 12, 21, 220 });
+    DrawRectangleLinesEx(summary, 1.0f, (Color){ 86, 106, 150, 165 });
+    draw_text_box((Rectangle){ summary.x + 8.0f, summary.y + 6.0f, summary.width - 16.0f, 14.0f },
+        line, 10, 0, (Color){ 190, 195, 220, 230 }, TEXT_ALIGN_CENTER);
 
     bool can_slot4 = !g_state.meta.slot4_unlocked && g_state.meta.renown >= META_SLOT4_COST;
     bool can_slot5 = g_state.meta.slot4_unlocked && !g_state.meta.slot5_unlocked && g_state.meta.renown >= META_SLOT5_COST;
@@ -270,6 +353,9 @@ void meta_shop_screen_draw(void)
     bool legacy_done = g_state.meta.starting_relic_rank >= META_LEGACY_MAX_RANK;
     bool can_legacy = !legacy_done && g_state.meta.renown >= legacy_cost;
 
+    Rectangle view = shop_viewport();
+    DrawRectangleRec(view, (Color){ 7, 8, 14, 188 });
+    DrawRectangleLinesEx(view, 1.0f, (Color){ 72, 86, 122, 150 });
     draw_item(item_rect(0), "Party Slot IV", "Raise the draft cap to four heroes. You can still begin with fewer.", g_state.meta.slot4_unlocked ? "OWNED" : "BUY", META_SLOT4_COST, can_slot4, g_state.meta.slot4_unlocked);
     draw_item(item_rect(1), "Party Slot V", "Raise the draft cap to five heroes for full raid-party chaos.", g_state.meta.slot5_unlocked ? "OWNED" : (g_state.meta.slot4_unlocked ? "BUY" : "LOCKED"), META_SLOT5_COST, can_slot5, g_state.meta.slot5_unlocked);
 
@@ -284,17 +370,18 @@ void meta_shop_screen_draw(void)
     draw_item(item_rect(5), "Warlock", "Unlock DOT and curse class cards.", g_state.meta.warlock_unlocked ? "OWNED" : "BUY", META_CLASS_UNLOCK_COST, !g_state.meta.warlock_unlocked && g_state.meta.renown >= META_CLASS_UNLOCK_COST, g_state.meta.warlock_unlocked);
     draw_item(item_rect(6), "Bard", "Unlock party buff and draw class cards.", g_state.meta.bard_unlocked ? "OWNED" : "BUY", META_CLASS_UNLOCK_COST, !g_state.meta.bard_unlocked && g_state.meta.renown >= META_CLASS_UNLOCK_COST, g_state.meta.bard_unlocked);
 
-    draw_item(item_rect(7), "Scout's Kit", "Start each run with Preparation in your deck.", g_state.meta.start_prep ? "OWNED" : "BUY", 5, !g_state.meta.start_prep && g_state.meta.renown >= 5, g_state.meta.start_prep);
-    draw_item(item_rect(8), "Mana Crystal", "Start each run with Energize in your deck.", g_state.meta.start_energize ? "OWNED" : "BUY", 6, !g_state.meta.start_energize && g_state.meta.renown >= 6, g_state.meta.start_energize);
-    draw_item(item_rect(9), "Traveler's Pack", "Start each run with Fortify in your deck.", g_state.meta.start_fortify ? "OWNED" : "BUY", 8, !g_state.meta.start_fortify && g_state.meta.renown >= 8, g_state.meta.start_fortify);
-    draw_item(item_rect(10), "First Aid", "Start each run with Rejuvenate in your deck.", g_state.meta.start_rejuv ? "OWNED" : "BUY", 8, !g_state.meta.start_rejuv && g_state.meta.renown >= 8, g_state.meta.start_rejuv);
-    draw_item(item_rect(11), "Sharpened Blades", "All attacks deal +1 damage. Can stack 3 times.", g_state.meta.dmg_bonus >= 3 ? "MAXED" : "BUY", 5, g_state.meta.dmg_bonus < 3 && g_state.meta.renown >= 5, g_state.meta.dmg_bonus >= 3);
-    draw_item(item_rect(12), "Reinforced Armor", "All shields gain +1. Can stack 3 times.", g_state.meta.shield_bonus >= 3 ? "MAXED" : "BUY", 5, g_state.meta.shield_bonus < 3 && g_state.meta.renown >= 5, g_state.meta.shield_bonus >= 3);
-    draw_item(item_rect(13), "Seasoned Adventurer", "+1 renown per boss defeated.", g_state.meta.seasoned_adventurer ? "OWNED" : "BUY", 8, !g_state.meta.seasoned_adventurer && g_state.meta.renown >= 8, g_state.meta.seasoned_adventurer);
-    draw_item(item_rect(14), "Master Raider", "+2 renown per area cleared.", g_state.meta.master_raider ? "OWNED" : "BUY", 12, !g_state.meta.master_raider && g_state.meta.renown >= 12, g_state.meta.master_raider);
+    draw_item(item_rect(7), "Scout's Kit", "Start each run with Preparation in your deck.", g_state.meta.start_prep ? "OWNED" : "BUY", 10, !g_state.meta.start_prep && g_state.meta.renown >= 10, g_state.meta.start_prep);
+    draw_item(item_rect(8), "Mana Crystal", "Start each run with Energize in your deck.", g_state.meta.start_energize ? "OWNED" : "BUY", 10, !g_state.meta.start_energize && g_state.meta.renown >= 10, g_state.meta.start_energize);
+    draw_item(item_rect(9), "Traveler's Pack", "Start each run with Fortify in your deck.", g_state.meta.start_fortify ? "OWNED" : "BUY", 15, !g_state.meta.start_fortify && g_state.meta.renown >= 15, g_state.meta.start_fortify);
+    draw_item(item_rect(10), "First Aid", "Start each run with Rejuvenate in your deck.", g_state.meta.start_rejuv ? "OWNED" : "BUY", 15, !g_state.meta.start_rejuv && g_state.meta.renown >= 15, g_state.meta.start_rejuv);
+    draw_item(item_rect(11), "Sharpened Blades", "All attacks deal +1 damage. Can stack 3 times.", g_state.meta.dmg_bonus >= 3 ? "MAXED" : "BUY", 10, g_state.meta.dmg_bonus < 3 && g_state.meta.renown >= 10, g_state.meta.dmg_bonus >= 3);
+    draw_item(item_rect(12), "Reinforced Armor", "All shields gain +1. Can stack 3 times.", g_state.meta.shield_bonus >= 3 ? "MAXED" : "BUY", 10, g_state.meta.shield_bonus < 3 && g_state.meta.renown >= 10, g_state.meta.shield_bonus >= 3);
+    draw_item(item_rect(13), "Seasoned Adventurer", "+1 renown per boss defeated.", g_state.meta.seasoned_adventurer ? "OWNED" : "BUY", 15, !g_state.meta.seasoned_adventurer && g_state.meta.renown >= 15, g_state.meta.seasoned_adventurer);
+    draw_item(item_rect(14), "Master Raider", "+2 renown per area cleared.", g_state.meta.master_raider ? "OWNED" : "BUY", 25, !g_state.meta.master_raider && g_state.meta.renown >= 25, g_state.meta.master_raider);
+    draw_scrollbar(view);
 
     if (shop_msg[0])
-        draw_text_box((Rectangle){ 96.0f, 300.0f, 448.0f, 16.0f }, shop_msg, 10, 0, (Color){ 230, 205, 115, 240 }, TEXT_ALIGN_CENTER);
+        draw_text_box((Rectangle){ 96.0f, 310.0f, 448.0f, 16.0f }, shop_msg, 10, 0, (Color){ 230, 205, 115, 240 }, TEXT_ALIGN_CENTER);
 
     button_draw(&back_btn);
 }

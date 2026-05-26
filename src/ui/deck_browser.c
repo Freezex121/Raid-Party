@@ -114,13 +114,21 @@ void deck_browser_reset(DeckBrowser *browser)
 
 bool deck_browser_has_upgradeable(Deck *deck)
 {
+    return deck_browser_has_upgradeable_at(deck, 1);
+}
+
+bool deck_browser_has_upgradeable_at(Deck *deck, int upgrade_target_level)
+{
     for (int i = 0; i < deck->card_count; i++)
-        if (deck->cards[i].def && !deck->cards[i].upgraded && card_upgrade_changes_values(deck->cards[i].def))
+        if (deck->cards[i].def &&
+            upgrade_target_level > 0 &&
+            deck->cards[i].upgrade_level == upgrade_target_level - 1 &&
+            card_upgrade_changes_values_at(deck->cards[i].def, deck->cards[i].upgrade_level))
             return true;
     return false;
 }
 
-int deck_browser_update(DeckBrowser *browser, Deck *deck, Rectangle viewport, bool require_unupgraded)
+int deck_browser_update(DeckBrowser *browser, Deck *deck, Rectangle viewport, int upgrade_target_level)
 {
     if (!browser || !deck) return -1;
 
@@ -154,7 +162,9 @@ int deck_browser_update(DeckBrowser *browser, Deck *deck, Rectangle viewport, bo
         browser->hovered_deck_index = deck_index;
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
-            if (require_unupgraded && (deck->cards[deck_index].upgraded || !card_upgrade_changes_values(deck->cards[deck_index].def)))
+            if (upgrade_target_level > 0 &&
+                (deck->cards[deck_index].upgrade_level != upgrade_target_level - 1 ||
+                 !card_upgrade_changes_values_at(deck->cards[deck_index].def, deck->cards[deck_index].upgrade_level)))
                 return -1;
             return deck_index;
         }
@@ -164,10 +174,9 @@ int deck_browser_update(DeckBrowser *browser, Deck *deck, Rectangle viewport, bo
     return -1;
 }
 
-void deck_browser_draw(DeckBrowser *browser, Deck *deck, bool require_unupgraded, Color highlight)
+void deck_browser_draw(DeckBrowser *browser, Deck *deck, int upgrade_target_level, Color highlight)
 {
     if (!browser || !deck) return;
-    (void)require_unupgraded;
     (void)highlight;
 
     int indices[MAX_DECK_SIZE];
@@ -188,11 +197,14 @@ void deck_browser_draw(DeckBrowser *browser, Deck *deck, bool require_unupgraded
         CardInstance *inst = &deck->cards[deck_index];
         Rectangle r = card_rect_for(browser, visible_pos);
 
-        theme_draw_card_art(r, inst->def, inst->upgraded);
-        if (require_unupgraded && (inst->upgraded || !card_upgrade_changes_values(inst->def)))
+        theme_draw_card_art(r, inst->def, inst->upgrade_level);
+        if (upgrade_target_level > 0 &&
+            (inst->upgrade_level != upgrade_target_level - 1 ||
+             !card_upgrade_changes_values_at(inst->def, inst->upgrade_level)))
         {
             DrawRectangleRec(r, (Color){ 8, 8, 12, 155 });
-            const char *label = inst->upgraded ? "UPGRADED" : "NO CHANGE";
+            const char *label = inst->upgrade_level >= 2 ? "MAXED" :
+                (inst->upgrade_level >= upgrade_target_level ? "UPGRADED" : "NO CHANGE");
             draw_text_box((Rectangle){ r.x + 5.0f, r.y + r.height * 0.5f - 7.0f, r.width - 10.0f, 16.0f },
                 label, 10, 0, (Color){ 175, 178, 195, 230 }, TEXT_ALIGN_CENTER);
         }

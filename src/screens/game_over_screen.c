@@ -29,6 +29,12 @@ void game_over_screen_update(void)
             &g_state.result_achievement_renown,
             g_state.result_achievement_names,
             sizeof(g_state.result_achievement_names));
+        g_state.result_gold_renown = g_state.gold / 50;
+        if (g_state.result_gold_renown > 0)
+        {
+            g_state.meta.renown += g_state.result_gold_renown;
+            game_log_gold_conversion(g_state.gold, g_state.result_gold_renown);
+        }
         int area_count = area_defs_count();
         if (area_count > 0 && g_state.meta.highest_area_unlocked >= area_count)
             g_state.meta.highest_area_unlocked = area_count - 1;
@@ -95,6 +101,10 @@ void game_over_screen_draw(void)
     DrawText(line, stats_x, 212, 10, (Color){ 230, 205, 95, 240 });
 
     int unlock_y = 226;
+    snprintf(line, sizeof(line), "Gold converted: +%dR", g_state.result_gold_renown);
+    DrawText(line, stats_x, unlock_y, 10, (Color){ 230, 205, 95, 255 });
+    unlock_y += 14;
+
     if (g_state.result_achievement_renown > 0)
     {
         snprintf(line, sizeof(line), "Achievements: +%dR", g_state.result_achievement_renown);

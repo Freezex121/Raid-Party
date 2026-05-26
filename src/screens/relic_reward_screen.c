@@ -38,7 +38,7 @@ static void generate_relic_rewards(void)
     fallback_msg[0] = '\0';
     if (g_state.relic_reward_count <= 0)
     {
-        g_state.gold += 25;
+        game_gain_gold(25, "relic_reward_fallback");
         snprintf(fallback_msg, sizeof(fallback_msg), "All relics owned. Gained 25g instead.");
     }
     generated = true;

@@ -117,6 +117,8 @@ static void load_audio_assets(void)
     g_assets.audio_loaded = false;
     g_assets.music_playing = false;
     g_assets.current_music = MUSIC_COUNT;
+    g_assets.music_volume = 1.0f;
+    g_assets.sfx_volume = 1.0f;
 
     for (int i = 0; i < SFX_COUNT; i++)
         g_assets.sfx_loaded[i] = false;
@@ -265,6 +267,7 @@ void assets_load(void)
 
     g_assets.card_template = (Texture2D){0};
     g_assets.card_template_upgraded = (Texture2D){0};
+    g_assets.card_template_maxed = (Texture2D){0};
     g_assets.relic_template = (Texture2D){0};
     for (int i = 0; i < 3; i++)
     {
@@ -297,6 +300,24 @@ void assets_load(void)
 
     if (g_assets.card_template_upgraded.id != 0)
         SetTextureFilter(g_assets.card_template_upgraded, TEXTURE_FILTER_POINT);
+
+    const char *maxed_card_paths[] = {
+        "assets/art/card_template_maxed.png",
+        "../assets/art/card_template_maxed.png",
+        "../../assets/art/card_template_maxed.png",
+    };
+
+    for (int i = 0; i < 3; i++)
+    {
+        if (FileExists(maxed_card_paths[i]))
+        {
+            g_assets.card_template_maxed = LoadTexture(maxed_card_paths[i]);
+            break;
+        }
+    }
+
+    if (g_assets.card_template_maxed.id != 0)
+        SetTextureFilter(g_assets.card_template_maxed, TEXTURE_FILTER_POINT);
 
     g_assets.relic_template = load_art_texture("relic_template.png");
     g_assets.relic_icon_placeholder = load_art_texture("relic_icon.png");
@@ -366,6 +387,8 @@ void assets_unload(void)
     UnloadTexture(g_assets.card_template);
     if (g_assets.card_template_upgraded.id != 0)
         UnloadTexture(g_assets.card_template_upgraded);
+    if (g_assets.card_template_maxed.id != 0)
+        UnloadTexture(g_assets.card_template_maxed);
     if (g_assets.relic_template.id != 0)
         UnloadTexture(g_assets.relic_template);
     for (int i = 0; i < CLASS_COUNT; i++)
@@ -395,6 +418,7 @@ void assets_play_sfx(GameSfx sfx)
     if (sfx < 0 || sfx >= SFX_COUNT) return;
     if (!g_assets.sfx_loaded[sfx]) return;
 
+    SetSoundVolume(g_assets.sfx[sfx], g_assets.sfx_volume);
     PlaySound(g_assets.sfx[sfx]);
 }
 
@@ -410,6 +434,7 @@ void assets_play_music(GameMusic music)
     assets_stop_music();
     g_assets.current_music = music;
     g_assets.music_playing = true;
+    SetMusicVolume(g_assets.music[music], g_assets.music_volume);
     PlayMusicStream(g_assets.music[music]);
 }
 
@@ -422,4 +447,26 @@ void assets_stop_music(void)
 
     g_assets.current_music = MUSIC_COUNT;
     g_assets.music_playing = false;
+}
+
+void assets_set_music_volume(float volume)
+{
+    if (volume < 0.0f) volume = 0.0f;
+    if (volume > 1.0f) volume = 1.0f;
+    g_assets.music_volume = volume;
+    if (!IsAudioDeviceReady()) return;
+    for (int i = 0; i < MUSIC_COUNT; i++)
+        if (g_assets.music_loaded[i])
+            SetMusicVolume(g_assets.music[i], volume);
+}
+
+void assets_set_sfx_volume(float volume)
+{
+    if (volume < 0.0f) volume = 0.0f;
+    if (volume > 1.0f) volume = 1.0f;
+    g_assets.sfx_volume = volume;
+    if (!IsAudioDeviceReady()) return;
+    for (int i = 0; i < SFX_COUNT; i++)
+        if (g_assets.sfx_loaded[i])
+            SetSoundVolume(g_assets.sfx[i], volume);
 }

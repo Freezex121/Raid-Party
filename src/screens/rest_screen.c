@@ -108,12 +108,12 @@ void rest_screen_update(void)
     }
     else if (mode == REST_UPGRADE)
     {
-        int selected = deck_browser_update(&rest_browser, &g_state.run_deck, rest_browser_bounds(), true);
+        int selected = deck_browser_update(&rest_browser, &g_state.run_deck, rest_browser_bounds(), 1);
         hovered_upgrade = rest_browser.hovered_deck_index;
 
         if (selected >= 0)
         {
-            g_state.run_deck.cards[selected].upgraded = true;
+            g_state.run_deck.cards[selected].upgrade_level = 1;
             LOG_I(CAT_SCREEN, "Rest: upgraded %s", g_state.run_deck.cards[selected].def->name);
             rest_upgraded = true;
             // Frugal Tome: auto-heal if not healed yet
@@ -190,27 +190,28 @@ void rest_screen_draw(void)
         snprintf(hint, sizeof(hint), "%d cards  |  wheel scroll  |  right-click cancel", g_state.run_deck.card_count);
         draw_text_box((Rectangle){ 80.0f, 34.0f, 480.0f, 14.0f }, hint, 10, 0, (Color){ 160, 160, 180, 180 }, TEXT_ALIGN_CENTER);
 
-        deck_browser_draw(&rest_browser, &g_state.run_deck, true, RAYWHITE);
+        deck_browser_draw(&rest_browser, &g_state.run_deck, 1, RAYWHITE);
 
         if (hovered_upgrade >= 0)
         {
             const CardDef *cd = g_state.run_deck.cards[hovered_upgrade].def;
-            Rectangle tip = theme_draw_card_tooltip_limited(layout_deck_inspector_panel(), cd, g_state.run_deck.cards[hovered_upgrade].upgraded, 268);
+            int level = g_state.run_deck.cards[hovered_upgrade].upgrade_level;
+            Rectangle tip = theme_draw_card_tooltip_limited(layout_deck_inspector_panel(), cd, level, 268);
             int preview_y = (int)(tip.y + tip.height + 5.0f);
-            if (g_state.run_deck.cards[hovered_upgrade].upgraded)
+            if (level > 0)
             {
                 draw_text_box((Rectangle){ tip.x, (float)preview_y, tip.width, 24.0f },
-                    "Already upgraded", 10, 0, (Color){ 160, 160, 180, 220 }, TEXT_ALIGN_LEFT);
+                    "Rest sites only upgrade base cards", 10, 0, (Color){ 160, 160, 180, 220 }, TEXT_ALIGN_LEFT);
             }
-            else if (!card_upgrade_changes_values(cd))
+            else if (!card_upgrade_changes_values_at(cd, level))
             {
                 draw_text_box((Rectangle){ tip.x, (float)preview_y, tip.width, 24.0f },
                     "Upgrade has no value changes", 10, 0, (Color){ 160, 160, 180, 220 }, TEXT_ALIGN_LEFT);
             }
             else
             {
-                int od = cd->damage, oh = cd->heal, os = cd->shield;
-                int nd = card_damage(cd, true), nh = card_heal(cd, true), ns = card_shield(cd, true);
+                int od = card_damage(cd, level), oh = card_heal(cd, level), os = card_shield(cd, level);
+                int nd = card_damage(cd, level + 1), nh = card_heal(cd, level + 1), ns = card_shield(cd, level + 1);
 
                 int y = preview_y;
                 if (nd != od) { char b[32]; snprintf(b, sizeof(b), "DMG %d>%d", od, nd); DrawText(b, (int)tip.x, y, 10, (Color){ 220, 110, 100, 255 }); y += 14; }

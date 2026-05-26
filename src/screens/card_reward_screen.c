@@ -14,12 +14,14 @@
 
 static int hovered_reward = -1;
 static bool generated = false;
+static int extra_choices = 0;
 
 static void generate_rewards(void)
 {
     int count = g_state.encounter_is_elite ? 4 : (g_state.encounter_is_boss ? 4 : 3);
     if (relic_has(g_state.relics, g_state.relic_count, RELIC_EXPLORER_LANTERN))
         count++;
+    count += extra_choices;
     if (count > MAX_REWARD_CARDS) count = MAX_REWARD_CARDS;
     g_state.reward_count = count;
     g_state.reward_picks_remaining = g_state.encounter_is_boss ? 2 : 1;
@@ -55,17 +57,17 @@ static void generate_rewards(void)
         used_indices[idx] = 1;
 
         g_state.reward_cards[i] = pool[idx];
-        g_state.reward_upgraded[i] = false;
+        g_state.reward_upgrade_level[i] = 0;
 
         // Boss: 50% chance this card is upgraded
         if (g_state.encounter_is_boss && card_upgrade_changes_values(pool[idx]) && (rand() % 2) == 0)
-            g_state.reward_upgraded[i] = true;
+            g_state.reward_upgrade_level[i] = 1;
         if (g_state.encounter_is_boss && i == 0 && card_upgrade_changes_values(pool[idx]) && relic_has(g_state.relics, g_state.relic_count, RELIC_VETERAN_SIGIL))
-            g_state.reward_upgraded[i] = true;
+            g_state.reward_upgrade_level[i] = 1;
 
         LOG_I(CAT_CARD, "Reward[%d]: %s (%s)%s", i, pool[idx]->name,
             class_name(pool[idx]->class),
-            g_state.reward_upgraded[i] ? " UPGRADED" : "");
+            g_state.reward_upgrade_level[i] > 0 ? " UPGRADED" : "");
     }
 
     vfx_spawn_burst((float)(VIRT_W / 2), 74.0f, (Color){ 255, 220, 90, 255 }, 7);
@@ -88,6 +90,7 @@ void reward_screen_update(void)
     if (CheckCollisionPointRec(mouse, skip_btn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
     {
         generated = false;
+        extra_choices = 0;
         if (g_state.encounter_is_elite)
         {
             g_state.discard_count = 1;
@@ -107,12 +110,24 @@ void reward_screen_update(void)
         return;
     }
 
-    // Reroll button
-    Rectangle reroll_btn = { (float)(VIRT_W / 2 + 10), 206.0f, 80.0f, 22.0f };
-    if (g_state.reroll_tokens > 0 && CheckCollisionPointRec(mouse, reroll_btn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    Rectangle reroll_btn = { (float)(VIRT_W / 2 - 42), 206.0f, 84.0f, 22.0f };
+    if (CheckCollisionPointRec(mouse, reroll_btn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
     {
-        g_state.reroll_tokens--;
-        generated = false;
+        if (game_spend_gold(10, "reward_reroll"))
+            generated = false;
+        return;
+    }
+
+    Rectangle extra_btn = { (float)(VIRT_W / 2 + 50), 206.0f, 96.0f, 22.0f };
+    if (CheckCollisionPointRec(mouse, extra_btn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    {
+        if (g_state.reward_count >= MAX_REWARD_CARDS)
+            return;
+        if (game_spend_gold(15, "reward_extra_choice"))
+        {
+            extra_choices++;
+            generated = false;
+        }
         return;
     }
 
@@ -125,9 +140,9 @@ void reward_screen_update(void)
             if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
             {
                 const CardDef *chosen = g_state.reward_cards[i];
-                deck_add_card_upgraded(&g_state.run_deck, chosen, g_state.reward_upgraded[i]);
+                deck_add_card_with_level(&g_state.run_deck, chosen, g_state.reward_upgrade_level[i]);
                 LOG_I(CAT_CARD, "Reward chosen: %s (%s)%s", chosen->name, class_name(chosen->class),
-                    g_state.reward_upgraded[i] ? " UPGRADED" : "");
+                    g_state.reward_upgrade_level[i] > 0 ? " UPGRADED" : "");
                 g_state.reward_picked[i] = true;
                 g_state.reward_picks_remaining--;
 
@@ -138,12 +153,13 @@ void reward_screen_update(void)
                     for (int j = 0; j < g_state.reward_count; j++)
                         if (!g_state.reward_picked[j]) unpicked++;
                     int gold_gain = unpicked * 5;
-                    g_state.gold += gold_gain;
+                    game_gain_gold(gold_gain, "scholar_notes");
                 }
 
                 if (g_state.reward_picks_remaining <= 0)
                 {
                     generated = false;
+                    extra_choices = 0;
                     if (g_state.encounter_is_elite)
                     {
                         g_state.discard_count = 1;
@@ -182,7 +198,7 @@ void reward_screen_draw(void)
 
     // Skip and Reroll buttons
     Vector2 mouse = GetMousePosition();
-    Rectangle skip_btn = { (float)(VIRT_W / 2 - 90), 206.0f, 80.0f, 22.0f };
+    Rectangle skip_btn = { (float)(VIRT_W / 2 - 138), 206.0f, 84.0f, 22.0f };
     bool skip_hover = CheckCollisionPointRec(mouse, skip_btn);
     Color skip_col = skip_hover ? (Color){ 100, 100, 100, 255 } : (Color){ 60, 60, 60, 255 };
     DrawRectangleRec(skip_btn, skip_col);
@@ -190,16 +206,25 @@ void reward_screen_draw(void)
     draw_text_box((Rectangle){ skip_btn.x + 4.0f, skip_btn.y + 4.0f, skip_btn.width - 8.0f, skip_btn.height - 8.0f },
         "Skip", 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
 
-    Rectangle reroll_btn = { (float)(VIRT_W / 2 + 10), 206.0f, 80.0f, 22.0f };
-    bool can_reroll = g_state.reroll_tokens > 0;
+    Rectangle reroll_btn = { (float)(VIRT_W / 2 - 42), 206.0f, 84.0f, 22.0f };
+    bool can_reroll = g_state.gold >= 10;
     bool reroll_hover = can_reroll && CheckCollisionPointRec(mouse, reroll_btn);
     Color reroll_col = reroll_hover ? (Color){ 70, 180, 90, 255 } : (can_reroll ? (Color){ 45, 120, 60, 255 } : (Color){ 40, 40, 60, 255 });
     DrawRectangleRec(reroll_btn, reroll_col);
     DrawRectangleLinesEx(reroll_btn, 1.0f, can_reroll ? (Color){ 100, 220, 120, 220 } : (Color){ 80, 80, 100, 150 });
     char reroll_label[24];
-    snprintf(reroll_label, sizeof(reroll_label), "Reroll (%d)", g_state.reroll_tokens);
+    snprintf(reroll_label, sizeof(reroll_label), "Reroll 10g");
     draw_text_box((Rectangle){ reroll_btn.x + 4.0f, reroll_btn.y + 4.0f, reroll_btn.width - 8.0f, reroll_btn.height - 8.0f },
         reroll_label, 10, 0, can_reroll ? RAYWHITE : (Color){ 100, 100, 120, 180 }, TEXT_ALIGN_CENTER);
+
+    Rectangle extra_btn = { (float)(VIRT_W / 2 + 50), 206.0f, 96.0f, 22.0f };
+    bool can_extra = g_state.gold >= 15 && g_state.reward_count < MAX_REWARD_CARDS;
+    bool extra_hover = can_extra && CheckCollisionPointRec(mouse, extra_btn);
+    Color extra_col = extra_hover ? (Color){ 80, 150, 210, 255 } : (can_extra ? (Color){ 45, 88, 150, 255 } : (Color){ 40, 40, 60, 255 });
+    DrawRectangleRec(extra_btn, extra_col);
+    DrawRectangleLinesEx(extra_btn, 1.0f, can_extra ? (Color){ 120, 185, 245, 220 } : (Color){ 80, 80, 100, 150 });
+    draw_text_box((Rectangle){ extra_btn.x + 4.0f, extra_btn.y + 4.0f, extra_btn.width - 8.0f, extra_btn.height - 8.0f },
+        "Extra +1 15g", 10, 0, can_extra ? RAYWHITE : (Color){ 100, 100, 120, 180 }, TEXT_ALIGN_CENTER);
 
     for (int i = 0; i < g_state.reward_count; i++)
     {
@@ -207,13 +232,13 @@ void reward_screen_draw(void)
 
         const CardDef *card = g_state.reward_cards[i];
         Rectangle card_rect = layout_reward_card_rect(g_state.reward_count, i);
-        theme_draw_card_art(card_rect, card, g_state.reward_upgraded[i]);
+        theme_draw_card_art(card_rect, card, g_state.reward_upgrade_level[i]);
     }
 
     if (hovered_reward >= 0 && hovered_reward < g_state.reward_count && !g_state.reward_picked[hovered_reward])
     {
         const CardDef *card = g_state.reward_cards[hovered_reward];
-        theme_draw_card_tooltip(layout_reward_inspector_panel(), card, g_state.reward_upgraded[hovered_reward]);
+        theme_draw_card_tooltip(layout_reward_inspector_panel(), card, g_state.reward_upgrade_level[hovered_reward]);
     }
 
 }

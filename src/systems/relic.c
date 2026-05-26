@@ -55,6 +55,11 @@ static const char *relic_ids[RELIC_COUNT] = {
     [RELIC_GRAVE_BELL] = "grave_bell",
     [RELIC_SYNERGY_HOURGLASS] = "synergy_hourglass",
     [RELIC_LINGERING_SIGIL] = "lingering_sigil",
+    [RELIC_GILDED_BLADE] = "gilded_blade",
+    [RELIC_PROSPERITY_CHARM] = "prosperity_charm",
+    [RELIC_GOLDEN_IDOL] = "golden_idol",
+    [RELIC_HOARDERS_SCALES] = "hoarders_scales",
+    [RELIC_FATES_INTEREST] = "fates_interest",
 };
 
 static char *copy_text(const char *text)

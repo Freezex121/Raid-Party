@@ -47,7 +47,6 @@ EVENT_EFFECTS = {
     "none",
     "pay_gold_add_card",
     "gain_gold",
-    "gain_reroll_token",
     "pay_gold_upgrade_random_card",
     "gain_gold_hurt_party",
     "add_card_add_curse",

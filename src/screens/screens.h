@@ -46,4 +46,7 @@ void deck_screen_draw(void);
 void achievements_screen_update(void);
 void achievements_screen_draw(void);
 
+void settings_screen_update(void);
+void settings_screen_draw(void);
+
 #endif

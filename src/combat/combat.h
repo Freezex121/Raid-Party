@@ -62,7 +62,7 @@ typedef struct {
 typedef struct {
     bool active;
     const CardDef *card;
-    bool upgraded;
+    int upgrade_level;
     float t;
     float duration;
     Vector2 start;
@@ -103,6 +103,7 @@ typedef struct {
     float state_timer;
     char result_message[128];
     bool gold_spawned;
+    int gold_reward;
     const CardDef *channel_card;
     int channel_remaining;
     ClassType channel_class;
@@ -119,6 +120,9 @@ typedef struct {
     float floor_scale;
     float enemy_damage_scale;
     int turn_draw_count;
+    int boon_energy_bonus;
+    int boon_draw_bonus;
+    int boon_turns_remaining;
     bool phoenix_used;
     bool echo_used;
     bool ambush_used;

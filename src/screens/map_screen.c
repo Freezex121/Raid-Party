@@ -92,6 +92,12 @@ void map_screen_update(void)
         game_change_screen(SCREEN_DECK);
         return;
     }
+    Rectangle settings_btn = { 82.0f, 10.0f, 66.0f, 16.0f };
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(GetMousePosition(), settings_btn))
+    {
+        game_open_settings(SCREEN_MAP);
+        return;
+    }
 
     if (g_state.map.current_index >= 0)
     {
@@ -199,15 +205,22 @@ void map_screen_draw(void)
     draw_text_box((Rectangle){ deck_btn.x + 4.0f, deck_btn.y + 3.0f, deck_btn.width - 8.0f, deck_btn.height - 6.0f },
         "DECK", 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
 
+    Rectangle settings_btn = { 82.0f, 10.0f, 66.0f, 16.0f };
+    Color settings_col = CheckCollisionPointRec(mouse, settings_btn) ? (Color){ 80, 80, 120, 255 } : (Color){ 50, 50, 80, 255 };
+    DrawRectangleRec(settings_btn, settings_col);
+    DrawRectangleLinesEx(settings_btn, 1.0f, (Color){ 100, 100, 140, 200 });
+    draw_text_box((Rectangle){ settings_btn.x + 4.0f, settings_btn.y + 3.0f, settings_btn.width - 8.0f, settings_btn.height - 6.0f },
+        "SET", 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
+
     char title[96];
     snprintf(title, sizeof(title), "%s", area ? area->name : "Area");
-    draw_text_box((Rectangle){ 110.0f, 14.0f, 420.0f, 22.0f }, title, 18, 0, RAYWHITE, TEXT_ALIGN_CENTER);
+    draw_text_box((Rectangle){ 154.0f, 14.0f, 320.0f, 22.0f }, title, 18, 0, RAYWHITE, TEXT_ALIGN_CENTER);
     char subtitle[96];
     snprintf(subtitle, sizeof(subtitle), "Area %d  Floor %d/%d  Choose your route",
         g_state.current_area + 1,
         g_state.map.floor + 1,
         floor_count);
-    draw_text_box((Rectangle){ 110.0f, 36.0f, 420.0f, 14.0f }, subtitle, 10, 0, (Color){ 150, 155, 180, 210 }, TEXT_ALIGN_CENTER);
+    draw_text_box((Rectangle){ 154.0f, 36.0f, 320.0f, 14.0f }, subtitle, 10, 0, (Color){ 150, 155, 180, 210 }, TEXT_ALIGN_CENTER);
     relic_tray_draw(g_state.relics, g_state.relic_count, (Rectangle){ 482.0f, 10.0f, 146.0f, 42.0f });
 
     MapState *map = &g_state.map;
@@ -301,5 +314,3 @@ void map_screen_draw(void)
             "Click to travel", 10, 0, (Color){ 175, 178, 205, 220 }, TEXT_ALIGN_CENTER);
     }
 }
-
-

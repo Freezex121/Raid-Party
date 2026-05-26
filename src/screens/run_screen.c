@@ -70,9 +70,9 @@ static void draw_target_preview(CombatState *cs)
     if (!card) return;
 
     float mult = preview_combo_mult(cs, card);
-    int dmg = (int)(card_damage(card, inst->upgraded) * mult);
-    int heal = (int)(card_heal(card, inst->upgraded) * mult);
-    int shield = (int)(card_shield(card, inst->upgraded) * mult);
+    int dmg = (int)(card_damage(card, inst->upgrade_level) * mult);
+    int heal = (int)(card_heal(card, inst->upgrade_level) * mult);
+    int shield = (int)(card_shield(card, inst->upgrade_level) * mult);
     int hits = preview_hits(card);
 
     char line1[96] = "";
@@ -446,16 +446,10 @@ void run_screen_update(void)
             return;
         }
 
-        int gold_gain = g_state.encounter_is_boss ? 50 : (g_state.encounter_is_elite ? 25 : 10);
-        if (relic_has(g_state.relics, g_state.relic_count, RELIC_GILDED_CHARM))
-            gold_gain += 8;
-        if ((g_state.encounter_is_elite || g_state.encounter_is_boss) &&
-            relic_has(g_state.relics, g_state.relic_count, RELIC_VICTORY_PURSE))
-            gold_gain += 5;
-        if (relic_has(g_state.relics, g_state.relic_count, RELIC_RABBIT_FOOT) && (rand() % 10) == 0)
-            gold_gain *= 2;
-        g_state.gold += gold_gain;
-        ft_spawn_gold(gold_gain);
+        int gold_gain = g_state.combat.gold_reward;
+        if (gold_gain <= 0)
+            gold_gain = g_state.encounter_is_boss ? 50 : (g_state.encounter_is_elite ? 25 : 10);
+        game_gain_gold(gold_gain, "combat_reward");
 
         // Bandage Roll: heal lowest HP ally for 8
         if (relic_has(g_state.relics, g_state.relic_count, RELIC_BANDAGE_ROLL))
@@ -480,12 +474,6 @@ void run_screen_update(void)
                     pm->hp = pm->max_hp;
             }
         }
-
-        // Reroll tokens from elites and bosses
-        if (g_state.encounter_is_boss)
-            g_state.reroll_tokens++;
-        else if (g_state.encounter_is_elite && (rand() % 2) == 0)
-            g_state.reroll_tokens++;
 
         g_state.relic_reward_pending = g_state.encounter_is_boss;
         g_state.relic_reward_count = 0;
@@ -636,7 +624,7 @@ void run_screen_draw(void)
     {
         CardInstance *inst = &cs->deck.cards[cs->deck.hand[inspector_idx]];
         if (inst->def)
-            theme_draw_card_tooltip(inspector, inst->def, inst->upgraded);
+            theme_draw_card_tooltip(inspector, inst->def, inst->upgrade_level);
     }
     else
     {
