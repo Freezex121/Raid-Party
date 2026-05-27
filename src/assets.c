@@ -1,4 +1,5 @@
 #include "assets.h"
+#include "systems/map.h"
 #include "raylib.h"
 #include <stdio.h>
 
@@ -352,6 +353,20 @@ void assets_load(void)
             g_assets.relic_icons[i] = g_assets.relic_icon_placeholder;
     }
 
+    const char *node_files[] = {
+        [NODE_COMBAT] = "node_combat.png",
+        [NODE_ELITE]  = "node_elite.png",
+        [NODE_REST]   = "node_rest.png",
+        [NODE_SHOP]   = "node_shop.png",
+        [NODE_EVENT]  = "node_event.png",
+        [NODE_BOSS]   = "node_boss.png",
+    };
+    for (int i = 0; i < 8; i++)
+        g_assets.node_sprites[i] = (Texture2D){0};
+    for (int i = NODE_COMBAT; i <= NODE_BOSS; i++)
+        if (node_files[i])
+            g_assets.node_sprites[i] = load_art_texture(node_files[i]);
+
     load_audio_assets();
 
     g_assets.loaded = true;
@@ -399,6 +414,9 @@ void assets_unload(void)
             UnloadTexture(g_assets.relic_icons[i]);
     if (g_assets.relic_icon_placeholder.id != 0)
         UnloadTexture(g_assets.relic_icon_placeholder);
+    for (int i = 0; i < 8; i++)
+        if (g_assets.node_sprites[i].id != 0)
+            UnloadTexture(g_assets.node_sprites[i]);
     g_assets.loaded = false;
 }
 

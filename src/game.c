@@ -59,6 +59,7 @@ void game_init(void)
     g_state.screen = SCREEN_TITLE;
     g_state.pending_screen = SCREEN_TITLE;
     g_state.settings_return_screen = SCREEN_TITLE;
+    g_state.post_combat_destination = SCREEN_MAP;
     g_state.max_party_size = meta_party_slots(&g_state.meta);
     g_state.selected_area = area_clamp_index(g_state.meta.highest_area_unlocked);
     g_state.current_area = g_state.selected_area;
@@ -92,6 +93,20 @@ void game_change_screen(GameScreen screen)
     g_state.transition_alpha = 0.0f;
     g_state.transition_timer = 0.0f;
     tween_kill_all();
+}
+
+void game_go_to_level_up_or(GameScreen destination)
+{
+    for (int i = 0; i < g_state.run_party.count; i++)
+    {
+        if (g_state.run_party.members[i].pending_levels > 0)
+        {
+            g_state.post_combat_destination = destination;
+            game_change_screen(SCREEN_LEVEL_UP);
+            return;
+        }
+    }
+    game_change_screen(destination);
 }
 
 void game_update_transition(float dt)
@@ -144,6 +159,7 @@ void game_draw_gold_overlay(void)
         g_state.screen == SCREEN_META_SHOP ||
         g_state.screen == SCREEN_CODEX ||
         g_state.screen == SCREEN_ACHIEVEMENTS ||
+        g_state.screen == SCREEN_LEVEL_UP ||
         g_state.screen == SCREEN_SETTINGS)
         return;
 

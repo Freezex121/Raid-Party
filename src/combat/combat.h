@@ -83,6 +83,7 @@ typedef struct {
     int hovered_card;
     TargetMode target_mode;
     int target_hand_idx;
+    int target_paid_cost;
     int hovered_enemy;
     int hovered_ally;
     float target_offset;
@@ -107,6 +108,7 @@ typedef struct {
     const CardDef *channel_card;
     int channel_remaining;
     ClassType channel_class;
+    ClassType resolving_card_class;
     float turn_banner_timer;
     char turn_banner_text[32];
     float enemy_banner_timer;
@@ -130,6 +132,13 @@ typedef struct {
     bool veil_pin_used;
     bool split_prism_used;
     bool vengeful_active;
+    bool guardian_taunt_shield_used;
+    bool mage_first_spell_used;
+    bool rogue_mark_refund_used;
+    bool shaman_extend_status_used;
+    bool ranger_marked_dmg_used;
+    bool warlock_blight_boost_used;
+    bool bard_first_draw_used;
     int vengeful_ally;
     int mana_gem_bonus;
     CardThrowAnim card_throws[MAX_CARD_THROW_ANIMS];

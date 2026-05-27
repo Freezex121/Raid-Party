@@ -15,7 +15,7 @@ int main(void)
     srand((unsigned int)time(NULL));
     log_init();
 
-    InitWindow(SCREEN_W, SCREEN_H, "Raid Party - devlog");
+    InitWindow(SCREEN_W, SCREEN_H, "Raid Party");
     InitAudioDevice();
     SetTargetFPS(60);
     SetExitKey(0); // Disable default exit key (ESC)
@@ -65,6 +65,7 @@ int main(void)
                 case SCREEN_GAME_OVER: game_over_screen_update(); break;
                 case SCREEN_DECK: deck_screen_update(); break;
                 case SCREEN_ACHIEVEMENTS: achievements_screen_update(); break;
+                case SCREEN_LEVEL_UP: level_up_screen_update(); break;
                 case SCREEN_SETTINGS: settings_screen_update(); break;
                 default: break;
             }
@@ -93,12 +94,13 @@ int main(void)
             case SCREEN_EVENT: event_screen_draw(); break;
             case SCREEN_REWARD: reward_screen_draw(); break;
             case SCREEN_RELIC_REWARD: relic_reward_screen_draw(); break;
-                case SCREEN_DISCARD: discard_screen_draw(); break;
-                case SCREEN_GAME_OVER: game_over_screen_draw(); break;
-                case SCREEN_DECK: deck_screen_draw(); break;
-                case SCREEN_ACHIEVEMENTS: achievements_screen_draw(); break;
-                case SCREEN_SETTINGS: settings_screen_draw(); break;
-                default: break;
+            case SCREEN_DISCARD: discard_screen_draw(); break;
+            case SCREEN_GAME_OVER: game_over_screen_draw(); break;
+            case SCREEN_DECK: deck_screen_draw(); break;
+            case SCREEN_ACHIEVEMENTS: achievements_screen_draw(); break;
+            case SCREEN_LEVEL_UP: level_up_screen_draw(); break;
+            case SCREEN_SETTINGS: settings_screen_draw(); break;
+            default: break;
         }
 
         ft_draw();

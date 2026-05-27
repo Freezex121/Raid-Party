@@ -28,6 +28,7 @@ typedef enum {
     SCREEN_GAME_OVER,
     SCREEN_DECK,
     SCREEN_ACHIEVEMENTS,
+    SCREEN_LEVEL_UP,
     SCREEN_SETTINGS
 } GameScreen;
 
@@ -35,6 +36,7 @@ typedef struct {
     GameScreen screen;
     GameScreen pending_screen;
     GameScreen settings_return_screen;
+    GameScreen post_combat_destination;
     bool transition_active;
     bool transition_switched;
     float transition_alpha;
@@ -100,6 +102,7 @@ extern GameState g_state;
 
 void game_init(void);
 void game_change_screen(GameScreen screen);
+void game_go_to_level_up_or(GameScreen destination);
 void game_update_transition(float dt);
 void game_draw_transition(void);
 bool game_transition_allows_update(void);

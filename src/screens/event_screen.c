@@ -428,7 +428,33 @@ static void init_event_if_needed(void)
     active_node = node;
     active_floor = floor;
     int event_count = event_defs_count();
-    active_event = event_count > 0 ? (floor * 2 + node + g_state.result_bosses_defeated) % event_count : 0;
+
+    // Check for event_id override from maps.json
+    const EventDef *override = NULL;
+    if (node >= 0 && node < g_state.map.node_count && g_state.map.nodes[node].event_id)
+        override = event_def_by_id(g_state.map.nodes[node].event_id);
+
+    if (override)
+    {
+        for (int i = 0; i < event_count; i++)
+        {
+            const EventDef *e = event_def_by_index(i);
+            if (e == override)
+            {
+                active_event = i;
+                break;
+            }
+        }
+    }
+    else if (event_count > 0)
+    {
+        active_event = rand() % event_count;
+    }
+    else
+    {
+        active_event = 0;
+    }
+
     if (active_event < 0) active_event = 0;
     mode = EVENT_CHOICE;
     hovered_choice = -1;

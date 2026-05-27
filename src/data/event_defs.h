@@ -44,5 +44,6 @@ typedef struct {
 bool event_defs_load_json(const char *path);
 int event_defs_count(void);
 const EventDef *event_def_by_index(int index);
+const EventDef *event_def_by_id(const char *id);
 
 #endif

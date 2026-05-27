@@ -4,7 +4,6 @@
 #include "enemy_defs.h"
 #include "encounter_defs.h"
 #include "event_defs.h"
-#include "systems/map.h"
 #include "systems/party.h"
 #include "systems/relic.h"
 #include "util/log.h"
@@ -19,7 +18,6 @@ bool content_load_all(void)
     ok = encounter_defs_load_json("assets/data/encounters.json") && ok;
     ok = relic_defs_load_json("assets/data/relics.json") && ok;
     ok = event_defs_load_json("assets/data/events.json") && ok;
-    ok = map_load_json("assets/data/maps.json") && ok;
 
     if (ok)
     {

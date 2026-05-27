@@ -46,6 +46,9 @@ void deck_screen_draw(void);
 void achievements_screen_update(void);
 void achievements_screen_draw(void);
 
+void level_up_screen_update(void);
+void level_up_screen_draw(void);
+
 void settings_screen_update(void);
 void settings_screen_draw(void);
 

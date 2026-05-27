@@ -2,6 +2,7 @@
 #include "game.h"
 #include "systems/map.h"
 #include "data/area_defs.h"
+#include "assets.h"
 #include "data/encounter_defs.h"
 #include "util/log.h"
 #include "util/text.h"
@@ -15,6 +16,7 @@ static int hovered_node = -1;
 static int last_floor = -1;
 static float map_scroll_x = 0.0f;
 static float map_scroll_y = 0.0f;
+static bool show_debug = false;
 
 static float clampf_local(float value, float min, float max)
 {
@@ -97,6 +99,13 @@ void map_screen_update(void)
     {
         game_open_settings(SCREEN_MAP);
         return;
+    }
+
+    // Toggle debug overlay
+    if (IsKeyPressed(KEY_F5))
+    {
+        show_debug = !show_debug;
+        LOG_I(CAT_SCREEN, "Map debug overlay: %s", show_debug ? "ON" : "OFF");
     }
 
     if (g_state.map.current_index >= 0)
@@ -192,9 +201,6 @@ void map_screen_draw(void)
 
     const AreaDef *area = area_def(g_state.current_area);
     int floor_count = area_floor_count(g_state.current_area);
-    int loaded_floors = map_loaded_floor_count_for_area(area ? area->id : NULL);
-    if (loaded_floors > 0 && floor_count > loaded_floors)
-        floor_count = loaded_floors;
 
     // Deck button
     Vector2 mouse = GetMousePosition();
@@ -252,45 +258,182 @@ void map_screen_draw(void)
         Vector2 pos = node_screen_pos(n);
         int sx = (int)pos.x;
         int sy = (int)pos.y;
-        int r = (n->type == NODE_BOSS) ? 18 : 14;
-        Color c = theme_node_color(n->type);
-        const char *icon = theme_node_icon(n->type);
         const char *name = theme_node_name(n->type);
+
+        Texture2D tex = g_assets.node_sprites[n->type];
+        float sprite_size = (n->type == NODE_BOSS) ? 48.0f : 32.0f;
+        int half = (int)(sprite_size * 0.5f);
+        Rectangle dest_rect = { (float)(sx - half), (float)(sy - half), sprite_size, sprite_size };
+        Rectangle src_rect = { 0.0f, 0.0f, (float)tex.width, (float)tex.height };
+
+        bool has_tex = (tex.id != 0);
 
         if (!n->available && !n->completed)
         {
-            DrawCircle(sx, sy, (float)r, (Color){ 28, 29, 42, 255 });
-            DrawCircleLines(sx, sy, (float)r, (Color){ 58, 58, 78, 120 });
-            int locked_size = n->type == NODE_BOSS ? 18 : 10;
-            Color dim = c;
-            dim.a = 128;
-            DrawText(icon, sx - MeasureText(icon, locked_size) / 2, sy - locked_size / 2, locked_size, dim);
-            DrawText(name, sx - MeasureText(name, 10) / 2, sy + r + 5, 10, dim);
+            if (has_tex)
+                DrawTexturePro(tex, src_rect, dest_rect, (Vector2){0, 0}, 0.0f, (Color){ 80, 80, 80, 180 });
+            else
+            {
+                int r = (n->type == NODE_BOSS) ? 18 : 14;
+                DrawCircle(sx, sy, (float)r, (Color){ 28, 29, 42, 255 });
+                DrawCircleLines(sx, sy, (float)r, (Color){ 58, 58, 78, 120 });
+                int locked_size = n->type == NODE_BOSS ? 18 : 10;
+                Color dim = theme_node_color(n->type);
+                dim.a = 128;
+                DrawText(theme_node_icon(n->type), sx - MeasureText(theme_node_icon(n->type), locked_size) / 2, sy - locked_size / 2, locked_size, dim);
+            }
+            DrawText(name, sx - MeasureText(name, 10) / 2, sy + half + 4, 10, (Color){ 58, 58, 78, 120 });
             continue;
         }
 
         if (n->completed)
         {
-            DrawCircle(sx, sy, (float)r, (Color){ 48, 52, 68, 255 });
-            DrawCircle(sx, sy, r - 3, (Color){ 70, 200, 115, 150 });
+            if (has_tex)
+            {
+                DrawTexturePro(tex, src_rect, dest_rect, (Vector2){0, 0}, 0.0f, WHITE);
+                DrawCircle(sx, sy, (float)(half - 2), (Color){ 70, 200, 115, 130 });
+            }
+            else
+            {
+                int r = (n->type == NODE_BOSS) ? 18 : 14;
+                DrawCircle(sx, sy, (float)r, (Color){ 48, 52, 68, 255 });
+                DrawCircle(sx, sy, r - 3, (Color){ 70, 200, 115, 150 });
+            }
         }
         else if (i == hovered_node)
         {
+            Color c = theme_node_color(n->type);
             float pulse = 1.0f + 0.07f * sinf((float)GetTime() * 5.5f);
-            DrawCircle(sx, sy, (float)(r + 4) * pulse, (Color){ c.r, c.g, c.b, 55 });
-            DrawCircle(sx, sy, r + 2, RAYWHITE);
-            DrawCircle(sx, sy, (float)r, c);
+            DrawCircle(sx, sy, (float)(half + 5) * pulse, (Color){ c.r, c.g, c.b, 55 });
+            if (has_tex)
+            {
+                DrawRectangleLinesEx(dest_rect, 2.0f, RAYWHITE);
+                DrawTexturePro(tex, src_rect, dest_rect, (Vector2){0, 0}, 0.0f, WHITE);
+            }
+            else
+            {
+                DrawCircle(sx, sy, half + 2, RAYWHITE);
+                DrawCircle(sx, sy, (float)half, c);
+                int icon_size = n->type == NODE_BOSS ? 18 : 10;
+                DrawText(theme_node_icon(n->type), sx - MeasureText(theme_node_icon(n->type), icon_size) / 2, sy - icon_size / 2, icon_size, RAYWHITE);
+            }
         }
         else
         {
-            DrawCircle(sx, sy, r + 3, (Color){ c.r, c.g, c.b, 35 });
-            DrawCircle(sx, sy, (float)r, c);
-            DrawCircle(sx, sy, r - 3, (Color){ 0, 0, 0, 60 });
+            if (has_tex)
+            {
+                DrawTexturePro(tex, src_rect, dest_rect, (Vector2){0, 0}, 0.0f, WHITE);
+            }
+            else
+            {
+                int r = (n->type == NODE_BOSS) ? 18 : 14;
+                Color c = theme_node_color(n->type);
+                DrawCircle(sx, sy, r + 3, (Color){ c.r, c.g, c.b, 35 });
+                DrawCircle(sx, sy, (float)r, c);
+                DrawCircle(sx, sy, r - 3, (Color){ 0, 0, 0, 60 });
+                int icon_size = n->type == NODE_BOSS ? 18 : 10;
+                DrawText(theme_node_icon(n->type), sx - MeasureText(theme_node_icon(n->type), icon_size) / 2, sy - icon_size / 2, icon_size, RAYWHITE);
+            }
         }
 
-        int icon_size = n->type == NODE_BOSS ? 18 : 10;
-        DrawText(icon, sx - MeasureText(icon, icon_size) / 2, sy - icon_size / 2, icon_size, RAYWHITE);
-        DrawText(name, sx - MeasureText(name, 10) / 2, sy + r + 5, 10, c);
+        // Name label below node (all states except locked)
+        DrawText(name, sx - MeasureText(name, 10) / 2, sy + half + 4, 10, theme_node_color(n->type));
+    }
+
+    // Debug overlay — shows cumulative path values per lane
+    if (show_debug)
+    {
+        static const Color path_palette[] = {
+            { 255, 100, 100, 230 },  // red
+            { 100, 220, 100, 230 },  // green
+            { 100, 150, 255, 230 },  // blue
+            { 255, 220, 50, 230 },   // gold
+            { 200, 100, 255, 230 },  // purple
+        };
+        static const int palette_count = sizeof(path_palette) / sizeof(path_palette[0]);
+
+        // Per-node path state
+        int path_val[64][5];
+        int path_lane[64][5];
+        int path_count[64];
+        memset(path_val, 0, sizeof(path_val));
+        memset(path_lane, -1, sizeof(path_lane));
+        memset(path_count, 0, sizeof(path_count));
+
+        // Helper: node value
+        int node_val[64];
+        for (int i = 0; i < map->node_count; i++)
+        {
+            switch (map->nodes[i].type)
+            {
+                case NODE_SHOP:   node_val[i] = 12; break;
+                case NODE_EVENT:  node_val[i] = 10; break;
+                case NODE_REST:   node_val[i] = 3;  break;
+                case NODE_ELITE:  node_val[i] = -5; break;
+                default:          node_val[i] = 1;  break;
+            }
+        }
+
+        // Forward propagation: process nodes in order
+        // Start node gets its own value as path 0
+        if (map->node_count > 0)
+        {
+            path_count[0] = 1;
+            path_val[0][0] = node_val[0];
+            path_lane[0][0] = 0;
+        }
+
+        for (int i = 0; i < map->node_count; i++)
+        {
+            if (path_count[i] == 0 && i > 0) continue;
+
+            MapNode *n = &map->nodes[i];
+
+            for (int c = 0; c < n->conn_count; c++)
+            {
+                int child = n->conns[c];
+                if (child < 0 || child >= map->node_count) continue;
+
+                for (int p = 0; p < path_count[i]; p++)
+                {
+                    int lane = path_lane[i][p];
+                    int val = path_val[i][p] + node_val[child];
+
+                    // Add to child if this lane isn't already tracked
+                    bool found = false;
+                    for (int cp = 0; cp < path_count[child]; cp++)
+                    {
+                        if (path_lane[child][cp] == lane)
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found && path_count[child] < 5)
+                    {
+                        path_lane[child][path_count[child]] = lane;
+                        path_val[child][path_count[child]] = val;
+                        path_count[child]++;
+                    }
+                }
+            }
+        }
+
+        // Draw path values at each node
+        for (int i = 0; i < map->node_count; i++)
+        {
+            Vector2 pos = node_screen_pos(&map->nodes[i]);
+            int sx = (int)pos.x;
+            int sy = (int)pos.y;
+
+            for (int p = 0; p < path_count[i]; p++)
+            {
+                char vt[8];
+                snprintf(vt, sizeof(vt), "%+d", path_val[i][p]);
+                Color pc = path_palette[path_lane[i][p] % palette_count];
+                DrawText(vt, sx + 20 + p * 30, sy - 6, 10, pc);
+            }
+        }
     }
 
     EndScissorMode();

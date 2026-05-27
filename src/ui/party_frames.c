@@ -129,9 +129,19 @@ static Rectangle party_status_rect(Rectangle frame_rect, int status_index)
 {
     return (Rectangle){
         frame_rect.x + frame_rect.width - 52.0f + status_index * 17.0f,
-        frame_rect.y + frame_rect.height - 14.0f,
+        frame_rect.y + frame_rect.height - 16.0f,
         15.0f,
         11.0f
+    };
+}
+
+static Rectangle party_xp_bar_rect(Rectangle frame_rect)
+{
+    return (Rectangle){
+        frame_rect.x + 4.0f,
+        frame_rect.y + frame_rect.height - 5.0f,
+        frame_rect.width - 8.0f,
+        3.0f
     };
 }
 
@@ -157,6 +167,41 @@ static void draw_status_tooltip(Rectangle anchor, StatusType status)
     draw_text_box((Rectangle){ tip.x + 6.0f, tip.y + 5.0f, tip.width - 12.0f, 12.0f },
         title, 10, 0, accent, TEXT_ALIGN_LEFT);
     draw_text_box((Rectangle){ tip.x + 6.0f, tip.y + 18.0f, tip.width - 12.0f, tip.height - 22.0f },
+        body, 10, 0, (Color){ 210, 214, 235, 235 }, TEXT_ALIGN_LEFT);
+}
+
+static void draw_member_tooltip(Rectangle anchor, const PartyMember *member)
+{
+    if (!member) return;
+    int w = 190;
+    int h = 70;
+    int x = (int)(anchor.x + anchor.width * 0.5f - w * 0.5f);
+    int y = (int)(anchor.y + anchor.height + 5.0f);
+    if (x < 4) x = 4;
+    if (x + w > VIRT_W - 4) x = VIRT_W - w - 4;
+    if (y + h > HAND_Y - 4) y = (int)(anchor.y - h - 5.0f);
+    if (y < 4) y = 4;
+
+    Color accent = theme_class_color(member->class);
+    Rectangle tip = { (float)x, (float)y, (float)w, (float)h };
+    DrawRectangleRec(tip, (Color){ 10, 11, 18, 245 });
+    DrawRectangleLinesEx(tip, 1.0f, (Color){ accent.r, accent.g, accent.b, 220 });
+
+    char title[64];
+    snprintf(title, sizeof(title), "%s  LV %d", member->name, member->level);
+    draw_text_box((Rectangle){ tip.x + 6.0f, tip.y + 5.0f, tip.width - 12.0f, 12.0f },
+        title, 10, 0, accent, TEXT_ALIGN_LEFT);
+
+    char body[160];
+    if (member->level >= MAX_LEVEL)
+        snprintf(body, sizeof(body), "HP %d/%d  Shield %d\nAggro %d\nXP MAX  |  Combat XP %d/%d",
+            member->hp, member->max_hp, member->shield, member->aggro, member->combat_xp, MAX_COMBAT_XP);
+    else
+        snprintf(body, sizeof(body), "HP %d/%d  Shield %d\nAggro %d\nXP %d/%d  |  Combat XP %d/%d",
+            member->hp, member->max_hp, member->shield, member->aggro,
+            party_member_xp_into_level(member), xp_for_level(member->level),
+            member->combat_xp, MAX_COMBAT_XP);
+    draw_text_box((Rectangle){ tip.x + 6.0f, tip.y + 19.0f, tip.width - 12.0f, tip.height - 24.0f },
         body, 10, 0, (Color){ 210, 214, 235, 235 }, TEXT_ALIGN_LEFT);
 }
 
@@ -204,16 +249,22 @@ void party_frames_draw(Party *party)
         {
             DrawRectangleLinesEx((Rectangle){ (float)(x - 1), (float)(y - 1), (float)(frame_w + 2), (float)(frame_h + 2) },
                 1.0f, (Color){ 245, 165, 65, 220 });
-            DrawText("T", x + frame_w - 8, y + 2, 10, (Color){ 245, 165, 65, 230 });
+            DrawText("T", x + 6, y + 2, 10, (Color){ 245, 165, 65, 230 });
         }
 
         Color bar_bg = (Color){ 20, 20, 30, 255 };
-        int portrait_x = x + 18;
+        int portrait_x = x + 20;
         int portrait_y = y + 21;
         int bar_x = x + 39;
-        int bar_y = y + 7;
+        int bar_y = y + 10;
         int bar_w = frame_w - 48;
         int bar_h = 8;
+        char level_text[16];
+        snprintf(level_text, sizeof(level_text), "LV %d%s", m->level, m->pending_levels > 0 ? "!" : "");
+        draw_text_box((Rectangle){ (float)bar_x, (float)(y + 1), (float)bar_w, 11.0f },
+            level_text, 10, 0,
+            (Color){255, 255, 255, 255 },
+            TEXT_ALIGN_RIGHT);
         DrawRectangleRec((Rectangle){ (float)bar_x, (float)bar_y, (float)bar_w, (float)bar_h }, bar_bg);
 
         float hp_ratio = shown_hp[i] / (float)m->max_hp;
@@ -243,12 +294,6 @@ void party_frames_draw(Party *party)
         draw_text_box((Rectangle){ (float)bar_x, (float)(y + 18), (float)bar_w, 12.0f },
             hp_text, 10, 0, (Color){ 200, 200, 220, 215 }, TEXT_ALIGN_LEFT);
 
-        Color aggro_col = (Color){ 220, 160, 60, 200 };
-        char agg_text[16];
-        snprintf(agg_text, sizeof(agg_text), "A:%d", m->aggro);
-        draw_text_box((Rectangle){ (float)bar_x, (float)(y + 30), 42.0f, 11.0f },
-            agg_text, 10, 0, aggro_col, TEXT_ALIGN_LEFT);
-
         if (!m->alive)
         {
             DrawRectangleRec((Rectangle){ (float)(x + 2), (float)(y + 2), (float)(frame_w - 4), (float)(frame_h - 4) }, (Color){ 80, 10, 18, 120 });
@@ -267,6 +312,23 @@ void party_frames_draw(Party *party)
             draw_text_box((Rectangle){ pill.x + 1.0f, pill.y, pill.width - 2.0f, pill.height },
                 label, 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
         }
+
+        Rectangle xp_bar = party_xp_bar_rect(frame_rect);
+        DrawRectangleRec(xp_bar, (Color){ 48, 42, 24, 235 });
+        float xp_ratio = 1.0f;
+        if (m->level < MAX_LEVEL)
+        {
+            int need = xp_for_level(m->level);
+            xp_ratio = need > 0 ? (float)party_member_xp_into_level(m) / (float)need : 0.0f;
+            if (xp_ratio < 0.0f) xp_ratio = 0.0f;
+            if (xp_ratio > 1.0f) xp_ratio = 1.0f;
+        }
+        int xp_fill = (int)(xp_bar.width * xp_ratio);
+        if (xp_fill > 0)
+            DrawRectangleRec((Rectangle){ xp_bar.x, xp_bar.y, (float)xp_fill, xp_bar.height },
+                (Color){ 245, 205, 65, 245 });
+        if (m->combat_xp >= MAX_COMBAT_XP)
+            DrawRectangleLinesEx(xp_bar, 1.0f, (Color){ 255, 150, 45, 230 });
     }
 }
 
@@ -286,6 +348,16 @@ void party_frames_draw_tooltips(Party *party)
                 draw_status_tooltip(r, m->statuses[s].type);
                 return;
             }
+        }
+    }
+
+    for (int i = 0; i < party->count; i++)
+    {
+        Rectangle frame_rect = layout_party_frame_rect(party->count, i);
+        if (CheckCollisionPointRec(mouse, frame_rect))
+        {
+            draw_member_tooltip(frame_rect, &party->members[i]);
+            return;
         }
     }
 }

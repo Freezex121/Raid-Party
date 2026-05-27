@@ -428,26 +428,20 @@
           "intent": "attack",
           "base_damage": 8,
           "cast_time": 1,
-          "description": "Deals 8 damage. Drains 1 energy next turn.",
+          "description": "Deals 8 damage.",
           "is_wipe": false,
           "heal_amount": 0,
-          "shield_amount": 0,
-          "status": "energy_drain",
-          "status_amount": 1,
-          "status_turns": 1
+          "shield_amount": 0
         },
         {
           "name": "Flame Breath",
           "intent": "tank_buster",
           "base_damage": 14,
           "cast_time": 2,
-          "description": "Deals 14 damage. Drains 1 energy next turn.",
+          "description": "Deals 14 damage.",
           "is_wipe": false,
           "heal_amount": 0,
-          "shield_amount": 0,
-          "status": "energy_drain",
-          "status_amount": 1,
-          "status_turns": 1
+          "shield_amount": 0
         }
       ]
     },
@@ -461,13 +455,10 @@
           "intent": "aoe",
           "base_damage": 9,
           "cast_time": 2,
-          "description": "Deals 9 damage to all. Drains 1 energy next turn.",
+          "description": "Deals 9 damage to all.",
           "is_wipe": false,
           "heal_amount": 0,
-          "shield_amount": 0,
-          "status": "energy_drain",
-          "status_amount": 1,
-          "status_turns": 1
+          "shield_amount": 0
         },
         {
           "name": "Tail Swipe",
@@ -597,6 +588,53 @@
     },
     {
       "id": "elder_dragon",
+      "name": "Elder Dragon",
+      "max_hp": 220,
+      "abilities": [
+        {
+          "name": "Inferno Breath",
+          "intent": "aoe",
+          "base_damage": 12,
+          "cast_time": 2,
+          "description": "Deals 12 damage to all.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        },
+        {
+          "name": "Tail Sweep",
+          "intent": "tank_buster",
+          "base_damage": 20,
+          "cast_time": 2,
+          "description": "Deals 20 damage.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        },
+        {
+          "name": "Wing Gust",
+          "intent": "aoe",
+          "base_damage": 8,
+          "cast_time": 1,
+          "description": "Deals 8 damage to all.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        },
+        {
+          "name": "Ancient Fury",
+          "intent": "buff",
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains 20 shield.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 20
+        }
+      ]
+    },
+    {
+      "id": "elder_dragon_drain",
       "name": "Elder Dragon",
       "max_hp": 220,
       "abilities": [
@@ -1097,13 +1135,10 @@
           "intent": "attack",
           "base_damage": 7,
           "cast_time": 1,
-          "description": "Deals 7 damage. Drains 1 energy next turn.",
+          "description": "Deals 7 damage.",
           "is_wipe": false,
           "heal_amount": 0,
-          "shield_amount": 0,
-          "status": "energy_drain",
-          "status_amount": 1,
-          "status_turns": 1
+          "shield_amount": 0
         },
         {
           "name": "Fan Flames",
@@ -1137,13 +1172,10 @@
           "intent": "aoe",
           "base_damage": 6,
           "cast_time": 2,
-          "description": "Deals 6 damage to all. Drains 1 energy next turn.",
+          "description": "Deals 6 damage to all.",
           "is_wipe": false,
           "heal_amount": 0,
-          "shield_amount": 0,
-          "status": "energy_drain",
-          "status_amount": 1,
-          "status_turns": 1
+          "shield_amount": 0
         }
       ]
     },
@@ -1226,6 +1258,53 @@
     },
     {
       "id": "forge_tyrant",
+      "name": "Forge Tyrant",
+      "max_hp": 240,
+      "abilities": [
+        {
+          "name": "Hammerfall",
+          "intent": "tank_buster",
+          "base_damage": 22,
+          "cast_time": 2,
+          "description": "Deals 22 damage.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        },
+        {
+          "name": "Furnace Pulse",
+          "intent": "aoe",
+          "base_damage": 11,
+          "cast_time": 2,
+          "description": "Deals 11 damage to all.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0
+        },
+        {
+          "name": "Tempered Plate",
+          "intent": "shield",
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains 24 shield.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 24
+        },
+        {
+          "name": "Overheat",
+          "intent": "wipe",
+          "base_damage": 14,
+          "cast_time": 3,
+          "description": "Deals 14 damage to all.",
+          "is_wipe": true,
+          "heal_amount": 0,
+          "shield_amount": 0
+        }
+      ]
+    },
+    {
+      "id": "forge_tyrant_drain",
       "name": "Forge Tyrant",
       "max_hp": 240,
       "abilities": [

@@ -477,7 +477,7 @@
       "class": "mage",
       "cost": 0,
       "target": "enemy",
-      "damage": 500,
+      "damage": 5,
       "heal": 0,
       "heal2": 0,
       "heal_self": false,

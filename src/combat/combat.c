@@ -150,6 +150,80 @@ static void combat_flash_played_card(CombatState *cs, const CardDef *card, int t
 
 // ── Damage / heal / shield / taunt ──────────────────────────
 
+static int combat_member_index_for_class(CombatState *cs, ClassType ct)
+{
+    if (!cs || ct == CLASS_NONE) return -1;
+    for (int i = 0; i < cs->party.count; i++)
+        if (cs->party.members[i].alive && cs->party.members[i].class == ct)
+            return i;
+    return -1;
+}
+
+static bool combat_class_has_perk(CombatState *cs, ClassType ct, PerkId perk)
+{
+    int idx = combat_member_index_for_class(cs, ct);
+    return idx >= 0 && party_member_has_perk(&cs->party.members[idx], perk);
+}
+
+static int combat_class_perk_count(CombatState *cs, ClassType ct, PerkId perk)
+{
+    int idx = combat_member_index_for_class(cs, ct);
+    return idx >= 0 ? party_member_perk_count(&cs->party.members[idx], perk) : 0;
+}
+
+static int combat_lowest_level_living_member(CombatState *cs)
+{
+    int best = -1;
+    for (int i = 0; i < cs->party.count; i++)
+    {
+        PartyMember *pm = &cs->party.members[i];
+        if (!pm->alive) continue;
+        if (best < 0 ||
+            pm->level < cs->party.members[best].level ||
+            (pm->level == cs->party.members[best].level && pm->xp < cs->party.members[best].xp))
+            best = i;
+    }
+    return best;
+}
+
+static void combat_award_card_xp(CombatState *cs, const CardDef *card, int paid_cost)
+{
+    if (!cs || !card || cs->phase != COMBAT_PLAYER_TURN || paid_cost <= 0)
+        return;
+
+    int idx = card->class == CLASS_NONE ?
+        combat_lowest_level_living_member(cs) :
+        combat_member_index_for_class(cs, card->class);
+    if (idx < 0)
+        return;
+
+    int levels = 0;
+    int gained = party_member_gain_xp(&cs->party.members[idx], paid_cost, &levels);
+    if (gained <= 0)
+        return;
+
+    PartyMember *pm = &cs->party.members[idx];
+    combat_feed_add(cs, "%s +%d XP", pm->name, gained);
+    if (levels > 0)
+    {
+        combat_feed_add(cs, "%s reached Level %d!", pm->name, pm->level);
+        Vector2 p = party_feedback_pos(cs, idx);
+        ft_spawn(p.x - 15.0f, p.y + 8.0f, "LV UP!", 10, (Color){ 105, 245, 140, 255 });
+    }
+}
+
+static void combat_try_rogue_mark_refund(CombatState *cs)
+{
+    if (!cs || cs->rogue_mark_refund_used)
+        return;
+    if (!combat_class_has_perk(cs, CLASS_ROGUE, PERK_ROGUE_MARK_REFUND))
+        return;
+    cs->rogue_mark_refund_used = true;
+    if (cs->energy.current < cs->energy.max)
+        cs->energy.current++;
+    combat_feed_add(cs, "Clean Payday: +1 energy");
+}
+
 static void apply_damage_to_enemy(CombatState *cs, int enemy_idx, int damage)
 {
     if (enemy_idx < 0 || enemy_idx >= cs->enemy_count) return;
@@ -186,11 +260,15 @@ static void apply_damage_to_enemy(CombatState *cs, int enemy_idx, int damage)
     }
 }
 
+static void apply_shield_to_ally(CombatState *cs, int ally_idx, int amount);
+
 static void apply_heal_to_ally(CombatState *cs, int ally_idx, int amount)
 {
     if (ally_idx < 0 || ally_idx >= cs->party.count) return;
     PartyMember *pm = &cs->party.members[ally_idx];
     if (!pm->alive) return;
+    int before = pm->hp;
+    int overheal = before + amount - pm->max_hp;
     pm->hp += amount;
     if (pm->hp > pm->max_hp) pm->hp = pm->max_hp;
 
@@ -201,6 +279,22 @@ static void apply_heal_to_ally(CombatState *cs, int ally_idx, int amount)
     vfx_spawn_burst(p.x, p.y - 8.0f, (Color){ 95, 245, 135, 255 }, 4);
 
     LOG_I(CAT_CARD, "  ally[%d] %s: +%d HP (%d)", ally_idx, pm->name, amount, pm->hp);
+
+    if (amount > 0 &&
+        cs->resolving_card_class == CLASS_PALADIN &&
+        combat_class_has_perk(cs, CLASS_PALADIN, PERK_PALADIN_HEAL_SHIELD))
+    {
+        apply_shield_to_ally(cs, ally_idx, 1);
+        combat_feed_add(cs, "Blessed Mending: +1 Shield");
+    }
+
+    if (overheal > 0 &&
+        cs->resolving_card_class == CLASS_CLERIC &&
+        combat_class_has_perk(cs, CLASS_CLERIC, PERK_CLERIC_OVERHEAL_SHIELD))
+    {
+        apply_shield_to_ally(cs, ally_idx, 2);
+        combat_feed_add(cs, "Overflowing Grace: +2 Shield");
+    }
 
     if (cs->vengeful_active && cs->vengeful_ally == ally_idx)
     {
@@ -708,6 +802,25 @@ static void apply_status_to_enemy(CombatState *cs, int enemy_idx, StatusType sta
     if (turns > 0 && is_enemy_synergy_status(status) &&
         relic_has(g_state.relics, g_state.relic_count, RELIC_LINGERING_SIGIL))
         turns++;
+    if (turns > 0 &&
+        status == STATUS_CONDUCTIVE &&
+        cs->resolving_card_class == CLASS_SHAMAN &&
+        !cs->shaman_extend_status_used &&
+        combat_class_has_perk(cs, CLASS_SHAMAN, PERK_SHAMAN_EXTEND_STATUS))
+    {
+        turns++;
+        cs->shaman_extend_status_used = true;
+        combat_feed_add(cs, "Lingering Rite: +1 turn");
+    }
+    if (status == STATUS_BLIGHT &&
+        cs->resolving_card_class == CLASS_WARLOCK &&
+        !cs->warlock_blight_boost_used &&
+        combat_class_has_perk(cs, CLASS_WARLOCK, PERK_WARLOCK_BLIGHT_BOOST))
+    {
+        amount++;
+        cs->warlock_blight_boost_used = true;
+        combat_feed_add(cs, "Deeper Rot: +1 BLIGHT");
+    }
 
     status_apply(e->statuses, &e->status_count, status, turns, amount);
     LOG_I(CAT_CARD, "  enemy[%d]: +%s (%d for %d turns)", enemy_idx, status_label(status), amount, turns);
@@ -719,6 +832,17 @@ static void apply_status_to_ally(CombatState *cs, int ally_idx, StatusType statu
     if (ally_idx < 0 || ally_idx >= cs->party.count) return;
     PartyMember *pm = &cs->party.members[ally_idx];
     if (!pm->alive) return;
+
+    if (turns > 0 &&
+        status == STATUS_TOTEM_HEAL &&
+        cs->resolving_card_class == CLASS_SHAMAN &&
+        !cs->shaman_extend_status_used &&
+        combat_class_has_perk(cs, CLASS_SHAMAN, PERK_SHAMAN_EXTEND_STATUS))
+    {
+        turns++;
+        cs->shaman_extend_status_used = true;
+        combat_feed_add(cs, "Lingering Rite: +1 turn");
+    }
 
     status_apply(pm->statuses, &pm->status_count, status, turns, amount);
     LOG_I(CAT_CARD, "  ally[%d]: +%s (%d for %d turns)", ally_idx, status_label(status), amount, turns);
@@ -1035,7 +1159,7 @@ static void apply_relic_combat_start(CombatState *cs)
 
 // ── Card resolver ───────────────────────────────────────────
 
-static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_enemy, int target_ally)
+static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_enemy, int target_ally, int paid_cost)
 {
     if (hand_idx < 0 || hand_idx >= cs->deck.hand_count) return;
 
@@ -1043,12 +1167,20 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
     const CardDef *card = inst->def;
     if (!card || !card->name) return;
     int played_uid = inst->uid;
+    cs->resolving_card_class = card->class;
+    combat_award_card_xp(cs, card, paid_cost);
 
     int upgrade_level = inst->upgrade_level;
 
     int dmg = card_damage(card, upgrade_level) + meta_dmg_bonus(&g_state.meta);
     int hl  = card_heal(card, upgrade_level);
     int sh  = card_shield(card, upgrade_level) + meta_shield_bonus(&g_state.meta);
+    if (card->class != CLASS_NONE)
+    {
+        if (dmg > 0) dmg += combat_class_perk_count(cs, card->class, PERK_CARD_DMG_1);
+        if (hl > 0) hl += combat_class_perk_count(cs, card->class, PERK_CARD_HEAL_1);
+        if (sh > 0) sh += combat_class_perk_count(cs, card->class, PERK_CARD_SHIELD_1);
+    }
 
     LOG_I(CAT_CARD, "Playing %s (enemy=%d, ally=%d) upgrade_level=%d channel=%d", card->name, target_enemy, target_ally, upgrade_level, card->channel);
     combat_spawn_card_throw(cs, hand_idx, card, upgrade_level, target_enemy, target_ally);
@@ -1119,6 +1251,15 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
         combat_feed_add(cs, "Ambush: first strike doubled");
     }
 
+    if (card->class == CLASS_BARD &&
+        !cs->bard_first_draw_used &&
+        combat_class_has_perk(cs, CLASS_BARD, PERK_BARD_FIRST_DRAW))
+    {
+        cs->bard_first_draw_used = true;
+        deck_draw(&cs->deck);
+        combat_feed_add(cs, "Encore: drew 1");
+    }
+
     // ── Blood Amber: lose 1 HP, gain 1 energy per card played ──
     if (relic_has(g_state.relics, g_state.relic_count, RELIC_BLOOD_AMBER))
     {
@@ -1174,16 +1315,19 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
     int extra_lowest_heal = 0;
     int extra_caster_heal = 0;
     int blight_consumed_count = 0;
+    bool rogue_mark_payoff = false;
 
     if (card_is(card, "rng_pounce") && marked_target)
     {
-        dmg = card_damage(card, upgrade_level);
+        dmg = card_damage(card, upgrade_level) + meta_dmg_bonus(&g_state.meta) +
+            combat_class_perk_count(cs, card->class, PERK_CARD_DMG_1);
         combat_feed_add(cs, "[MARKED] Pounce found the opening");
     }
     if (card_is(card, "rog_evis") && marked_target)
     {
         dmg += 8;
         consume_marked = true;
+        rogue_mark_payoff = true;
         combat_feed_add(cs, "[MARKED] Eviscerate +8 damage");
     }
     if (card_is(card, "clr_smite") && marked_target)
@@ -1287,6 +1431,26 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
 
     // ── Utility card effects ────────────────────────────────
     // Channel cards don't resolve immediately — they start a channel instead
+    if (dmg > 0 &&
+        card->class == CLASS_MAGE &&
+        !cs->mage_first_spell_used &&
+        combat_class_has_perk(cs, CLASS_MAGE, PERK_MAGE_FIRST_SPELL_DMG))
+    {
+        dmg += 1;
+        cs->mage_first_spell_used = true;
+        combat_feed_add(cs, "Opening Spark: +1 damage");
+    }
+    if (dmg > 0 &&
+        card->class == CLASS_RANGER &&
+        marked_target &&
+        !cs->ranger_marked_dmg_used &&
+        combat_class_has_perk(cs, CLASS_RANGER, PERK_RANGER_MARKED_DMG))
+    {
+        dmg += 2;
+        cs->ranger_marked_dmg_used = true;
+        combat_feed_add(cs, "True Shot: +2 damage");
+    }
+
     if (!card->channel)
     {
         if (card->target == TARGET_ALL_ENEMIES)
@@ -1455,6 +1619,13 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
                     highest = cs->party.members[i].aggro;
             cs->party.members[caster].aggro = highest + 30;
             LOG_I(CAT_CARD, "Taunt: caster aggro set to %d", cs->party.members[caster].aggro);
+            if (!cs->guardian_taunt_shield_used &&
+                combat_class_has_perk(cs, CLASS_GUARDIAN, PERK_GUARDIAN_TAUNT_SHIELD))
+            {
+                cs->guardian_taunt_shield_used = true;
+                apply_shield_to_ally(cs, caster, 4);
+                combat_feed_add(cs, "Anchor Stance: +4 Shield");
+            }
         }
     }
 
@@ -1488,8 +1659,11 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
     {
         cs->energy.current += 1;
         if (cs->energy.current > cs->energy.max) cs->energy.current = cs->energy.max;
+        rogue_mark_payoff = true;
         combat_feed_add(cs, "[MARKED] Backstab refunded 1 energy");
     }
+    if (rogue_mark_payoff)
+        combat_try_rogue_mark_refund(cs);
     if (extra_lowest_heal > 0)
     {
         int lowest = party_lowest_hp(&cs->party);
@@ -1561,6 +1735,7 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
         combo_check_chain(cs, previous_class, card->class);
         cs->last_played_class = card->class;
     }
+    cs->resolving_card_class = CLASS_NONE;
 }
 
 // ── Check win/loss ──────────────────────────────────────────
@@ -1787,6 +1962,7 @@ static void advance_turn(CombatState *cs)
     cs->combo_last_cost = -1;
     cs->vengeful_active = false;
     cs->vengeful_ally = -1;
+    cs->mage_first_spell_used = false;
 
     // ── Tick channel ────────────────────────────────────────
     if (cs->channel_card && cs->channel_remaining > 0)
@@ -2004,6 +2180,15 @@ void combat_start(CombatState *cs, const Party *party, const EncounterDef *encou
         int fallback_classes[3] = { CLASS_GUARDIAN, CLASS_CLERIC, CLASS_MAGE };
         party_create(&cs->party, fallback_classes, 3);
     }
+    for (int i = 0; i < cs->party.count; i++)
+    {
+        PartyMember *pm = &cs->party.members[i];
+        if (pm->level < 1) pm->level = 1;
+        if (pm->level > MAX_LEVEL) pm->level = MAX_LEVEL;
+        pm->combat_xp = 0;
+        if (pm->perk_count < 0) pm->perk_count = 0;
+        if (pm->perk_count > MAX_MEMBER_PERKS) pm->perk_count = MAX_MEMBER_PERKS;
+    }
     LOG_T("  party created: %d members, run_deck has %d cards", cs->party.count, g_state.run_deck.card_count);
 
     memcpy(&cs->deck, &g_state.run_deck, sizeof(Deck));
@@ -2040,6 +2225,7 @@ void combat_start(CombatState *cs, const Party *party, const EncounterDef *encou
     cs->hovered_card = -1;
     cs->target_mode = TGT_NONE;
     cs->target_hand_idx = -1;
+    cs->target_paid_cost = 0;
     cs->hovered_enemy = -1;
     cs->hovered_ally = -1;
     cs->gold_spawned = false;
@@ -2056,6 +2242,7 @@ void combat_start(CombatState *cs, const Party *party, const EncounterDef *encou
     cs->channel_card = NULL;
     cs->channel_remaining = 0;
     cs->channel_class = CLASS_NONE;
+    cs->resolving_card_class = CLASS_NONE;
     cs->target_offset = 0;
     cs->target_offset_tween = -1;
     cs->combo_class = CLASS_NONE;
@@ -2079,6 +2266,13 @@ void combat_start(CombatState *cs, const Party *party, const EncounterDef *encou
     cs->synergy_banner_subtitle[0] = '\0';
     cs->ambush_used = false;
     cs->vengeful_active = false;
+    cs->guardian_taunt_shield_used = false;
+    cs->mage_first_spell_used = false;
+    cs->rogue_mark_refund_used = false;
+    cs->shaman_extend_status_used = false;
+    cs->ranger_marked_dmg_used = false;
+    cs->warlock_blight_boost_used = false;
+    cs->bard_first_draw_used = false;
     cs->vengeful_ally = -1;
     for (int i = 0; i < 5; i++)
     {
@@ -2087,6 +2281,18 @@ void combat_start(CombatState *cs, const Party *party, const EncounterDef *encou
     }
 
     apply_relic_combat_start(cs);
+
+    for (int i = 0; i < cs->party.count; i++)
+    {
+        PartyMember *pm = &cs->party.members[i];
+        if (!pm->alive) continue;
+        int shield_perks = party_member_perk_count(pm, PERK_STARTING_SHIELD_1);
+        if (shield_perks > 0)
+        {
+            pm->shield += shield_perks;
+            combat_feed_add(cs, "%s: +%d starting Shield", pm->name, shield_perks);
+        }
+    }
 
     LOG_T("  setting up enemies");
 
@@ -2232,8 +2438,11 @@ void combat_end_turn(CombatState *cs)
 {
     if (cs->target_mode != TGT_NONE)
     {
+        cs->energy.current += cs->target_paid_cost;
+        if (cs->energy.current > cs->energy.max) cs->energy.current = cs->energy.max;
         cs->target_mode = TGT_NONE;
         cs->target_hand_idx = -1;
+        cs->target_paid_cost = 0;
         return;
     }
     combat_end_turn_internal(cs);
@@ -2265,9 +2474,10 @@ static void start_targeting(CombatState *cs, int hand_idx, TargetType tt)
         {
             int caster = -1;
             find_caster(cs, cs->deck.cards[cs->deck.hand[hand_idx]].def->class, &caster);
-            resolve_card_on_target(cs, hand_idx, -1, caster >= 0 ? caster : 0);
+            resolve_card_on_target(cs, hand_idx, -1, caster >= 0 ? caster : 0, cs->target_paid_cost);
             cs->target_mode = TGT_NONE;
             cs->target_hand_idx = -1;
+            cs->target_paid_cost = 0;
             check_victory(cs);
             if (cs->phase == COMBAT_VICTORY) return;
             check_defeat(cs);
@@ -2300,6 +2510,7 @@ static void handle_card_click(CombatState *cs, int hand_idx)
     if (cs->energy.current < effective_cost) return;
 
     energy_spend(&cs->energy, effective_cost);
+    cs->target_paid_cost = effective_cost;
 
     LOG_D(CAT_CARD, "handle_card_click: card=%s target=%d energy=%d", card->name, (int)card->target, cs->energy.current);
 
@@ -2311,7 +2522,8 @@ static void handle_card_click(CombatState *cs, int hand_idx)
     else
     {
         LOG_D(CAT_CARD, "  -> resolving immediately (target=%d)", (int)card->target);
-        resolve_card_on_target(cs, hand_idx, -1, -1);
+        resolve_card_on_target(cs, hand_idx, -1, -1, effective_cost);
+        cs->target_paid_cost = 0;
         check_victory(cs);
         if (cs->phase == COMBAT_VICTORY) return;
         check_defeat(cs);
@@ -2384,8 +2596,9 @@ void combat_update(CombatState *cs)
         cs->hovered_enemy = hit_test_enemies(cs, mouse);
         if (cs->hovered_enemy >= 0 && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
-            resolve_card_on_target(cs, cs->target_hand_idx, cs->hovered_enemy, -1);
-            cs->target_mode = TGT_NONE; cs->target_hand_idx = -1; cs->target_offset = 0;
+            int paid_cost = cs->target_paid_cost;
+            resolve_card_on_target(cs, cs->target_hand_idx, cs->hovered_enemy, -1, paid_cost);
+            cs->target_mode = TGT_NONE; cs->target_hand_idx = -1; cs->target_paid_cost = 0; cs->target_offset = 0;
             check_victory(cs); if (cs->phase == COMBAT_VICTORY) return;
             check_defeat(cs);  if (cs->phase == COMBAT_DEFEAT) return;
             if (cs->energy.current <= 0 || cs->deck.hand_count == 0) combat_end_turn_internal(cs);
@@ -2393,8 +2606,10 @@ void combat_update(CombatState *cs)
         else if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
         {
             const CardDef *card = cs->deck.cards[cs->deck.hand[cs->target_hand_idx]].def;
-            cs->energy.current += combat_effective_card_cost(cs, card);
-            cs->target_mode = TGT_NONE; cs->target_hand_idx = -1; cs->target_offset = 0;
+            (void)card;
+            cs->energy.current += cs->target_paid_cost;
+            if (cs->energy.current > cs->energy.max) cs->energy.current = cs->energy.max;
+            cs->target_mode = TGT_NONE; cs->target_hand_idx = -1; cs->target_paid_cost = 0; cs->target_offset = 0;
         }
         return;
     }
@@ -2410,8 +2625,9 @@ void combat_update(CombatState *cs)
                 ft_spawn(244.0f, 222.0f, "INVALID TARGET", 10, (Color){ 230, 90, 90, 255 });
                 return;
             }
-            resolve_card_on_target(cs, cs->target_hand_idx, -1, cs->hovered_ally);
-            cs->target_mode = TGT_NONE; cs->target_hand_idx = -1; cs->target_offset = 0;
+            int paid_cost = cs->target_paid_cost;
+            resolve_card_on_target(cs, cs->target_hand_idx, -1, cs->hovered_ally, paid_cost);
+            cs->target_mode = TGT_NONE; cs->target_hand_idx = -1; cs->target_paid_cost = 0; cs->target_offset = 0;
             check_victory(cs); if (cs->phase == COMBAT_VICTORY) return;
             check_defeat(cs);  if (cs->phase == COMBAT_DEFEAT) return;
             if (cs->energy.current <= 0 || cs->deck.hand_count == 0) combat_end_turn_internal(cs);
@@ -2419,8 +2635,10 @@ void combat_update(CombatState *cs)
         else if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
         {
             const CardDef *card = cs->deck.cards[cs->deck.hand[cs->target_hand_idx]].def;
-            cs->energy.current += combat_effective_card_cost(cs, card);
-            cs->target_mode = TGT_NONE; cs->target_hand_idx = -1; cs->target_offset = 0;
+            (void)card;
+            cs->energy.current += cs->target_paid_cost;
+            if (cs->energy.current > cs->energy.max) cs->energy.current = cs->energy.max;
+            cs->target_mode = TGT_NONE; cs->target_hand_idx = -1; cs->target_paid_cost = 0; cs->target_offset = 0;
         }
         return;
     }

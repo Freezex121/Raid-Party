@@ -119,7 +119,7 @@
         { "id": "cinder_f3_giant_imp", "enemies": [ "fire_giant", "flame_imp" ] }
       ],
       "elite": { "id": "cinder_f3_elite_giant_knight", "enemies": [ "fire_giant", "ember_knight" ] },
-      "boss": { "id": "cinder_f3_boss_elder_knight", "enemies": [ "elder_dragon", "ember_knight" ] }
+      "boss": { "id": "cinder_f3_boss_elder_knight", "enemies": [ "elder_dragon_drain", "ember_knight" ] }
     },
     {
       "area": "cinder_spire",
@@ -130,8 +130,8 @@
         { "id": "cinder_f4_dragon_cultist", "enemies": [ "elder_dragon", "ash_cultist" ] },
         { "id": "cinder_f4_knight_drake_imp", "enemies": [ "ember_knight", "fire_drake", "flame_imp" ] }
       ],
-      "elite": { "id": "cinder_f4_elite_dragon_sentinel", "enemies": [ "elder_dragon", "obsidian_sentinel" ] },
-      "boss": { "id": "cinder_f4_boss_forge_tyrant", "enemies": [ "forge_tyrant", "cinder_warden" ] }
+      "elite": { "id": "cinder_f4_elite_dragon_sentinel", "enemies": [ "elder_dragon_drain", "obsidian_sentinel" ] },
+      "boss": { "id": "cinder_f4_boss_forge_tyrant", "enemies": [ "forge_tyrant_drain", "cinder_warden" ] }
     },
     {
       "area": "cinder_spire",
@@ -142,8 +142,8 @@
         { "id": "cinder_f5_giant_sentinel", "enemies": [ "fire_giant", "obsidian_sentinel" ] },
         { "id": "cinder_f5_knight_warden_imp", "enemies": [ "ember_knight", "cinder_warden", "flame_imp" ] }
       ],
-      "elite": { "id": "cinder_f5_elite_tyrant_knight", "enemies": [ "forge_tyrant", "ember_knight" ] },
-      "boss": { "id": "cinder_f5_boss_final_forge", "enemies": [ "forge_tyrant", "cinder_warden", "ash_cultist" ] }
+      "elite": { "id": "cinder_f5_elite_tyrant_knight", "enemies": [ "forge_tyrant_drain", "ember_knight" ] },
+      "boss": { "id": "cinder_f5_boss_final_forge", "enemies": [ "forge_tyrant_drain", "cinder_warden", "ash_cultist" ] }
     },
     {
       "floor": 1,
@@ -173,7 +173,7 @@
         { "id": "fallback_f3_warden_drake_imp", "enemies": [ "cinder_warden", "fire_drake", "flame_imp" ] }
       ],
       "elite": { "id": "fallback_f3_elite_giant_warden", "enemies": [ "fire_giant", "cinder_warden" ] },
-      "boss": { "id": "fallback_f3_boss_elder_dragon", "enemies": [ "elder_dragon", "fire_giant", "fire_drake" ] }
+      "boss": { "id": "fallback_f3_boss_elder_dragon", "enemies": [ "elder_dragon_drain", "fire_giant", "fire_drake" ] }
     },
     {
       "floor": 4,
@@ -182,8 +182,8 @@
         { "id": "fallback_f4_hydra_stalker", "enemies": [ "venom_hydra", "venom_stalker" ] },
         { "id": "fallback_f4_giant_armor_imp", "enemies": [ "fire_giant", "living_armor", "flame_imp" ] }
       ],
-      "elite": { "id": "fallback_f4_elite_dragon_warden", "enemies": [ "elder_dragon", "cinder_warden" ] },
-      "boss": { "id": "fallback_f4_boss_hydra_dragon", "enemies": [ "venom_hydra", "elder_dragon", "cinder_warden" ] }
+      "elite": { "id": "fallback_f4_elite_dragon_warden", "enemies": [ "elder_dragon_drain", "cinder_warden" ] },
+      "boss": { "id": "fallback_f4_boss_hydra_dragon", "enemies": [ "venom_hydra", "elder_dragon_drain", "cinder_warden" ] }
     },
     {
       "floor": 5,
@@ -192,8 +192,8 @@
         { "id": "fallback_f5_giant_manticore_stalker", "enemies": [ "fire_giant", "greater_manticore", "venom_stalker" ] },
         { "id": "fallback_f5_hydra_armor_warden", "enemies": [ "venom_hydra", "living_armor", "cinder_warden" ] }
       ],
-      "elite": { "id": "fallback_f5_elite_dragon_giant", "enemies": [ "elder_dragon", "fire_giant" ] },
-      "boss": { "id": "fallback_f5_boss_ancient_conclave", "enemies": [ "elder_dragon", "venom_hydra", "fire_giant" ] }
+      "elite": { "id": "fallback_f5_elite_dragon_giant", "enemies": [ "elder_dragon_drain", "fire_giant" ] },
+      "boss": { "id": "fallback_f5_boss_ancient_conclave", "enemies": [ "elder_dragon_drain", "venom_hydra", "fire_giant" ] }
     }
   ]
 }

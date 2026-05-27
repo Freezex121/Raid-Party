@@ -114,3 +114,12 @@ const EventDef *event_def_by_index(int index)
     index %= event_count;
     return &events[index];
 }
+
+const EventDef *event_def_by_id(const char *id)
+{
+    if (!id || !id[0] || event_count <= 0) return NULL;
+    for (int i = 0; i < event_count; i++)
+        if (events[i].id && strcmp(events[i].id, id) == 0)
+            return &events[i];
+    return NULL;
+}

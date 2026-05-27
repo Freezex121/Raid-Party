@@ -492,10 +492,6 @@ void run_screen_update(void)
             g_state.map.floor++;
             g_state.frugal_used_this_floor = false;
             int area_floors = area_floor_count(g_state.current_area);
-            const AreaDef *current_area = area_def(g_state.current_area);
-            int loaded_floors = map_loaded_floor_count_for_area(current_area ? current_area->id : NULL);
-            if (loaded_floors > 0 && area_floors > loaded_floors)
-                area_floors = loaded_floors;
             if (g_state.map.floor >= area_floors)
             {
                 g_state.run_won = true;
@@ -504,12 +500,12 @@ void run_screen_update(void)
                 g_state.relic_reward_pending = false;
                 const AreaDef *area = area_def(g_state.current_area);
                 snprintf(g_state.result_reason, sizeof(g_state.result_reason), "%s cleared.", area ? area->name : "Area");
-                game_change_screen(SCREEN_GAME_OVER);
+                game_go_to_level_up_or(SCREEN_GAME_OVER);
                 return;
             }
         }
 
-        game_change_screen(SCREEN_REWARD);
+        game_go_to_level_up_or(SCREEN_REWARD);
     }
 }
 

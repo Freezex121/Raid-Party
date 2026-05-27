@@ -136,22 +136,22 @@ static void buy_boon(bool energy)
 
 static Rectangle sale_card_rect(void)
 {
-    return (Rectangle){ 42.0f, 76.0f, 96.0f, 120.0f };
+    return (Rectangle){ 60.0f, 86.0f, 96.0f, 120.0f };
 }
 
 static Rectangle sale_buy_button(void)
 {
-    return (Rectangle){ 34.0f, 204.0f, 54.0f, 22.0f };
+    return (Rectangle){ 42.0f, 214.0f, 132.0f, 24.0f };
 }
 
 static Rectangle sale_reroll_button(void)
 {
-    return (Rectangle){ 92.0f, 204.0f, 58.0f, 22.0f };
+    return (Rectangle){ 42.0f, 244.0f, 132.0f, 22.0f };
 }
 
 static Rectangle option_rect(int col, int row)
 {
-    return (Rectangle){ 178.0f + col * 150.0f, 98.0f + row * 34.0f, 138.0f, 24.0f };
+    return (Rectangle){ 214.0f + col * 202.0f, 74.0f + row * 58.0f, 190.0f, 44.0f };
 }
 
 static Rectangle leave_button(void)
@@ -337,6 +337,15 @@ void shop_screen_update(void)
     }
 }
 
+static void draw_shop_panel(Rectangle r, const char *title, Color accent)
+{
+    DrawRectangleRec(r, (Color){ 13, 14, 24, 230 });
+    DrawRectangleLinesEx(r, 1.0f, (Color){ accent.r, accent.g, accent.b, 155 });
+    if (title && title[0])
+        draw_text_box((Rectangle){ r.x + 8.0f, r.y + 7.0f, r.width - 16.0f, 12.0f },
+            title, 10, 0, accent, TEXT_ALIGN_CENTER);
+}
+
 static void draw_shop_button(Rectangle r, const char *label, const char *body, bool enabled, Color accent)
 {
     Vector2 mouse = GetMousePosition();
@@ -350,10 +359,10 @@ static void draw_shop_button(Rectangle r, const char *label, const char *body, b
 
     DrawRectangleRec(r, bg);
     DrawRectangleLinesEx(r, hover ? 2.0f : 1.0f, border);
-    draw_text_box((Rectangle){ r.x + 6.0f, r.y + 3.0f, r.width - 12.0f, 11.0f },
+    draw_text_box((Rectangle){ r.x + 8.0f, r.y + 6.0f, r.width - 16.0f, 12.0f },
         label, 10, 0, title_col, TEXT_ALIGN_CENTER);
     if (body && body[0])
-        draw_text_box((Rectangle){ r.x + 6.0f, r.y + 14.0f, r.width - 12.0f, 10.0f },
+        draw_text_box((Rectangle){ r.x + 8.0f, r.y + 22.0f, r.width - 16.0f, 14.0f },
             body, 10, 0, body_col, TEXT_ALIGN_CENTER);
 }
 
@@ -381,16 +390,20 @@ void shop_screen_draw(void)
 
     if (mode == SHOP_MAIN)
     {
-        draw_text_box((Rectangle){ 80.0f, 30.0f, 480.0f, 22.0f }, "SHOP", 18, 0, (Color){ 220, 200, 60, 255 }, TEXT_ALIGN_CENTER);
+        draw_text_box((Rectangle){ 80.0f, 18.0f, 480.0f, 22.0f }, "SHOP", 18, 0, (Color){ 220, 200, 60, 255 }, TEXT_ALIGN_CENTER);
+
+        Rectangle sale_panel = { 24.0f, 58.0f, 168.0f, 220.0f };
+        Rectangle service_panel = { 204.0f, 58.0f, 416.0f, 202.0f };
+        draw_shop_panel(sale_panel, "CARD FOR SALE - 25g", (Color){ 90, 160, 230, 230 });
+        draw_shop_panel(service_panel, "SERVICES", (Color){ 220, 200, 90, 230 });
 
         Rectangle card_rect = sale_card_rect();
         if (shop_card)
             theme_draw_card_art(card_rect, shop_card, 0);
-        theme_draw_card_tooltip((Rectangle){ 34.0f, 232.0f, 222.0f, 78.0f }, shop_card, 0);
 
         bool deck_space = g_state.run_deck.card_count < MAX_DECK_SIZE;
-        draw_shop_button(sale_buy_button(), "BUY 25g", "", g_state.gold >= CARD_SALE_COST && deck_space, (Color){ 80, 150, 220, 255 });
-        draw_shop_button(sale_reroll_button(), "ROLL 5g", "", g_state.gold >= CARD_REROLL_COST, (Color){ 95, 190, 110, 255 });
+        draw_shop_button(sale_buy_button(), "BUY CARD - 25g", "", g_state.gold >= CARD_SALE_COST && deck_space, (Color){ 80, 150, 220, 255 });
+        draw_shop_button(sale_reroll_button(), "NEW CARD - 5g", "", g_state.gold >= CARD_REROLL_COST, (Color){ 95, 190, 110, 255 });
 
         bool can_upg1 = g_state.gold >= UPGRADE_COST && deck_browser_has_upgradeable_at(&g_state.run_deck, 1);
         bool can_upg2 = g_state.gold >= SUPER_UPGRADE_COST && deck_browser_has_upgradeable_at(&g_state.run_deck, 2);
@@ -398,15 +411,15 @@ void shop_screen_draw(void)
         int boon_cost = shop_boon_cost();
         bool can_boon = g_state.gold >= boon_cost;
 
-        draw_shop_button(option_rect(0, 0), "UPGRADE 30g", "base -> upgraded", can_upg1, (Color){ 80, 140, 220, 255 });
-        draw_shop_button(option_rect(1, 0), "SUPER 60g", "upgraded -> max", can_upg2, (Color){ 205, 165, 70, 255 });
-        draw_shop_button(option_rect(0, 1), "REMOVE 20g", "trim a card", can_remove, (Color){ 220, 100, 100, 255 });
-        draw_shop_button(option_rect(1, 1), "HP +5 15g", "pick a hero", g_state.gold >= HP_BOOST_COST, (Color){ 90, 200, 120, 255 });
+        draw_shop_button(option_rect(0, 0), "UPGRADE - 30g", "base card -> upgraded", can_upg1, (Color){ 80, 140, 220, 255 });
+        draw_shop_button(option_rect(1, 0), "MAX UPGRADE - 60g", "upgraded card -> max", can_upg2, (Color){ 205, 165, 70, 255 });
+        draw_shop_button(option_rect(0, 1), "REMOVE CARD - 20g", "thin your deck", can_remove, (Color){ 220, 100, 100, 255 });
+        draw_shop_button(option_rect(1, 1), "TRAIN HP - 15g", "+5 max HP to one PM", g_state.gold >= HP_BOOST_COST, (Color){ 90, 200, 120, 255 });
 
         char boon_label[32];
-        snprintf(boon_label, sizeof(boon_label), "ENERGY %dg", boon_cost);
+        snprintf(boon_label, sizeof(boon_label), "ENERGY BOON - %dg", boon_cost);
         draw_shop_button(option_rect(0, 2), boon_label, "+1 next combat", can_boon, (Color){ 230, 205, 70, 255 });
-        snprintf(boon_label, sizeof(boon_label), "DRAW %dg", boon_cost);
+        snprintf(boon_label, sizeof(boon_label), "DRAW BOON - %dg", boon_cost);
         draw_shop_button(option_rect(1, 2), boon_label, "+2 next combat", can_boon, (Color){ 135, 190, 245, 255 });
 
         if (g_state.next_combat_energy_bonus > 0 || g_state.next_combat_draw_bonus > 0)
@@ -417,12 +430,12 @@ void shop_screen_draw(void)
                 g_state.next_combat_draw_bonus,
                 g_state.next_combat_boon_turns,
                 g_state.next_combat_boon_turns == 1 ? "" : "s");
-            draw_text_box((Rectangle){ 180.0f, 208.0f, 412.0f, 24.0f }, boon, 10, 0, (Color){ 230, 220, 140, 230 }, TEXT_ALIGN_CENTER);
+            draw_text_box((Rectangle){ 210.0f, 266.0f, 278.0f, 24.0f }, boon, 10, 0, (Color){ 230, 220, 140, 230 }, TEXT_ALIGN_LEFT);
         }
 
         draw_shop_button(leave_button(), "LEAVE", "", true, (Color){ 120, 120, 145, 255 });
         if (msg[0])
-            draw_text_box((Rectangle){ 180.0f, 236.0f, 412.0f, 28.0f }, msg, 10, 0, (Color){ 230, 205, 115, 240 }, TEXT_ALIGN_CENTER);
+            draw_text_box((Rectangle){ 210.0f, 292.0f, 278.0f, 28.0f }, msg, 10, 0, (Color){ 230, 205, 115, 240 }, TEXT_ALIGN_LEFT);
     }
     else if (mode == SHOP_UPGRADE_1 || mode == SHOP_UPGRADE_2)
     {

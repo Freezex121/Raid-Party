@@ -57,6 +57,7 @@ typedef struct {
     Texture2D class_icons[CLASS_COUNT];
     Texture2D relic_icons[RELIC_COUNT];
     Texture2D relic_icon_placeholder;
+    Texture2D node_sprites[8];
     Sound sfx[SFX_COUNT];
     bool sfx_loaded[SFX_COUNT];
     Music music[MUSIC_COUNT];
