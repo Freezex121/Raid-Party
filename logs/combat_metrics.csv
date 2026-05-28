@@ -1,0 +1,8 @@
+timestamp,run_id,area,floor,encounter_id,encounter_type,result,turns,deaths,interrupts,gold_reward
+1779975502,"5","1","1","mire_leech","normal","victory","2","0","0","10"
+1779975556,"5","1","1","rot_basilisk+venom_stalker","elite","victory","6","0","0","25"
+1779975638,"5","1","1","greater_manticore+plague_alchemist","boss","victory","6","1","1","50"
+1779975683,"5","1","2","plague_alchemist+mire_leech","normal","victory","2","1","1","10"
+1779975697,"5","1","2","basilisk+venom_priest","normal","defeat","4","3","1","0"
+1779977201,"6","1","1","mire_leech","normal","victory","2","0","0","10"
+1779977226,"6","1","1","rot_basilisk+venom_stalker","elite","defeat","11","3","0","0"

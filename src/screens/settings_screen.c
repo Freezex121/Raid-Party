@@ -12,6 +12,7 @@ static Button back_btn;
 static Button fullscreen_btn;
 static Button scale_down_btn;
 static Button scale_up_btn;
+static Button telemetry_btn;
 static bool initialized = false;
 
 static Rectangle visual_panel_rect(void)
@@ -29,7 +30,7 @@ static void init_if_needed(void)
     if (initialized) return;
 
     back_btn = button_create(
-        (Rectangle){ (float)(VIRT_W / 2 - 52), 298.0f, 104.0f, (float)BTN_H },
+        (Rectangle){ (float)(VIRT_W / 2 - 52), 328.0f, 104.0f, (float)BTN_H },
         "BACK",
         (Color){ 42, 48, 70, 255 },
         (Color){ 70, 78, 110, 255 },
@@ -51,6 +52,12 @@ static void init_if_needed(void)
     scale_up_btn = button_create(
         (Rectangle){ v.x + v.width - 83.0f, v.y + 112.0f, 28.0f, (float)BTN_H },
         "+",
+        (Color){ 42, 48, 70, 255 },
+        (Color){ 70, 78, 110, 255 },
+        RAYWHITE);
+    telemetry_btn = button_create(
+        (Rectangle){ (float)(VIRT_W / 2 - 70), 266.0f, 140.0f, (float)BTN_H },
+        "TELEMETRY: OFF",
         (Color){ 42, 48, 70, 255 },
         (Color){ 70, 78, 110, 255 },
         RAYWHITE);
@@ -91,6 +98,7 @@ void settings_screen_update(void)
     button_update(&fullscreen_btn);
     button_update(&scale_down_btn);
     button_update(&scale_up_btn);
+    button_update(&telemetry_btn);
 
     if (back_btn.pressed_this_frame || IsKeyPressed(KEY_ESCAPE))
     {
@@ -107,6 +115,12 @@ void settings_screen_update(void)
         game_set_window_scale(g_state.window_scale - 1);
     if (scale_up_btn.pressed_this_frame)
         game_set_window_scale(g_state.window_scale + 1);
+    if (telemetry_btn.pressed_this_frame)
+    {
+        g_state.telemetry_opt_in = !g_state.telemetry_opt_in;
+        g_state.telemetry_prompt_seen = true;
+        game_settings_save();
+    }
 
     update_slider(slider_track(0), game_set_master_volume);
     update_slider(slider_track(1), game_set_music_volume);
@@ -169,6 +183,12 @@ void settings_screen_draw(void)
     draw_slider(slider_track(0), "Master", g_state.master_volume);
     draw_slider(slider_track(1), "Music", g_state.music_volume);
     draw_slider(slider_track(2), "SFX", g_state.sfx_volume);
+
+    telemetry_btn.text = g_state.telemetry_opt_in ? "TELEMETRY: ON" : "TELEMETRY: OFF";
+    button_draw(&telemetry_btn);
+    draw_text_box((Rectangle){ 120.0f, 292.0f, 400.0f, 28.0f },
+        "Sends anonymous gameplay metrics for balance. No names, Steam IDs, or personal data.",
+        10, 0, (Color){ 150, 158, 185, 215 }, TEXT_ALIGN_CENTER);
 
     button_draw(&back_btn);
 }

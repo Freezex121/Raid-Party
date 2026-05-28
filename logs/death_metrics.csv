@@ -1,0 +1,7 @@
+timestamp,run_id,area,floor,encounter_id,encounter_type,class,combat_turn,source
+1779975620,"5","1","1","greater_manticore+plague_alchemist","boss","Ranger","3","Greater Manticore"
+1779975696,"5","1","2","basilisk+venom_priest","normal","Mage","2","Venom Priest"
+1779975696,"5","1","2","basilisk+venom_priest","normal","Shaman","4","Venom Priest"
+1779977224,"6","1","1","rot_basilisk+venom_stalker","elite","Ranger","5","Bleed"
+1779977225,"6","1","1","rot_basilisk+venom_stalker","elite","Guardian","9","Rot Basilisk"
+1779977225,"6","1","1","rot_basilisk+venom_stalker","elite","Cleric","11","Rot Basilisk"

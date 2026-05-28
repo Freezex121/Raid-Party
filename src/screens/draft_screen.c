@@ -5,6 +5,7 @@
 #include "data/area_defs.h"
 #include "data/card_defs.h"
 #include "systems/relic.h"
+#include "systems/telemetry.h"
 #include "util/tween.h"
 #include "util/text.h"
 #include "util/math_utils.h"
@@ -224,7 +225,12 @@ void draft_screen_update(void)
             g_state.next_combat_boon_turns = 0;
             g_state.result_reason[0] = '\0';
             g_state.tutorial_active = (g_state.meta.runs_completed == 0);
-            g_state.tutorial_step = 0;
+            g_state.tutorial_step = TUTORIAL_STEP_MAP;
+            g_state.tutorial_reward_pending = false;
+            g_state.telemetry_run_id = g_state.meta.runs_completed + 1;
+            telemetry_begin_run(g_state.telemetry_run_id);
+            if (g_state.tutorial_active)
+                telemetry_log_tutorial("map_route", "shown", "map");
             party_create(&g_state.run_party, g_state.selected_classes, g_state.selected_count);
             g_state.run_party_active = true;
             deck_init_from_classes(&g_state.run_deck, g_state.selected_classes, g_state.selected_count);
@@ -262,6 +268,41 @@ void draft_screen_update(void)
                 g_state.relic_reward_pending = g_state.relic_reward_count > 0;
             }
             LOG_I(CAT_SCREEN, "Run deck built: %d cards", g_state.run_deck.card_count);
+
+            char run_id[16], area[16], ascension[16], party_size[16], max_party[16], not_full[8], classes_csv[160] = "";
+            snprintf(run_id, sizeof(run_id), "%d", g_state.telemetry_run_id);
+            snprintf(area, sizeof(area), "%d", g_state.current_area);
+            snprintf(ascension, sizeof(ascension), "%d", g_state.meta.ascension_level);
+            snprintf(party_size, sizeof(party_size), "%d", g_state.selected_count);
+            snprintf(max_party, sizeof(max_party), "%d", g_state.max_party_size);
+            snprintf(not_full, sizeof(not_full), "%d", g_state.selected_count < g_state.max_party_size ? 1 : 0);
+            for (int i = 0; i < g_state.selected_count; i++)
+            {
+                if (i > 0) strncat(classes_csv, "|", sizeof(classes_csv) - strlen(classes_csv) - 1);
+                strncat(classes_csv, class_name((ClassType)g_state.selected_classes[i]), sizeof(classes_csv) - strlen(classes_csv) - 1);
+            }
+            const char *draft_fields[] = { run_id, area, ascension, party_size, max_party, not_full, classes_csv };
+            telemetry_csv_append("draft_metrics.csv",
+                "timestamp,run_id,area,ascension,party_size,max_party_size,party_not_full,classes",
+                draft_fields,
+                7);
+            char classes_json[192] = "";
+            for (int i = 0; i < g_state.selected_count; i++)
+            {
+                char item[32];
+                snprintf(item, sizeof(item), "%s\"%s\"", i > 0 ? "," : "", class_name((ClassType)g_state.selected_classes[i]));
+                strncat(classes_json, item, sizeof(classes_json) - strlen(classes_json) - 1);
+            }
+            char draft_json[384];
+            snprintf(draft_json, sizeof(draft_json),
+                "\"area\":%d,\"ascension\":%d,\"party_size\":%d,\"max_party_size\":%d,\"party_not_full\":%s,\"classes\":[%s]",
+                g_state.current_area,
+                g_state.meta.ascension_level,
+                g_state.selected_count,
+                g_state.max_party_size,
+                g_state.selected_count < g_state.max_party_size ? "true" : "false",
+                classes_json);
+            telemetry_push_json("draft", draft_json);
             initialized = false;
             game_change_screen(g_state.relic_reward_pending ? SCREEN_RELIC_REWARD : SCREEN_MAP);
         }

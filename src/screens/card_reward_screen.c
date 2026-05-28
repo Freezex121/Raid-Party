@@ -2,6 +2,7 @@
 #include "game.h"
 #include "data/card_defs.h"
 #include "systems/relic.h"
+#include "systems/telemetry.h"
 #include "util/text.h"
 #include "util/log.h"
 #include "ui/floating_text.h"
@@ -11,10 +12,79 @@
 #include "raylib.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 static int hovered_reward = -1;
 static bool generated = false;
 static int extra_choices = 0;
+
+static const char *reward_encounter_type(void)
+{
+    return g_state.encounter_is_boss ? "boss" : (g_state.encounter_is_elite ? "elite" : "normal");
+}
+
+static void reward_offered_string(char *out, int out_size, bool json_array)
+{
+    if (!out || out_size <= 0) return;
+    out[0] = '\0';
+    for (int i = 0; i < g_state.reward_count; i++)
+    {
+        const CardDef *card = g_state.reward_cards[i];
+        const char *id = card && card->id ? card->id : "";
+        char piece[96];
+        if (json_array)
+            snprintf(piece, sizeof(piece), "%s\"%s\"", i > 0 ? "," : "", id);
+        else
+            snprintf(piece, sizeof(piece), "%s%s", i > 0 ? "|" : "", id);
+        strncat(out, piece, out_size - strlen(out) - 1);
+    }
+}
+
+static void log_card_reward_metric(const char *action, const CardDef *picked, int pick_number)
+{
+    char run_id[16], area[16], floor[16], pick_no[16], picks_remaining[16], gold[16];
+    char offered[256];
+    reward_offered_string(offered, sizeof(offered), false);
+    snprintf(run_id, sizeof(run_id), "%d", g_state.telemetry_run_id);
+    snprintf(area, sizeof(area), "%d", g_state.current_area);
+    snprintf(floor, sizeof(floor), "%d", g_state.map.floor + 1);
+    snprintf(pick_no, sizeof(pick_no), "%d", pick_number);
+    snprintf(picks_remaining, sizeof(picks_remaining), "%d", g_state.reward_picks_remaining);
+    snprintf(gold, sizeof(gold), "%d", g_state.gold);
+    const char *fields[] = {
+        run_id,
+        area,
+        floor,
+        reward_encounter_type(),
+        action ? action : "",
+        offered,
+        picked && picked->id ? picked->id : "",
+        pick_no,
+        picks_remaining,
+        gold
+    };
+    telemetry_csv_append(
+        "card_reward_metrics.csv",
+        "timestamp,run_id,area,floor,encounter,action,offered,picked,pick_number,picks_remaining,gold",
+        fields,
+        10);
+
+    char offered_json[320];
+    reward_offered_string(offered_json, sizeof(offered_json), true);
+    char json[640];
+    snprintf(json, sizeof(json),
+        "\"area\":%d,\"floor\":%d,\"encounter\":\"%s\",\"action\":\"%s\",\"offered\":[%s],\"picked\":\"%s\",\"pick_number\":%d,\"picks_remaining\":%d,\"gold\":%d",
+        g_state.current_area,
+        g_state.map.floor + 1,
+        reward_encounter_type(),
+        action ? action : "",
+        offered_json,
+        picked && picked->id ? picked->id : "",
+        pick_number,
+        g_state.reward_picks_remaining,
+        g_state.gold);
+    telemetry_push_json("card_pick", json);
+}
 
 static void generate_rewards(void)
 {
@@ -105,6 +175,7 @@ void reward_screen_update(void)
     {
         if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_REWARD)
             game_skip_tutorial();
+        log_card_reward_metric("skip", NULL, 0);
         generated = false;
         extra_choices = 0;
         if (g_state.encounter_is_elite)
@@ -130,7 +201,10 @@ void reward_screen_update(void)
     if (CheckCollisionPointRec(mouse, reroll_btn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
     {
         if (game_spend_gold(10, "reward_reroll"))
+        {
+            log_card_reward_metric("reroll", NULL, 0);
             generated = false;
+        }
         return;
     }
 
@@ -141,6 +215,7 @@ void reward_screen_update(void)
             return;
         if (game_spend_gold(15, "reward_extra_choice"))
         {
+            log_card_reward_metric("extra_choice", NULL, 0);
             extra_choices++;
             generated = false;
         }
@@ -159,10 +234,12 @@ void reward_screen_update(void)
                     game_skip_tutorial();
                 const CardDef *chosen = g_state.reward_cards[i];
                 deck_add_card_with_level(&g_state.run_deck, chosen, g_state.reward_upgrade_level[i]);
+                int pick_number = g_state.encounter_is_boss ? (2 - g_state.reward_picks_remaining + 1) : 1;
                 LOG_I(CAT_CARD, "Reward chosen: %s (%s)%s", chosen->name, class_name(chosen->class),
                     g_state.reward_upgrade_level[i] > 0 ? " UPGRADED" : "");
                 g_state.reward_picked[i] = true;
                 g_state.reward_picks_remaining--;
+                log_card_reward_metric("pick", chosen, pick_number);
 
                 // Scholar's Notes: 5g per unpicked card on final pick
                 if (g_state.reward_picks_remaining <= 0 && relic_has(g_state.relics, g_state.relic_count, RELIC_SCHOLAR_NOTES))

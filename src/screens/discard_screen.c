@@ -1,5 +1,6 @@
 #include "screens.h"
 #include "game.h"
+#include "systems/telemetry.h"
 #include "ui/theme.h"
 #include "util/log.h"
 #include "util/math_utils.h"
@@ -14,6 +15,63 @@ static int scroll_offset = 0;
 
 static int sorted_indices[MAX_DECK_SIZE];
 static int sorted_count = 0;
+
+static void selected_discard_ids(char *out, int out_size, bool json_array)
+{
+    if (!out || out_size <= 0) return;
+    out[0] = '\0';
+    for (int i = 0; i < g_state.discard_selected; i++)
+    {
+        const char *id = "";
+        for (int c = 0; c < g_state.run_deck.card_count; c++)
+        {
+            if (g_state.run_deck.cards[c].uid == g_state.discard_uids[i] && g_state.run_deck.cards[c].def)
+            {
+                id = g_state.run_deck.cards[c].def->id ? g_state.run_deck.cards[c].def->id : "";
+                break;
+            }
+        }
+        char piece[96];
+        snprintf(piece, sizeof(piece), json_array ? "%s\"%s\"" : "%s%s", i > 0 ? "," : "", id);
+        if (!json_array && i > 0)
+            piece[0] = '|';
+        strncat(out, piece, out_size - strlen(out) - 1);
+    }
+}
+
+static void log_discard_metric(const char *action)
+{
+    char run_id[16], count[16], selected[16], ids[256];
+    snprintf(run_id, sizeof(run_id), "%d", g_state.telemetry_run_id);
+    snprintf(count, sizeof(count), "%d", g_state.discard_count);
+    snprintf(selected, sizeof(selected), "%d", g_state.discard_selected);
+    selected_discard_ids(ids, sizeof(ids), false);
+    const char *fields[] = {
+        run_id,
+        g_state.encounter_is_boss ? "boss" : "elite",
+        action ? action : "",
+        count,
+        selected,
+        ids
+    };
+    telemetry_csv_append(
+        "discard_metrics.csv",
+        "timestamp,run_id,source,action,discard_count,selected_count,selected_cards",
+        fields,
+        6);
+
+    char ids_json[320];
+    selected_discard_ids(ids_json, sizeof(ids_json), true);
+    char json[512];
+    snprintf(json, sizeof(json),
+        "\"source\":\"%s\",\"action\":\"%s\",\"discard_count\":%d,\"selected_count\":%d,\"selected_cards\":[%s]",
+        g_state.encounter_is_boss ? "boss" : "elite",
+        action ? action : "",
+        g_state.discard_count,
+        g_state.discard_selected,
+        ids_json);
+    telemetry_push_json("discard_choice", json);
+}
 
 static int card_sort_key(const CardDef *a)
 {
@@ -123,6 +181,7 @@ void discard_screen_update(void)
     if (CheckCollisionPointRec(mouse, skip_btn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
     {
         LOG_I(CAT_SCREEN, "Skipped card discard");
+        log_discard_metric("skip");
         g_state.discard_count = 0;
         g_state.discard_selected = 0;
         finish_discard_screen();
@@ -133,6 +192,7 @@ void discard_screen_update(void)
         Rectangle confirm_btn = { (float)(VIRT_W / 2 - 90), (float)(VIRT_H - 40), 100.0f, 26.0f };
         if (CheckCollisionPointRec(mouse, confirm_btn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
+            log_discard_metric("confirm");
             for (int i = 0; i < g_state.discard_selected; i++)
                 deck_remove_card_by_uid(deck, g_state.discard_uids[i]);
 

@@ -3,6 +3,7 @@
 #include "constants.h"
 #include "data/card_defs.h"
 #include "systems/relic.h"
+#include "systems/telemetry.h"
 #include "util/log.h"
 #include "ui/deck_browser.h"
 #include "ui/theme.h"
@@ -36,6 +37,47 @@ static char msg[128] = "";
 static bool lucky_coin_given = false;
 static int active_shop_key = -99999;
 static const CardDef *shop_card = NULL;
+
+static void log_shop_metric(const char *action, int cost, int gold_before, bool success, const char *card_id)
+{
+    char run_id[16], area[16], floor[16], cost_text[16], before[16], after[16], success_text[8];
+    snprintf(run_id, sizeof(run_id), "%d", g_state.telemetry_run_id);
+    snprintf(area, sizeof(area), "%d", g_state.current_area);
+    snprintf(floor, sizeof(floor), "%d", g_state.map.floor + 1);
+    snprintf(cost_text, sizeof(cost_text), "%d", cost);
+    snprintf(before, sizeof(before), "%d", gold_before);
+    snprintf(after, sizeof(after), "%d", g_state.gold);
+    snprintf(success_text, sizeof(success_text), "%d", success ? 1 : 0);
+    const char *fields[] = {
+        run_id,
+        area,
+        floor,
+        action ? action : "",
+        cost_text,
+        before,
+        after,
+        success_text,
+        card_id ? card_id : ""
+    };
+    telemetry_csv_append(
+        "shop_metrics.csv",
+        "timestamp,run_id,area,floor,action,cost,gold_before,gold_after,success,card_id",
+        fields,
+        9);
+
+    char json[512];
+    snprintf(json, sizeof(json),
+        "\"area\":%d,\"floor\":%d,\"action\":\"%s\",\"cost\":%d,\"gold_before\":%d,\"gold_after\":%d,\"success\":%s,\"card_id\":\"%s\"",
+        g_state.current_area,
+        g_state.map.floor + 1,
+        action ? action : "",
+        cost,
+        gold_before,
+        g_state.gold,
+        success ? "true" : "false",
+        card_id ? card_id : "");
+    telemetry_push_json("shop_purchase", json);
+}
 
 static Rectangle shop_browser_bounds(void)
 {
@@ -112,9 +154,11 @@ static int shop_boon_turns(void)
 static void buy_boon(bool energy)
 {
     int cost = shop_boon_cost();
+    int gold_before = g_state.gold;
     if (!game_spend_gold(cost, energy ? "shop_boon_energy" : "shop_boon_draw"))
     {
         snprintf(msg, sizeof(msg), "Need %dg.", cost);
+        log_shop_metric(energy ? "energy_boon" : "draw_boon", cost, gold_before, false, "");
         return;
     }
 
@@ -132,6 +176,7 @@ static void buy_boon(bool energy)
     int turns = shop_boon_turns();
     if (g_state.next_combat_boon_turns < turns)
         g_state.next_combat_boon_turns = turns;
+    log_shop_metric(energy ? "energy_boon" : "draw_boon", cost, gold_before, true, "");
 }
 
 static Rectangle sale_card_rect(void)
@@ -191,33 +236,53 @@ void shop_screen_update(void)
 
         if (clicked(sale_buy_button()))
         {
+            int gold_before = g_state.gold;
             if (!deck_space)
+            {
                 snprintf(msg, sizeof(msg), "Deck is full.");
+                log_shop_metric("buy_card", CARD_SALE_COST, gold_before, false, shop_card && shop_card->id ? shop_card->id : "");
+            }
             else if (!game_spend_gold(CARD_SALE_COST, "shop_buy_card"))
+            {
                 snprintf(msg, sizeof(msg), "Need %dg.", CARD_SALE_COST);
+                log_shop_metric("buy_card", CARD_SALE_COST, gold_before, false, shop_card && shop_card->id ? shop_card->id : "");
+            }
             else
             {
                 deck_add_card(&g_state.run_deck, shop_card);
                 snprintf(msg, sizeof(msg), "Bought %s.", shop_card ? shop_card->name : "a card");
+                log_shop_metric("buy_card", CARD_SALE_COST, gold_before, true, shop_card && shop_card->id ? shop_card->id : "");
                 shop_card = random_party_card();
             }
         }
         else if (clicked(sale_reroll_button()))
         {
+            int gold_before = g_state.gold;
             if (!game_spend_gold(CARD_REROLL_COST, "shop_reroll_card"))
+            {
                 snprintf(msg, sizeof(msg), "Need %dg.", CARD_REROLL_COST);
+                log_shop_metric("reroll_card", CARD_REROLL_COST, gold_before, false, "");
+            }
             else
             {
                 shop_card = random_party_card();
                 snprintf(msg, sizeof(msg), "Shop card rerolled.");
+                log_shop_metric("reroll_card", CARD_REROLL_COST, gold_before, true, "");
             }
         }
         else if (clicked(option_rect(0, 0)))
         {
+            int gold_before = g_state.gold;
             if (g_state.gold < UPGRADE_COST)
+            {
                 snprintf(msg, sizeof(msg), "Need %dg.", UPGRADE_COST);
+                log_shop_metric("upgrade_card_select", UPGRADE_COST, gold_before, false, "");
+            }
             else if (!can_upg1)
+            {
                 snprintf(msg, sizeof(msg), "No base cards can improve.");
+                log_shop_metric("upgrade_card_select", UPGRADE_COST, gold_before, false, "");
+            }
             else
             {
                 mode = SHOP_UPGRADE_1;
@@ -227,10 +292,17 @@ void shop_screen_update(void)
         }
         else if (clicked(option_rect(1, 0)))
         {
+            int gold_before = g_state.gold;
             if (g_state.gold < SUPER_UPGRADE_COST)
+            {
                 snprintf(msg, sizeof(msg), "Need %dg.", SUPER_UPGRADE_COST);
+                log_shop_metric("max_upgrade_select", SUPER_UPGRADE_COST, gold_before, false, "");
+            }
             else if (!can_upg2)
+            {
                 snprintf(msg, sizeof(msg), "No upgraded cards can improve.");
+                log_shop_metric("max_upgrade_select", SUPER_UPGRADE_COST, gold_before, false, "");
+            }
             else
             {
                 mode = SHOP_UPGRADE_2;
@@ -240,10 +312,17 @@ void shop_screen_update(void)
         }
         else if (clicked(option_rect(0, 1)))
         {
+            int gold_before = g_state.gold;
             if (g_state.gold < REMOVE_COST)
+            {
                 snprintf(msg, sizeof(msg), "Need %dg.", REMOVE_COST);
+                log_shop_metric("remove_card_select", REMOVE_COST, gold_before, false, "");
+            }
             else if (!can_remove)
+            {
                 snprintf(msg, sizeof(msg), "Deck too small.");
+                log_shop_metric("remove_card_select", REMOVE_COST, gold_before, false, "");
+            }
             else
             {
                 mode = SHOP_REMOVE;
@@ -253,8 +332,12 @@ void shop_screen_update(void)
         }
         else if (clicked(option_rect(1, 1)))
         {
+            int gold_before = g_state.gold;
             if (g_state.gold < HP_BOOST_COST)
+            {
                 snprintf(msg, sizeof(msg), "Need %dg.", HP_BOOST_COST);
+                log_shop_metric("train_hp_select", HP_BOOST_COST, gold_before, false, "");
+            }
             else
             {
                 mode = SHOP_HP_BOOST;
@@ -271,6 +354,7 @@ void shop_screen_update(void)
         }
         else if (clicked(leave_button()))
         {
+            log_shop_metric("leave", 0, g_state.gold, true, "");
             complete_shop();
         }
     }
@@ -285,32 +369,44 @@ void shop_screen_update(void)
             CardInstance *inst = &g_state.run_deck.cards[selected];
             if (mode == SHOP_UPGRADE_1)
             {
+                int gold_before = g_state.gold;
                 if (game_spend_gold(UPGRADE_COST, "shop_upgrade"))
                 {
                     inst->upgrade_level = 1;
                     snprintf(msg, sizeof(msg), "%s upgraded.", inst->def ? inst->def->name : "Card");
+                    log_shop_metric("upgrade_card", UPGRADE_COST, gold_before, true, inst->def && inst->def->id ? inst->def->id : "");
                     mode = SHOP_MAIN;
                 }
+                else
+                    log_shop_metric("upgrade_card", UPGRADE_COST, gold_before, false, inst->def && inst->def->id ? inst->def->id : "");
             }
             else if (mode == SHOP_UPGRADE_2)
             {
+                int gold_before = g_state.gold;
                 if (game_spend_gold(SUPER_UPGRADE_COST, "shop_super_upgrade"))
                 {
                     inst->upgrade_level = 2;
                     snprintf(msg, sizeof(msg), "%s maxed.", inst->def ? inst->def->name : "Card");
+                    log_shop_metric("max_upgrade_card", SUPER_UPGRADE_COST, gold_before, true, inst->def && inst->def->id ? inst->def->id : "");
                     mode = SHOP_MAIN;
                 }
+                else
+                    log_shop_metric("max_upgrade_card", SUPER_UPGRADE_COST, gold_before, false, inst->def && inst->def->id ? inst->def->id : "");
             }
             else
             {
+                int gold_before = g_state.gold;
                 if (game_spend_gold(REMOVE_COST, "shop_remove"))
                 {
                     const CardDef *def = inst->def;
                     int uid = inst->uid;
                     deck_remove_card_by_uid(&g_state.run_deck, uid);
                     snprintf(msg, sizeof(msg), "Removed %s.", def ? def->name : "a card");
+                    log_shop_metric("remove_card", REMOVE_COST, gold_before, true, def && def->id ? def->id : "");
                     mode = SHOP_MAIN;
                 }
+                else
+                    log_shop_metric("remove_card", REMOVE_COST, gold_before, false, inst->def && inst->def->id ? inst->def->id : "");
             }
         }
 
@@ -328,6 +424,7 @@ void shop_screen_update(void)
             Rectangle r = { 170.0f, 86.0f + i * 38.0f, 300.0f, 28.0f };
             if (!CheckCollisionPointRec(mouse, r) || !IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
                 continue;
+            int gold_before = g_state.gold;
             if (game_spend_gold(HP_BOOST_COST, "shop_hp_boost"))
             {
                 PartyMember *pm = &g_state.run_party.members[i];
@@ -336,8 +433,11 @@ void shop_screen_update(void)
                 if (pm->hp > pm->max_hp) pm->hp = pm->max_hp;
                 pm->alive = true;
                 snprintf(msg, sizeof(msg), "%s gained +5 max HP.", pm->name);
+                log_shop_metric("train_hp", HP_BOOST_COST, gold_before, true, class_name(pm->class));
                 mode = SHOP_MAIN;
             }
+            else
+                log_shop_metric("train_hp", HP_BOOST_COST, gold_before, false, "");
             break;
         }
         if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))

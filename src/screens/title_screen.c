@@ -19,6 +19,8 @@ static Button prev_area_btn;
 static Button next_area_btn;
 static Button asc_down_btn;
 static Button asc_up_btn;
+static Button telemetry_allow_btn;
+static Button telemetry_decline_btn;
 static float title_y = -24.0f;
 static float subtitle_alpha = 0.0f;
 static float button_y = 0.0f;
@@ -116,6 +118,20 @@ void title_screen_update(void)
             (Color){ 70, 78, 110, 255 },
             WHITE
         );
+        telemetry_allow_btn = button_create(
+            (Rectangle){ 254.0f, 230.0f, 72.0f, (float)BTN_H },
+            "ALLOW",
+            (Color){ 46, 117, 182, 255 },
+            (Color){ 80, 160, 230, 255 },
+            WHITE
+        );
+        telemetry_decline_btn = button_create(
+            (Rectangle){ 334.0f, 230.0f, 82.0f, (float)BTN_H },
+            "NO THANKS",
+            (Color){ 42, 48, 70, 255 },
+            (Color){ 70, 78, 110, 255 },
+            WHITE
+        );
 
         title_tween = tween_create(&title_y, 20.0f, 0.6f, EASE_OUT_BACK);
         subtitle_tween = tween_create(&subtitle_alpha, 1.0f, 0.5f, EASE_OUT_QUAD);
@@ -134,6 +150,19 @@ void title_screen_update(void)
     codex_btn.bounds.y = button_y + 28.0f;
     ach_btn.bounds.y = button_y + 56.0f;
     settings_btn.bounds.y = button_y + 56.0f;
+
+    if (!g_state.telemetry_prompt_seen)
+    {
+        button_update(&telemetry_allow_btn);
+        button_update(&telemetry_decline_btn);
+        if (telemetry_allow_btn.pressed_this_frame || telemetry_decline_btn.pressed_this_frame)
+        {
+            g_state.telemetry_opt_in = telemetry_allow_btn.pressed_this_frame;
+            g_state.telemetry_prompt_seen = true;
+            game_settings_save();
+        }
+        return;
+    }
 
     if (!g_state.tutorial_active && g_state.meta.runs_completed > 0)
         game_start_tutorial_once(&g_state.meta.tutorial_seen_meta_shop, TUTORIAL_STEP_META_SHOP);
@@ -319,6 +348,23 @@ void title_screen_draw(void)
             "Click to continue  |  Right-click/Esc: skip",
             0,
             0);
+    }
+
+    if (!g_state.telemetry_prompt_seen)
+    {
+        DrawRectangle(0, 0, VIRT_W, VIRT_H, (Color){ 0, 0, 0, 145 });
+        Rectangle modal = { 166.0f, 118.0f, 308.0f, 142.0f };
+        DrawRectangleRec(modal, (Color){ 12, 14, 24, 245 });
+        DrawRectangleLinesEx(modal, 1.0f, (Color){ 95, 150, 210, 220 });
+        draw_text_box((Rectangle){ modal.x + 14.0f, modal.y + 12.0f, modal.width - 28.0f, 22.0f },
+            "Help improve Raid Paper Legends?", 18, 0, RAYWHITE, TEXT_ALIGN_CENTER);
+        draw_text_box((Rectangle){ modal.x + 16.0f, modal.y + 42.0f, modal.width - 32.0f, 66.0f },
+            "Send anonymous gameplay metrics like card choices, combat outcomes, shop purchases, and run results. No names, Steam IDs, chat, or personal information are collected.",
+            10, 0, (Color){ 190, 196, 220, 235 }, TEXT_ALIGN_CENTER);
+        draw_text_box((Rectangle){ modal.x + 20.0f, modal.y + 108.0f, modal.width - 40.0f, 12.0f },
+            "You can change this later in Settings.", 10, 0, (Color){ 145, 155, 190, 220 }, TEXT_ALIGN_CENTER);
+        button_draw(&telemetry_allow_btn);
+        button_draw(&telemetry_decline_btn);
     }
 
     Color credit_color = { 100, 100, 120, 180 };

@@ -1,0 +1,16 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "raidparty-telemetry",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-05-28",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"d1_databases": [
+		{
+			"binding": "raidparty_telemetry",
+			"database_name": "raidparty-telemetry",
+			"database_id": "a21d4872-fbce-432b-adc2-04905c7e0187"
+		}
+	]
+}

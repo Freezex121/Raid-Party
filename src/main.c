@@ -5,6 +5,7 @@
 #include "ui/floating_text.h"
 #include "assets.h"
 #include "data/content_loader.h"
+#include "systems/telemetry.h"
 #include "screens/screens.h"
 #include "constants.h"
 #include <stdlib.h>
@@ -124,6 +125,7 @@ int main(void)
 
     UnloadRenderTexture(target);
     assets_unload();
+    telemetry_shutdown();
     if (IsAudioDeviceReady())
         CloseAudioDevice();
     CloseWindow();

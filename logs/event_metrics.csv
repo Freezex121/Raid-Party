@@ -1,0 +1,3 @@
+timestamp,run_id,area,floor,event_id,choice_index,choice_label,choice_effect,choice_gold,gold_before,gold_after,could_afford,chosen
+1779975690,"5","1","2","lost_squire","2","Ask Payment","gain_gold","12","65","77","1","1"
+1779977211,"6","1","1","ancient_shrine","0","Take Blessing","upgrade_random_card_hurt_party","0","10","10","1","1"

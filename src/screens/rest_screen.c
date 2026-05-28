@@ -1,6 +1,7 @@
 #include "screens.h"
 #include "game.h"
 #include "constants.h"
+#include "systems/telemetry.h"
 #include "util/log.h"
 #include "ui/deck_browser.h"
 #include "ui/theme.h"
@@ -23,6 +24,53 @@ static char rest_msg[96] = "";
 static bool rest_healed = false;
 static bool rest_upgraded = false;
 static bool rest_frugal_shown = false;
+
+static int party_missing_hp(void)
+{
+    int missing = 0;
+    for (int i = 0; i < g_state.run_party.count; i++)
+    {
+        PartyMember *pm = &g_state.run_party.members[i];
+        if (pm->max_hp > pm->hp)
+            missing += pm->max_hp - pm->hp;
+    }
+    return missing;
+}
+
+static void log_rest_metric(const char *choice, const char *card_id)
+{
+    char run_id[16], area[16], floor[16], missing[16], upgradeable[16];
+    snprintf(run_id, sizeof(run_id), "%d", g_state.telemetry_run_id);
+    snprintf(area, sizeof(area), "%d", g_state.current_area);
+    snprintf(floor, sizeof(floor), "%d", g_state.map.floor + 1);
+    snprintf(missing, sizeof(missing), "%d", party_missing_hp());
+    snprintf(upgradeable, sizeof(upgradeable), "%d", deck_browser_has_upgradeable(&g_state.run_deck) ? 1 : 0);
+    const char *fields[] = {
+        run_id,
+        area,
+        floor,
+        choice ? choice : "",
+        card_id ? card_id : "",
+        missing,
+        upgradeable
+    };
+    telemetry_csv_append(
+        "rest_metrics.csv",
+        "timestamp,run_id,area,floor,choice,card_id,party_missing_hp,has_upgradeable_cards",
+        fields,
+        7);
+
+    char json[384];
+    snprintf(json, sizeof(json),
+        "\"area\":%d,\"floor\":%d,\"choice\":\"%s\",\"card_id\":\"%s\",\"party_missing_hp\":%d,\"upgradeable_cards\":%s",
+        g_state.current_area,
+        g_state.map.floor + 1,
+        choice ? choice : "",
+        card_id ? card_id : "",
+        party_missing_hp(),
+        deck_browser_has_upgradeable(&g_state.run_deck) ? "true" : "false");
+    telemetry_push_json("rest_choice", json);
+}
 
 static Rectangle rest_heal_button(void)
 {
@@ -84,6 +132,7 @@ void rest_screen_update(void)
 
             if (CheckCollisionPointRec(m, heal_btn))
             {
+                log_rest_metric("heal", "");
                 do_heal();
                 rest_healed = true;
                 // Frugal Tome: allow upgrade too
@@ -103,6 +152,7 @@ void rest_screen_update(void)
             {
                 if (deck_browser_has_upgradeable(&g_state.run_deck))
                 {
+                    log_rest_metric("upgrade_select", "");
                     mode = REST_UPGRADE;
                     deck_browser_reset(&rest_browser);
                     rest_msg[0] = '\0';
@@ -110,6 +160,7 @@ void rest_screen_update(void)
                 else
                 {
                     snprintf(rest_msg, sizeof(rest_msg), "No cards left to upgrade.");
+                    log_rest_metric("upgrade_unavailable", "");
                 }
             }
         }
@@ -121,8 +172,10 @@ void rest_screen_update(void)
 
         if (selected >= 0)
         {
+            const CardDef *upgraded = g_state.run_deck.cards[selected].def;
             g_state.run_deck.cards[selected].upgrade_level = 1;
             LOG_I(CAT_SCREEN, "Rest: upgraded %s", g_state.run_deck.cards[selected].def->name);
+            log_rest_metric("upgrade", upgraded && upgraded->id ? upgraded->id : "");
             rest_upgraded = true;
             // Frugal Tome: auto-heal if not healed yet
             if (!rest_healed && relic_has(g_state.relics, g_state.relic_count, RELIC_FRUGAL_TOME))

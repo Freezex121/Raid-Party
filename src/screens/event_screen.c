@@ -3,6 +3,7 @@
 #include "constants.h"
 #include "data/card_defs.h"
 #include "data/event_defs.h"
+#include "systems/telemetry.h"
 #include "ui/deck_browser.h"
 #include "ui/layout.h"
 #include "ui/theme.h"
@@ -40,6 +41,79 @@ static Rectangle event_choice_rect(int index)
 static const EventDef *active_event_def(void)
 {
     return event_def_by_index(active_event);
+}
+
+static const char *event_effect_name(EventEffectType effect)
+{
+    switch (effect)
+    {
+        case EVENT_EFFECT_NONE: return "none";
+        case EVENT_EFFECT_HEAL_PARTY: return "heal_party";
+        case EVENT_EFFECT_GAIN_GOLD_ADD_CURSE: return "gain_gold_add_curse";
+        case EVENT_EFFECT_REMOVE_CARD: return "remove_card";
+        case EVENT_EFFECT_UPGRADE_RANDOM_CARD_HURT_PARTY: return "upgrade_random_card_hurt_party";
+        case EVENT_EFFECT_PAY_GOLD_GAIN_RELIC: return "pay_gold_gain_relic";
+        case EVENT_EFFECT_PAY_GOLD_ADD_CARD: return "pay_gold_add_card";
+        case EVENT_EFFECT_GAIN_GOLD: return "gain_gold";
+        case EVENT_EFFECT_PAY_GOLD_UPGRADE_RANDOM_CARD: return "pay_gold_upgrade_random_card";
+        case EVENT_EFFECT_GAIN_GOLD_HURT_PARTY: return "gain_gold_hurt_party";
+        case EVENT_EFFECT_ADD_CARD_ADD_CURSE: return "add_card_add_curse";
+        case EVENT_EFFECT_GAIN_RELIC_ADD_CURSE: return "gain_relic_add_curse";
+        case EVENT_EFFECT_DUPLICATE_RANDOM_CARD_HURT_PARTY: return "duplicate_random_card_hurt_party";
+        case EVENT_EFFECT_TRANSFORM_RANDOM_CARD: return "transform_random_card";
+        case EVENT_EFFECT_GAIN_MAX_HP: return "gain_max_hp";
+    }
+    return "unknown";
+}
+
+static void log_event_choice_metric(const EventDef *event, int choice_index, bool chosen, bool could_afford, int gold_before, int gold_after)
+{
+    const EventChoiceDef *choice = (event && choice_index >= 0 && choice_index < event->choice_count) ? &event->choices[choice_index] : NULL;
+    char run_id[16], area[16], floor[16], choice_idx[16], gold_cost[16], before[16], after[16], afford[8], chosen_text[8];
+    snprintf(run_id, sizeof(run_id), "%d", g_state.telemetry_run_id);
+    snprintf(area, sizeof(area), "%d", g_state.current_area);
+    snprintf(floor, sizeof(floor), "%d", g_state.map.floor + 1);
+    snprintf(choice_idx, sizeof(choice_idx), "%d", choice_index);
+    snprintf(gold_cost, sizeof(gold_cost), "%d", choice ? choice->gold : 0);
+    snprintf(before, sizeof(before), "%d", gold_before);
+    snprintf(after, sizeof(after), "%d", gold_after);
+    snprintf(afford, sizeof(afford), "%d", could_afford ? 1 : 0);
+    snprintf(chosen_text, sizeof(chosen_text), "%d", chosen ? 1 : 0);
+    const char *fields[] = {
+        run_id,
+        area,
+        floor,
+        event && event->id ? event->id : "",
+        choice_idx,
+        choice && choice->label ? choice->label : "",
+        choice ? event_effect_name(choice->effect) : "",
+        gold_cost,
+        before,
+        after,
+        afford,
+        chosen_text
+    };
+    telemetry_csv_append(
+        "event_metrics.csv",
+        "timestamp,run_id,area,floor,event_id,choice_index,choice_label,choice_effect,choice_gold,gold_before,gold_after,could_afford,chosen",
+        fields,
+        12);
+
+    char json[768];
+    snprintf(json, sizeof(json),
+        "\"area\":%d,\"floor\":%d,\"event_id\":\"%s\",\"choice_index\":%d,\"choice_label\":\"%s\",\"choice_effect\":\"%s\",\"choice_gold\":%d,\"gold_before\":%d,\"gold_after\":%d,\"could_afford\":%s,\"chosen\":%s",
+        g_state.current_area,
+        g_state.map.floor + 1,
+        event && event->id ? event->id : "",
+        choice_index,
+        choice && choice->label ? choice->label : "",
+        choice ? event_effect_name(choice->effect) : "",
+        choice ? choice->gold : 0,
+        gold_before,
+        gold_after,
+        could_afford ? "true" : "false",
+        chosen ? "true" : "false");
+    telemetry_push_json("event_choice", json);
 }
 
 static bool choice_available(const EventChoiceDef *choice)
@@ -489,13 +563,17 @@ void event_screen_update(void)
                 hovered_choice = i;
                 if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
                 {
-                    if (choice_available(&event->choices[i]))
+                    bool available = choice_available(&event->choices[i]);
+                    int gold_before = g_state.gold;
+                    if (available)
                     {
                         apply_choice(i);
+                        log_event_choice_metric(event, i, true, true, gold_before, g_state.gold);
                     }
                     else
                     {
                         describe_unavailable(&event->choices[i]);
+                        log_event_choice_metric(event, i, false, false, gold_before, g_state.gold);
                     }
                 }
                 break;

@@ -111,7 +111,7 @@ You can turn this off at any time.
 
 ### First-Launch Consent
 
-Before Early Access, add a first-launch consent prompt:
+The title screen now shows a first-launch consent prompt:
 
 ```text
 Help improve Raid Paper Legends?
@@ -591,7 +591,7 @@ ORDER BY picks DESC;
 - Do not send raw logs.
 - Explain telemetry in Settings and the Steam store/privacy text.
 - Keep the game fully playable if telemetry is off.
-- Prefer default-off until the first-launch consent prompt exists.
+- Prefer default-off and require explicit consent before uploads.
 
 ## Implementation Order
 
@@ -604,7 +604,7 @@ ORDER BY picks DESC;
 7. Add run-end flush hook.
 8. Deploy Cloudflare Worker and D1 schema.
 9. Enable cloud upload behind the setting.
-10. Add a first-launch consent prompt before public testing.
+10. Verify first-launch consent copy before public testing.
 
 ## Acceptance Criteria
 
@@ -614,3 +614,216 @@ ORDER BY picks DESC;
 - Network failure never blocks or crashes the game.
 - No payload contains personal identifiers or local file paths.
 - Cloud upload is batched at run end and capped to a fixed event limit.
+
+## Implementation Status
+
+Implemented in-game telemetry plumbing is now present.
+
+- Local CSV metrics are written under `logs/`, matching the existing `logs/economy_metrics.csv` location.
+- `src/systems/telemetry.h/.c` owns the shared CSV writer, JSON event buffer, run-start reset, upload flush, upload result logging, and shutdown behavior.
+- `settings.cfg` supports `telemetry_opt_in=0/1`; the Settings screen exposes a telemetry toggle with consent copy.
+- `settings.cfg` also supports `telemetry_prompt_seen=0/1`; the title screen shows a first-launch consent prompt until the player chooses.
+- Telemetry defaults to off. Uploads are skipped unless the player opts in through the prompt or Settings.
+- Windows native upload is implemented with WinHTTP and linked through CMake.
+- Web/non-Windows upload paths currently fail silently and log a local skipped/failed upload row.
+- Run-end upload flush is hooked from the game over summary path.
+- `scripts/analyze_metrics.py` summarizes local run, draft, combat, reward, card play, relic, event, shop, rest, level-up, tutorial, death, and economy metrics.
+
+Current metric CSV files:
+
+- `logs/economy_metrics.csv`
+- `logs/run_metrics.csv`
+- `logs/combat_metrics.csv`
+- `logs/death_metrics.csv`
+- `logs/draft_metrics.csv`
+- `logs/card_reward_metrics.csv`
+- `logs/card_play_metrics.csv`
+- `logs/event_metrics.csv`
+- `logs/relic_metrics.csv`
+- `logs/shop_metrics.csv`
+- `logs/rest_metrics.csv`
+- `logs/level_up_metrics.csv`
+- `logs/discard_metrics.csv`
+- `logs/tutorial_metrics.csv`
+- `logs/telemetry_uploads.csv`
+
+Important implementation note: the cloud endpoint in `src/systems/telemetry.c` is still a placeholder:
+
+```c
+#define TELEMETRY_ENDPOINT_HOST L"raidparty-telemetry.your-domain.workers.dev"
+#define TELEMETRY_ENDPOINT_PATH L"/ingest"
+```
+
+The game is functional without replacing this. Upload attempts will simply fail and write a local row to `logs/telemetry_uploads.csv` once telemetry is opted in.
+
+## After-Code Setup Checklist
+
+These steps are outside the game code and should be completed before public testing or Steam Early Access.
+
+### 1. Decide the Telemetry Policy
+
+- Keep telemetry opt-in, not silent default-on.
+- Decide whether the first public build will use only local metrics or cloud upload too.
+- Write final player-facing wording for Settings and the first-launch prompt.
+- Keep the promise narrow: anonymous gameplay metrics only, no names, Steam IDs, usernames, machine names, local paths, save file contents, or raw logs.
+
+### 2. Verify the First-Launch Consent Prompt
+
+The Settings toggle and title-screen consent prompt now exist. Before public testing, verify the final copy with the rest of the privacy text.
+
+Required behavior:
+
+- Show once on first launch or first run start.
+- Explain exactly what is collected.
+- `Allow` sets `telemetry_opt_in=1` and saves settings.
+- `No Thanks` sets `telemetry_opt_in=0` and saves settings.
+- Player can change the decision later in Settings.
+
+### 3. Deploy the Cloudflare Worker
+
+Recommended first backend:
+
+- Cloudflare Worker
+- Cloudflare D1 database
+- One generic `events` table
+
+Create a D1 database, then run:
+
+```sql
+CREATE TABLE events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  run_id INTEGER NOT NULL,
+  timestamp INTEGER NOT NULL,
+  type TEXT NOT NULL,
+  schema_version INTEGER NOT NULL,
+  game_version TEXT NOT NULL,
+  data TEXT NOT NULL
+);
+
+CREATE INDEX idx_events_type ON events(type);
+CREATE INDEX idx_events_run ON events(run_id);
+CREATE INDEX idx_events_time ON events(timestamp);
+```
+
+Bind the D1 database to the Worker as:
+
+```text
+TELEMETRY_DB
+```
+
+Deploy an `/ingest` route that:
+
+- Accepts only `POST`.
+- Rejects payloads with more than 512 events.
+- Rejects malformed JSON.
+- Inserts one row per event.
+- Returns `200 OK` on success.
+- Does not require CORS for Windows native uploads.
+
+Before public release, strongly consider adding a simple ingest secret or signed header so random traffic cannot freely write to the database. If you do that, add the header in `telemetry_http_post()` before shipping.
+
+### 4. Point the Game at the Real Endpoint
+
+After the Worker is deployed, update these constants in `src/systems/telemetry.c`:
+
+```c
+#define TELEMETRY_ENDPOINT_HOST L"your-real-worker-host.workers.dev"
+#define TELEMETRY_ENDPOINT_PATH L"/ingest"
+```
+
+Then rebuild and verify `logs/telemetry_uploads.csv` records successful uploads after a completed opted-in run.
+
+### 5. Steam and Privacy Requirements
+
+Before enabling cloud telemetry in a Steam build:
+
+- Add a privacy policy link on the Steam store page.
+- Mention anonymous gameplay telemetry in the privacy policy.
+- Mention that telemetry is optional and can be disabled in Settings.
+- Do not send Steam ID unless you update the policy, UI copy, schema, and retention rules.
+- Decide whether to keep WinHTTP in the Steam Windows build or later replace it with `ISteamHTTP`.
+
+Recommended for Early Access:
+
+- Ship opt-in telemetry only.
+- Avoid Steam ID collection.
+- Avoid persistent install IDs until you truly need retention analysis.
+
+### 6. Web Build Follow-Up
+
+The current upload implementation is Windows native only.
+
+If the web build needs telemetry:
+
+- Add an `emscripten_fetch` implementation inside `telemetry_flush_upload()`.
+- Keep the same opt-in setting.
+- Add CORS support to the Worker for the web host.
+- Test browser privacy behavior and blocked network cases.
+
+### 7. QA Matrix
+
+Before calling telemetry functional, test each case:
+
+- Fresh settings file: telemetry is off.
+- Settings toggle on: `settings.cfg` writes `telemetry_opt_in=1`.
+- Settings toggle off: `settings.cfg` writes `telemetry_opt_in=0`.
+- Opted-out completed run: local CSVs exist, no upload attempt should be required.
+- Opted-in completed run with valid endpoint: `logs/telemetry_uploads.csv` records success.
+- Opted-in completed run with network disconnected: failure is logged locally and the game does not pause, crash, or show an error.
+- Payload inspection: no local paths, Steam IDs, usernames, machine names, raw save data, or free-form personal text.
+- Buffer cap: more than 512 events in a run drops extras and logs a `buffer_full` upload row.
+
+### 8. Analysis Workflow
+
+For local playtests:
+
+```text
+python scripts/analyze_metrics.py
+```
+
+For another log folder:
+
+```text
+python scripts/analyze_metrics.py --logs path/to/logs
+```
+
+Suggested weekly balance routine:
+
+- Export/collect playtest logs.
+- Run the analyzer.
+- Check area win rates first.
+- Check encounter wipe rates second.
+- Compare card pick rates against card play rates.
+- Check shop failures and event unavailable-choice rates for gold pressure.
+- Check tutorial skips and first-seen coverage for onboarding friction.
+
+### 9. Dashboard Later
+
+A dashboard is not required before Early Access, but useful later.
+
+Good first dashboard panels:
+
+- Runs, wins, and win rate by area and ascension.
+- Wipe rate by encounter and encounter type.
+- Average combat turns by encounter.
+- Card offered/picked/played rates.
+- Relic pick rates.
+- Shop spend and failed purchase rates.
+- Rest heal versus upgrade choices.
+- Level-up perk pick rates.
+- Tutorial shown/closed/skipped counts.
+
+### 10. Schema Discipline
+
+- Keep `schema_version` stable for the current payload.
+- Increment it when event names or field meanings change.
+- Keep old dashboard queries aware of older schema versions.
+- Add new fields rather than renaming existing fields whenever possible.
+
+### 11. Current Validation Note
+
+`cmake --build build --config Debug --target RaidParty` passes.
+
+`scripts/analyze_metrics.py` runs and summarizes existing local economy data.
+
+`scripts/validate_content.py` currently fails because it expects `assets/data/maps.json`, while the current runtime map system is procedural and does not load that file through `content_load_all()`. Decide separately whether to restore JSON-authored maps or update the validator to understand procedural maps.

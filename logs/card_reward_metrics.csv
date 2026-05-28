@@ -1,0 +1,7 @@
+timestamp,run_id,area,floor,encounter,action,offered,picked,pick_number,picks_remaining,gold
+1779975505,"5","1","1","normal","pick","util_energ|shm_chain_lightning|util_rejuv","util_energ","1","0","10"
+1779975560,"5","1","1","elite","pick","util_energ|mag_combust|rng_aim|shm_cataclysm","shm_cataclysm","1","0","35"
+1779975642,"5","1","2","boss","pick","shm_chain_lightning|mag_firestorm|rng_rain|util_rejuv","rng_rain","1","1","55"
+1779975646,"5","1","2","boss","pick","shm_chain_lightning|mag_firestorm|rng_rain|util_rejuv","util_rejuv","2","0","55"
+1779975685,"5","1","2","normal","pick","rng_rain|rng_pounce|shm_storm","rng_rain","1","0","65"
+1779977206,"6","1","1","normal","pick","clr_divine|grd_shield_wall|clr_smite","clr_smite","1","0","10"

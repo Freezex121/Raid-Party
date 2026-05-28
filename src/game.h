@@ -66,6 +66,8 @@ typedef struct {
     int current_area;
     int window_scale;
     bool fullscreen;
+    bool telemetry_opt_in;
+    bool telemetry_prompt_seen;
     float master_volume;
     float music_volume;
     float sfx_volume;
@@ -114,6 +116,7 @@ typedef struct {
     int run_deaths;
     int run_interrupts;
     int run_best_combat_turns;
+    int telemetry_run_id;
     bool tutorial_active;
     bool tutorial_reward_pending;
     int tutorial_step;

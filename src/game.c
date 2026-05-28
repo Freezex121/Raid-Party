@@ -2,6 +2,7 @@
 #include "assets.h"
 #include "data/area_defs.h"
 #include "systems/economy_metrics.h"
+#include "systems/telemetry.h"
 #include "util/tween.h"
 #include "util/text.h"
 #include "constants.h"
@@ -42,6 +43,10 @@ static void game_settings_load(void)
             g_state.window_scale = clamp_scale(atoi(value));
         else if (strcmp(key, "fullscreen") == 0)
             g_state.fullscreen = atoi(value) != 0;
+        else if (strcmp(key, "telemetry_opt_in") == 0)
+            g_state.telemetry_opt_in = atoi(value) != 0;
+        else if (strcmp(key, "telemetry_prompt_seen") == 0)
+            g_state.telemetry_prompt_seen = atoi(value) != 0;
         else if (strcmp(key, "master_volume") == 0)
             g_state.master_volume = clamp01((float)atof(value));
         else if (strcmp(key, "music_volume") == 0)
@@ -65,6 +70,8 @@ void game_init(void)
     g_state.current_area = g_state.selected_area;
     g_state.window_scale = SCALE;
     g_state.fullscreen = false;
+    g_state.telemetry_opt_in = false;
+    g_state.telemetry_prompt_seen = false;
     g_state.master_volume = 1.0f;
     g_state.music_volume = 1.0f;
     g_state.sfx_volume = 1.0f;
@@ -74,6 +81,7 @@ void game_init(void)
     game_set_master_volume(g_state.master_volume);
     game_set_music_volume(g_state.music_volume);
     game_set_sfx_volume(g_state.sfx_volume);
+    telemetry_init();
     g_state.result_area = g_state.current_area;
     g_state.result_unlocked_area = -1;
     g_state.result_floor = 1;
@@ -312,6 +320,8 @@ void game_settings_save(void)
     if (!f) return;
     fprintf(f, "window_scale=%d\n", g_state.window_scale);
     fprintf(f, "fullscreen=%d\n", g_state.fullscreen ? 1 : 0);
+    fprintf(f, "telemetry_opt_in=%d\n", g_state.telemetry_opt_in ? 1 : 0);
+    fprintf(f, "telemetry_prompt_seen=%d\n", g_state.telemetry_prompt_seen ? 1 : 0);
     fprintf(f, "master_volume=%.3f\n", g_state.master_volume);
     fprintf(f, "music_volume=%.3f\n", g_state.music_volume);
     fprintf(f, "sfx_volume=%.3f\n", g_state.sfx_volume);
@@ -370,8 +380,59 @@ static Rectangle tutorial_panel_rect(Rectangle highlight, int panel_w, int panel
     return (Rectangle){ x, y, (float)panel_w, (float)panel_h };
 }
 
+static const char *tutorial_step_id(int step)
+{
+    switch (step)
+    {
+        case TUTORIAL_STEP_MAP: return "map_route";
+        case TUTORIAL_STEP_COMBAT_PARTY: return "combat_party";
+        case TUTORIAL_STEP_COMBAT_THREAT: return "combat_threat";
+        case TUTORIAL_STEP_COMBAT_INTENT: return "combat_intent";
+        case TUTORIAL_STEP_COMBAT_CARDS: return "combat_cards";
+        case TUTORIAL_STEP_COMBAT_END: return "combat_end_turn";
+        case TUTORIAL_STEP_REWARD: return "card_rewards";
+        case TUTORIAL_STEP_ELITE: return "first_elite";
+        case TUTORIAL_STEP_BOSS: return "first_boss";
+        case TUTORIAL_STEP_SHOP: return "first_shop";
+        case TUTORIAL_STEP_EVENT: return "first_event";
+        case TUTORIAL_STEP_REST: return "first_rest";
+        case TUTORIAL_STEP_LEVEL_UP: return "first_level_up";
+        case TUTORIAL_STEP_DISCARD: return "first_discard";
+        case TUTORIAL_STEP_GAME_OVER: return "game_over";
+        case TUTORIAL_STEP_META_SHOP: return "meta_shop";
+    }
+    return "tutorial";
+}
+
+static const char *game_screen_id(GameScreen screen)
+{
+    switch (screen)
+    {
+        case SCREEN_TITLE: return "title";
+        case SCREEN_CODEX: return "codex";
+        case SCREEN_META_SHOP: return "meta_shop";
+        case SCREEN_DRAFT: return "draft";
+        case SCREEN_MAP: return "map";
+        case SCREEN_RUN: return "run";
+        case SCREEN_REST: return "rest";
+        case SCREEN_SHOP: return "shop";
+        case SCREEN_EVENT: return "event";
+        case SCREEN_REWARD: return "reward";
+        case SCREEN_RELIC_REWARD: return "relic_reward";
+        case SCREEN_DISCARD: return "discard";
+        case SCREEN_GAME_OVER: return "game_over";
+        case SCREEN_DECK: return "deck";
+        case SCREEN_ACHIEVEMENTS: return "achievements";
+        case SCREEN_LEVEL_UP: return "level_up";
+        case SCREEN_SETTINGS: return "settings";
+    }
+    return "unknown";
+}
+
 void game_skip_tutorial(void)
 {
+    if (g_state.tutorial_active)
+        telemetry_log_tutorial(tutorial_step_id(g_state.tutorial_step), "closed", game_screen_id(g_state.screen));
     g_state.tutorial_active = false;
     g_state.tutorial_step = TUTORIAL_STEP_DONE;
 }
@@ -381,7 +442,9 @@ bool game_tutorial_handle_skip(void)
     if (!g_state.tutorial_active) return false;
     if (IsKeyPressed(KEY_ESCAPE) || IsMouseButtonPressed(MOUSE_RIGHT_BUTTON))
     {
-        game_skip_tutorial();
+        telemetry_log_tutorial(tutorial_step_id(g_state.tutorial_step), "skipped", game_screen_id(g_state.screen));
+        g_state.tutorial_active = false;
+        g_state.tutorial_step = TUTORIAL_STEP_DONE;
         return true;
     }
     return false;
@@ -394,7 +457,9 @@ bool game_tutorial_handle_close(void)
         return true;
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE))
     {
-        game_skip_tutorial();
+        telemetry_log_tutorial(tutorial_step_id(g_state.tutorial_step), "closed", game_screen_id(g_state.screen));
+        g_state.tutorial_active = false;
+        g_state.tutorial_step = TUTORIAL_STEP_DONE;
         return true;
     }
     return false;
@@ -408,6 +473,7 @@ bool game_start_tutorial_once(bool *seen_flag, int step)
     meta_save(&g_state.meta);
     g_state.tutorial_active = true;
     g_state.tutorial_step = step;
+    telemetry_log_tutorial(tutorial_step_id(step), "shown", game_screen_id(g_state.screen));
     return true;
 }
 

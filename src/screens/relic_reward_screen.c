@@ -2,16 +2,72 @@
 #include "game.h"
 #include "constants.h"
 #include "systems/relic.h"
+#include "systems/telemetry.h"
 #include "ui/relic_tray.h"
 #include "ui/theme.h"
 #include "util/text.h"
 #include "util/math_utils.h"
 #include "raylib.h"
 #include <stdio.h>
+#include <string.h>
 
 static bool generated = false;
 static int hovered_relic = -1;
 static char fallback_msg[96] = "";
+
+static const char *relic_reward_source(void)
+{
+    return g_state.encounter_is_boss ? "boss_reward" : "starting_legacy";
+}
+
+static void relic_offered_string(char *out, int out_size, bool json_array)
+{
+    if (!out || out_size <= 0) return;
+    out[0] = '\0';
+    for (int i = 0; i < g_state.relic_reward_count; i++)
+    {
+        const char *id = relic_id_string(g_state.relic_reward_choices[i]);
+        char piece[96];
+        snprintf(piece, sizeof(piece), json_array ? "%s\"%s\"" : "%s%s", i > 0 ? "," : "", id ? id : "");
+        if (!json_array && i > 0)
+            piece[0] = '|';
+        strncat(out, piece, out_size - strlen(out) - 1);
+    }
+}
+
+static void log_relic_claim_metric(RelicId picked)
+{
+    char run_id[16], area[16], floor[16], offered[256];
+    relic_offered_string(offered, sizeof(offered), false);
+    snprintf(run_id, sizeof(run_id), "%d", g_state.telemetry_run_id);
+    snprintf(area, sizeof(area), "%d", g_state.current_area);
+    snprintf(floor, sizeof(floor), "%d", g_state.map.floor + 1);
+    const char *fields[] = {
+        run_id,
+        area,
+        floor,
+        relic_reward_source(),
+        offered,
+        relic_id_string(picked)
+    };
+    telemetry_csv_append(
+        "relic_metrics.csv",
+        "timestamp,run_id,area,floor,source,offered,picked",
+        fields,
+        6);
+
+    char offered_json[320];
+    relic_offered_string(offered_json, sizeof(offered_json), true);
+    char json[512];
+    snprintf(json, sizeof(json),
+        "\"area\":%d,\"floor\":%d,\"source\":\"%s\",\"offered\":[%s],\"picked\":\"%s\"",
+        g_state.current_area,
+        g_state.map.floor + 1,
+        relic_reward_source(),
+        offered_json,
+        relic_id_string(picked));
+    telemetry_push_json("relic_claim", json);
+}
 
 static Rectangle relic_reward_rect(int count, int index)
 {
@@ -72,6 +128,7 @@ void relic_reward_screen_update(void)
             if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
             {
                 RelicId id = g_state.relic_reward_choices[i];
+                log_relic_claim_metric(id);
                 relic_add_unique(g_state.relics, &g_state.relic_count, id);
                 g_state.relic_reward_pending = false;
                 generated = false;

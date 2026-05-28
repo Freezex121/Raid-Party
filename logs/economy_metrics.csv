@@ -1,9 +1,9 @@
 timestamp,event,amount,gold_before,gold_after,context
-1779922328,gain,10,0,10,combat_reward
-1779922401,gain,25,10,35,combat_reward
-1779922470,gain,12,35,47,event_gain_gold
-1779922578,gain,50,47,97,combat_reward
-1779922593,spend,-15,97,82,reward_extra_choice
-1779922609,spend,-10,82,72,reward_reroll
-1779922613,spend,-10,72,62,reward_reroll
-1779922655,convert_gold_to_renown,1,62,62,game_over
+1779975502,gain,10,0,10,combat_reward
+1779975556,gain,25,10,35,combat_reward
+1779975581,spend,-30,35,5,shop_upgrade
+1779975638,gain,50,5,55,combat_reward
+1779975683,gain,10,55,65,combat_reward
+1779975690,gain,12,65,77,event_gain_gold
+1779975697,convert_gold_to_renown,1,77,77,game_over
+1779977201,gain,10,0,10,combat_reward

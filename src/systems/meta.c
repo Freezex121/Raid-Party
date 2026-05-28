@@ -16,6 +16,7 @@ void meta_set_defaults(MetaProgress *meta)
     meta->best_floor = 1;
     meta->highest_area_unlocked = 0;
     meta->max_ascension_unlocked = 0;
+    meta->ascension_beaten = 0;
 }
 
 static void sanitize_meta(MetaProgress *meta)
@@ -73,8 +74,23 @@ void meta_load(MetaProgress *meta)
                 else if (strcmp(key, "starting_gold_rank") == 0) meta->starting_gold_rank = value;
                 else if (strcmp(key, "ascension_level") == 0) meta->ascension_level = value;
                 else if (strcmp(key, "max_ascension_unlocked") == 0) meta->max_ascension_unlocked = value;
+                else if (strcmp(key, "ascension_beaten") == 0) meta->ascension_beaten = value;
                 else if (strcmp(key, "starting_relic_rank") == 0) meta->starting_relic_rank = value;
                 else if (strcmp(key, "interrupts_total") == 0) meta->interrupts_total = value;
+                else if (strcmp(key, "slot4_unlocked") == 0) meta->slot4_unlocked = value != 0;
+                else if (strcmp(key, "slot5_unlocked") == 0) meta->slot5_unlocked = value != 0;
+                else if (strcmp(key, "paladin_unlocked") == 0) meta->paladin_unlocked = value != 0;
+                else if (strcmp(key, "warlock_unlocked") == 0) meta->warlock_unlocked = value != 0;
+                else if (strcmp(key, "bard_unlocked") == 0) meta->bard_unlocked = value != 0;
+                else if (strcmp(key, "start_prep") == 0) meta->start_prep = value != 0;
+                else if (strcmp(key, "start_energize") == 0) meta->start_energize = value != 0;
+                else if (strcmp(key, "start_fortify") == 0) meta->start_fortify = value != 0;
+                else if (strcmp(key, "start_rejuv") == 0) meta->start_rejuv = value != 0;
+                else if (strcmp(key, "dmg_bonus") == 0) meta->dmg_bonus = value;
+                else if (strcmp(key, "shield_bonus") == 0) meta->shield_bonus = value;
+                else if (strcmp(key, "first_draw_bonus") == 0) meta->first_draw_bonus = value;
+                else if (strcmp(key, "seasoned_adventurer") == 0) meta->seasoned_adventurer = value != 0;
+                else if (strcmp(key, "master_raider") == 0) meta->master_raider = value != 0;
                 else if (strcmp(key, "slot4_unlocked") == 0) meta->slot4_unlocked = value != 0;
                 else if (strcmp(key, "slot5_unlocked") == 0) meta->slot5_unlocked = value != 0;
                 else if (strcmp(key, "paladin_unlocked") == 0) meta->paladin_unlocked = value != 0;
@@ -146,6 +162,7 @@ void meta_load(MetaProgress *meta)
         else if (strcmp(key, "starting_gold_rank") == 0) meta->starting_gold_rank = value;
         else if (strcmp(key, "ascension_level") == 0) meta->ascension_level = value;
         else if (strcmp(key, "max_ascension_unlocked") == 0) meta->max_ascension_unlocked = value;
+        else if (strcmp(key, "ascension_beaten") == 0) meta->ascension_beaten = value;
         else if (strcmp(key, "starting_relic_rank") == 0) meta->starting_relic_rank = value;
         else if (strcmp(key, "interrupts_total") == 0) meta->interrupts_total = value;
         else if (strcmp(key, "slot4_unlocked") == 0) meta->slot4_unlocked = value != 0;
@@ -212,6 +229,7 @@ void meta_save(const MetaProgress *meta)
     FMT("starting_gold_rank=%d\n", meta->starting_gold_rank);
     FMT("ascension_level=%d\n", meta->ascension_level);
     FMT("max_ascension_unlocked=%d\n", meta->max_ascension_unlocked);
+    FMT("ascension_beaten=%d\n", meta->ascension_beaten);
     FMT("starting_relic_rank=%d\n", meta->starting_relic_rank);
     FMT("interrupts_total=%d\n", meta->interrupts_total);
     FMT("slot4_unlocked=%d\n", meta->slot4_unlocked ? 1 : 0);
@@ -266,6 +284,7 @@ void meta_save(const MetaProgress *meta)
     fprintf(f, "starting_gold_rank=%d\n", meta->starting_gold_rank);
     fprintf(f, "ascension_level=%d\n", meta->ascension_level);
     fprintf(f, "max_ascension_unlocked=%d\n", meta->max_ascension_unlocked);
+    fprintf(f, "ascension_beaten=%d\n", meta->ascension_beaten);
     fprintf(f, "starting_relic_rank=%d\n", meta->starting_relic_rank);
     fprintf(f, "interrupts_total=%d\n", meta->interrupts_total);
     fprintf(f, "slot4_unlocked=%d\n", meta->slot4_unlocked ? 1 : 0);
@@ -513,8 +532,23 @@ int meta_record_run(
 
     if (won && area_index >= meta->highest_area_unlocked)
         meta->highest_area_unlocked = area_index + 1;
-    if (won && meta->max_ascension_unlocked < META_ASCENSION_MAX)
+    // Ascension: only unlock next level if beating at current max
+    if (won && meta->max_ascension_unlocked < META_ASCENSION_MAX &&
+        meta->ascension_level == meta->max_ascension_unlocked)
         meta->max_ascension_unlocked++;
+
+    // Ascension beat reward: one-time renown bonus per level
+    if (won && meta->ascension_level > 0)
+    {
+        int bit = meta->ascension_level - 1;
+        if (!(meta->ascension_beaten & (1 << bit)))
+        {
+            meta->ascension_beaten |= (1 << bit);
+            int asc_reward = (meta->ascension_level >= META_ASCENSION_MAX) ? 30 : 10;
+            renown_gained += asc_reward;
+            meta->renown += asc_reward;
+        }
+    }
 
     sanitize_meta(meta);
     return renown_gained;

@@ -13,6 +13,7 @@
 #include "data/enemy_defs.h"
 #include "data/encounter_defs.h"
 #include "systems/relic.h"
+#include "systems/telemetry.h"
 #include "util/log.h"
 #include "util/math_utils.h"
 #include "util/text.h"
@@ -24,6 +25,69 @@
 #include <string.h>
 
 static bool combat_initialized = false;
+
+static const char *run_encounter_type(void)
+{
+    return g_state.encounter_is_boss ? "boss" : (g_state.encounter_is_elite ? "elite" : "normal");
+}
+
+static void run_encounter_id(char *out, int out_size)
+{
+    if (!out || out_size <= 0) return;
+    out[0] = '\0';
+    CombatState *cs = &g_state.combat;
+    for (int i = 0; i < cs->enemy_count; i++)
+    {
+        const char *id = cs->enemies[i].def && cs->enemies[i].def->id ? cs->enemies[i].def->id : "unknown";
+        if (i > 0) strncat(out, "+", out_size - strlen(out) - 1);
+        strncat(out, id, out_size - strlen(out) - 1);
+    }
+}
+
+static void log_combat_result_metric(bool victory)
+{
+    CombatState *cs = &g_state.combat;
+    char run_id[16], area[16], floor[16], turns[16], deaths[16], gold[16], interrupts[16], encounter_id[160];
+    snprintf(run_id, sizeof(run_id), "%d", g_state.telemetry_run_id);
+    snprintf(area, sizeof(area), "%d", g_state.current_area);
+    snprintf(floor, sizeof(floor), "%d", g_state.map.floor + 1);
+    snprintf(turns, sizeof(turns), "%d", cs->turn);
+    snprintf(deaths, sizeof(deaths), "%d", g_state.run_deaths);
+    snprintf(gold, sizeof(gold), "%d", cs->gold_reward);
+    snprintf(interrupts, sizeof(interrupts), "%d", g_state.run_interrupts);
+    run_encounter_id(encounter_id, sizeof(encounter_id));
+    const char *fields[] = {
+        run_id,
+        area,
+        floor,
+        encounter_id,
+        run_encounter_type(),
+        victory ? "victory" : "defeat",
+        turns,
+        deaths,
+        interrupts,
+        gold
+    };
+    telemetry_csv_append(
+        "combat_metrics.csv",
+        "timestamp,run_id,area,floor,encounter_id,encounter_type,result,turns,deaths,interrupts,gold_reward",
+        fields,
+        10);
+
+    char json[512];
+    snprintf(json, sizeof(json),
+        "\"area\":%d,\"floor\":%d,\"encounter_id\":\"%s\",\"encounter_type\":\"%s\",\"result\":\"%s\",\"turns\":%d,\"deaths\":%d,\"interrupts\":%d,\"gold_reward\":%d",
+        g_state.current_area,
+        g_state.map.floor + 1,
+        encounter_id,
+        run_encounter_type(),
+        victory ? "victory" : "defeat",
+        cs->turn,
+        g_state.run_deaths,
+        g_state.run_interrupts,
+        cs->gold_reward);
+    telemetry_push_json("combat_result", json);
+}
 
 static float preview_combo_mult(CombatState *cs, const CardDef *card)
 {
@@ -554,6 +618,7 @@ void run_screen_update(void)
         combat_initialized = false;
 
         bool was_victory = (strstr(g_state.combat.result_message, "VICTORY") != 0);
+        log_combat_result_metric(was_victory);
         memcpy(&g_state.run_party, &g_state.combat.party, sizeof(Party));
         g_state.run_party_active = true;
 

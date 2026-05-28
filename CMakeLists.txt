@@ -18,6 +18,10 @@ add_executable(RaidParty ${SOURCES})
 target_link_libraries(RaidParty PRIVATE raylib)
 target_include_directories(RaidParty PRIVATE src)
 
+if(WIN32 AND NOT EMSCRIPTEN)
+    target_link_libraries(RaidParty PRIVATE winhttp)
+endif()
+
 if(NOT EMSCRIPTEN)
     add_custom_command(TARGET RaidParty POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:RaidParty>"

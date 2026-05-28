@@ -41,6 +41,7 @@ typedef struct {
     int first_draw_bonus;
     bool seasoned_adventurer;
     bool master_raider;
+    int ascension_beaten;
     bool tutorial_seen_elite;
     bool tutorial_seen_boss;
     bool tutorial_seen_shop;

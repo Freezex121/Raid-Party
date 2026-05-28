@@ -4,6 +4,7 @@
 #include "data/card_defs.h"
 #include "data/enemy_defs.h"
 #include "systems/relic.h"
+#include "systems/telemetry.h"
 #include "ui/floating_text.h"
 #include "ui/layout.h"
 #include "ui/theme.h"
@@ -45,6 +46,131 @@ static int active_ascension(void)
     if (level < 0) level = 0;
     if (level > META_ASCENSION_MAX) level = META_ASCENSION_MAX;
     return level;
+}
+
+static const char *target_type_name(TargetType target)
+{
+    switch (target)
+    {
+        case TARGET_ENEMY: return "enemy";
+        case TARGET_ALL_ENEMIES: return "all_enemies";
+        case TARGET_ALLY: return "ally";
+        case TARGET_ALL_ALLIES: return "all_allies";
+        case TARGET_SELF: return "self";
+    }
+    return "unknown";
+}
+
+static const char *encounter_type_name(void)
+{
+    return g_state.encounter_is_boss ? "boss" : (g_state.encounter_is_elite ? "elite" : "normal");
+}
+
+static void encounter_id_string(const CombatState *cs, char *out, int out_size)
+{
+    if (!out || out_size <= 0) return;
+    out[0] = '\0';
+    if (!cs) return;
+    for (int i = 0; i < cs->enemy_count; i++)
+    {
+        const char *id = cs->enemies[i].def && cs->enemies[i].def->id ? cs->enemies[i].def->id : "unknown";
+        if (i > 0) strncat(out, "+", out_size - strlen(out) - 1);
+        strncat(out, id, out_size - strlen(out) - 1);
+    }
+}
+
+static void log_card_play_metric(CombatState *cs, const CardDef *card, int upgrade_level, int paid_cost, int target_enemy, int target_ally)
+{
+    if (!cs || !card) return;
+    char run_id[16], area[16], floor[16], turn[16], cost[16], upgrade[16], exhaust[8], consume[8], enemy[16], ally[16];
+    snprintf(run_id, sizeof(run_id), "%d", g_state.telemetry_run_id);
+    snprintf(area, sizeof(area), "%d", g_state.current_area);
+    snprintf(floor, sizeof(floor), "%d", g_state.map.floor + 1);
+    snprintf(turn, sizeof(turn), "%d", cs->turn);
+    snprintf(cost, sizeof(cost), "%d", paid_cost);
+    snprintf(upgrade, sizeof(upgrade), "%d", upgrade_level);
+    snprintf(exhaust, sizeof(exhaust), "%d", card->exhaust || card->channel ? 1 : 0);
+    snprintf(consume, sizeof(consume), "%d", card->consume ? 1 : 0);
+    snprintf(enemy, sizeof(enemy), "%d", target_enemy);
+    snprintf(ally, sizeof(ally), "%d", target_ally);
+
+    const char *fields[] = {
+        run_id,
+        area,
+        floor,
+        encounter_type_name(),
+        card->id ? card->id : "",
+        class_name(card->class),
+        cost,
+        turn,
+        target_type_name(card->target),
+        upgrade,
+        exhaust,
+        consume,
+        enemy,
+        ally
+    };
+    telemetry_csv_append(
+        "card_play_metrics.csv",
+        "timestamp,run_id,area,floor,encounter,card_id,class,energy_cost,combat_turn,target_type,upgrade_level,exhaust,consume,target_enemy,target_ally",
+        fields,
+        14);
+
+    char json[512];
+    snprintf(json, sizeof(json),
+        "\"area\":%d,\"floor\":%d,\"encounter\":\"%s\",\"card_id\":\"%s\",\"class\":\"%s\",\"energy_cost\":%d,\"combat_turn\":%d,\"target_type\":\"%s\",\"upgraded\":%d,\"exhaust\":%s,\"consume\":%s,\"target_enemy\":%d,\"target_ally\":%d",
+        g_state.current_area,
+        g_state.map.floor + 1,
+        encounter_type_name(),
+        card->id ? card->id : "",
+        class_name(card->class),
+        paid_cost,
+        cs->turn,
+        target_type_name(card->target),
+        upgrade_level,
+        (card->exhaust || card->channel) ? "true" : "false",
+        card->consume ? "true" : "false",
+        target_enemy,
+        target_ally);
+    telemetry_push_json("card_play", json);
+}
+
+static void log_death_metric(CombatState *cs, const PartyMember *pm, const char *source)
+{
+    if (!cs || !pm) return;
+    char run_id[16], area[16], floor[16], turn[16], encounter_id[160];
+    snprintf(run_id, sizeof(run_id), "%d", g_state.telemetry_run_id);
+    snprintf(area, sizeof(area), "%d", g_state.current_area);
+    snprintf(floor, sizeof(floor), "%d", g_state.map.floor + 1);
+    snprintf(turn, sizeof(turn), "%d", cs->turn);
+    encounter_id_string(cs, encounter_id, sizeof(encounter_id));
+    const char *fields[] = {
+        run_id,
+        area,
+        floor,
+        encounter_id,
+        encounter_type_name(),
+        class_name(pm->class),
+        turn,
+        source ? source : ""
+    };
+    telemetry_csv_append(
+        "death_metrics.csv",
+        "timestamp,run_id,area,floor,encounter_id,encounter_type,class,combat_turn,source",
+        fields,
+        8);
+
+    char json[512];
+    snprintf(json, sizeof(json),
+        "\"area\":%d,\"floor\":%d,\"encounter_id\":\"%s\",\"encounter_type\":\"%s\",\"class\":\"%s\",\"combat_turn\":%d,\"source\":\"%s\"",
+        g_state.current_area,
+        g_state.map.floor + 1,
+        encounter_id,
+        encounter_type_name(),
+        class_name(pm->class),
+        cs->turn,
+        source ? source : "");
+    telemetry_push_json("death_event", json);
 }
 
 static void deal_cards(Deck *deck, int count)
@@ -416,6 +542,7 @@ static void apply_damage_to_ally(CombatState *cs, int ally_idx, int damage, cons
         {
             pm->alive = false;
             g_state.run_deaths++;
+            log_death_metric(cs, pm, source);
             pm->aggro = 0;
             pm->shield = 0;
             LOG_I(CAT_COMBAT, "%s DOWNED! Removing %s cards.", pm->name, class_name(pm->class));
@@ -1171,6 +1298,7 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
     combat_award_card_xp(cs, card, paid_cost);
 
     int upgrade_level = inst->upgrade_level;
+    log_card_play_metric(cs, card, upgrade_level, paid_cost, target_enemy, target_ally);
 
     int dmg = card_damage(card, upgrade_level) + meta_dmg_bonus(&g_state.meta);
     int hl  = card_heal(card, upgrade_level);

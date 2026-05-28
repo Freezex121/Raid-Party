@@ -1,5 +1,6 @@
 #include "screens.h"
 #include "game.h"
+#include "systems/telemetry.h"
 #include "ui/theme.h"
 #include "util/text.h"
 #include "constants.h"
@@ -89,6 +90,35 @@ static void choose_perk(PerkId perk)
     PartyMember *member = &g_state.run_party.members[current_member];
     if (member->pending_levels <= 0)
         return;
+
+    char run_id[16], level[16], combat_xp[16], offered[128];
+    snprintf(run_id, sizeof(run_id), "%d", g_state.telemetry_run_id);
+    snprintf(level, sizeof(level), "%d", member->level);
+    snprintf(combat_xp, sizeof(combat_xp), "%d", member->combat_xp);
+    snprintf(offered, sizeof(offered), "%s|%s", perk_name(choice_a), perk_name(choice_b));
+    const char *fields[] = {
+        run_id,
+        class_name(member->class),
+        level,
+        offered,
+        perk_name(perk),
+        combat_xp
+    };
+    telemetry_csv_append(
+        "level_up_metrics.csv",
+        "timestamp,run_id,class,level,offered,picked,combat_xp_this_fight",
+        fields,
+        6);
+    char json[512];
+    snprintf(json, sizeof(json),
+        "\"class\":\"%s\",\"level\":%d,\"offered\":[\"%s\",\"%s\"],\"picked\":\"%s\",\"combat_xp_this_fight\":%d",
+        class_name(member->class),
+        member->level,
+        perk_name(choice_a),
+        perk_name(choice_b),
+        perk_name(perk),
+        member->combat_xp);
+    telemetry_push_json("level_up_choice", json);
 
     party_member_add_perk(member, perk);
     member->pending_levels--;
