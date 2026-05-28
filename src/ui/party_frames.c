@@ -173,8 +173,8 @@ static void draw_status_tooltip(Rectangle anchor, StatusType status)
 static void draw_member_tooltip(Rectangle anchor, const PartyMember *member)
 {
     if (!member) return;
-    int w = 190;
-    int h = 70;
+    int w = 200;
+    int h = 88;
     int x = (int)(anchor.x + anchor.width * 0.5f - w * 0.5f);
     int y = (int)(anchor.y + anchor.height + 5.0f);
     if (x < 4) x = 4;
@@ -193,16 +193,53 @@ static void draw_member_tooltip(Rectangle anchor, const PartyMember *member)
         title, 10, 0, accent, TEXT_ALIGN_LEFT);
 
     char body[160];
+    snprintf(body, sizeof(body), "HP %d/%d  Shield %d  Aggro %d",
+        member->hp, member->max_hp, member->shield, member->aggro);
+    draw_text_box((Rectangle){ tip.x + 6.0f, tip.y + 19.0f, tip.width - 12.0f, 12.0f },
+        body, 10, 0, (Color){ 210, 214, 235, 235 }, TEXT_ALIGN_LEFT);
+
+    // XP progress
+    char xp_line[64];
     if (member->level >= MAX_LEVEL)
-        snprintf(body, sizeof(body), "HP %d/%d  Shield %d\nAggro %d\nXP MAX  |  Combat XP %d/%d",
-            member->hp, member->max_hp, member->shield, member->aggro, member->combat_xp, MAX_COMBAT_XP);
+        snprintf(xp_line, sizeof(xp_line), "XP MAX    Combat %d/%d", member->combat_xp, MAX_COMBAT_XP);
     else
-        snprintf(body, sizeof(body), "HP %d/%d  Shield %d\nAggro %d\nXP %d/%d  |  Combat XP %d/%d",
-            member->hp, member->max_hp, member->shield, member->aggro,
+        snprintf(xp_line, sizeof(xp_line), "XP %d/%d    Combat %d/%d",
             party_member_xp_into_level(member), xp_for_level(member->level),
             member->combat_xp, MAX_COMBAT_XP);
-    draw_text_box((Rectangle){ tip.x + 6.0f, tip.y + 19.0f, tip.width - 12.0f, tip.height - 24.0f },
-        body, 10, 0, (Color){ 210, 214, 235, 235 }, TEXT_ALIGN_LEFT);
+    draw_text_box((Rectangle){ tip.x + 6.0f, tip.y + 33.0f, tip.width - 12.0f, 12.0f },
+        xp_line, 10, 0, (Color){ 245, 205, 65, 235 }, TEXT_ALIGN_LEFT);
+
+    // XP bar in tooltip
+    if (member->level < MAX_LEVEL)
+    {
+        int need = xp_for_level(member->level);
+        float xp_r = need > 0 ? (float)party_member_xp_into_level(member) / (float)need : 0.0f;
+        if (xp_r < 0.0f) xp_r = 0.0f;
+        if (xp_r > 1.0f) xp_r = 1.0f;
+        int bar_w = (int)((w - 12) * xp_r);
+        if (bar_w > 0)
+        {
+            DrawRectangleRec((Rectangle){ tip.x + 6.0f, tip.y + 47.0f, (float)(w - 12), 4.0f },
+                (Color){ 40, 35, 20, 255 });
+            DrawRectangleRec((Rectangle){ tip.x + 6.0f, tip.y + 47.0f, (float)bar_w, 4.0f },
+                (Color){ 245, 205, 65, 245 });
+        }
+    }
+
+    // Status effects list
+    char status_line[96] = "";
+    for (int s = 0; s < member->status_count && s < 3; s++)
+    {
+        if (s > 0) strcat(status_line, "  ");
+        char buf[24];
+        snprintf(buf, sizeof(buf), "%s(%d)", status_label(member->statuses[s].type), member->statuses[s].turns);
+        strcat(status_line, buf);
+    }
+    if (status_line[0])
+    {
+        draw_text_box((Rectangle){ tip.x + 6.0f, tip.y + 55.0f, tip.width - 12.0f, 28.0f },
+            status_line, 10, 0, (Color){ 180, 184, 210, 220 }, TEXT_ALIGN_LEFT);
+    }
 }
 
 void party_frames_draw(Party *party)
@@ -248,8 +285,8 @@ void party_frames_draw(Party *party)
         if (i == target_idx && m->alive)
         {
             DrawRectangleLinesEx((Rectangle){ (float)(x - 1), (float)(y - 1), (float)(frame_w + 2), (float)(frame_h + 2) },
-                1.0f, (Color){ 245, 165, 65, 220 });
-            DrawText("T", x + 6, y + 2, 10, (Color){ 245, 165, 65, 230 });
+                2.0f, (Color){ 245, 165, 65, 255 });
+            DrawText("SHIELD", x + 6, y + 2, 10, (Color){ 245, 165, 65, 240 });
         }
 
         Color bar_bg = (Color){ 20, 20, 30, 255 };
@@ -306,7 +343,7 @@ void party_frames_draw(Party *party)
             Color sc = status_color(st->type);
             Rectangle pill = party_status_rect(frame_rect, s);
             DrawRectangleRec(pill, (Color){ sc.r, sc.g, sc.b, 70 });
-            DrawRectangleLinesEx(pill, 1.0f, (Color){ sc.r, sc.g, sc.b, 180 });
+            DrawRectangleLinesEx(pill, 1.0f, (Color){ 255, 255, 255, 160 });
             char label[8];
             snprintf(label, sizeof(label), "%s%d", status_icon(st->type), st->turns);
             draw_text_box((Rectangle){ pill.x + 1.0f, pill.y, pill.width - 2.0f, pill.height },

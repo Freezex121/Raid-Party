@@ -223,6 +223,8 @@ void draft_screen_update(void)
             g_state.next_combat_draw_bonus = 0;
             g_state.next_combat_boon_turns = 0;
             g_state.result_reason[0] = '\0';
+            g_state.tutorial_active = (g_state.meta.runs_completed == 0);
+            g_state.tutorial_step = 0;
             party_create(&g_state.run_party, g_state.selected_classes, g_state.selected_count);
             g_state.run_party_active = true;
             deck_init_from_classes(&g_state.run_deck, g_state.selected_classes, g_state.selected_count);

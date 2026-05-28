@@ -150,6 +150,28 @@ bool game_transition_allows_update(void)
     return !g_state.transition_active || g_state.transition_switched;
 }
 
+static void draw_overlay_tooltip(Rectangle anchor, const char *title, const char *body, Color accent)
+{
+    int w = 224;
+    int body_h = measure_text_box(body, w - 12, 10, 0);
+    if (body_h < ui_line_height(10)) body_h = ui_line_height(10);
+    int h = 26 + body_h;
+    int x = (int)(anchor.x + anchor.width * 0.5f - w * 0.5f);
+    int y = (int)(anchor.y + anchor.height + 5.0f);
+    if (x < 4) x = 4;
+    if (x + w > VIRT_W - 4) x = VIRT_W - w - 4;
+    if (y + h > VIRT_H - 4) y = (int)(anchor.y - h - 5.0f);
+    if (y < 4) y = 4;
+
+    Rectangle tip = { (float)x, (float)y, (float)w, (float)h };
+    DrawRectangleRec(tip, (Color){ 10, 11, 18, 248 });
+    DrawRectangleLinesEx(tip, 1.0f, (Color){ accent.r, accent.g, accent.b, 230 });
+    draw_text_box((Rectangle){ tip.x + 6.0f, tip.y + 5.0f, tip.width - 12.0f, 12.0f },
+        title, 10, 0, accent, TEXT_ALIGN_LEFT);
+    draw_text_box((Rectangle){ tip.x + 6.0f, tip.y + 18.0f, tip.width - 12.0f, tip.height - 22.0f },
+        body, 10, 0, (Color){ 215, 218, 238, 238 }, TEXT_ALIGN_LEFT);
+}
+
 void game_draw_gold_overlay(void)
 {
     if (!g_state.run_party_active)
@@ -171,6 +193,14 @@ void game_draw_gold_overlay(void)
     snprintf(text, sizeof(text), "Gold %d", g_state.gold);
     draw_text_box((Rectangle){ r.x + 4.0f, r.y + 3.0f, r.width - 8.0f, 11.0f },
         text, 10, 0, (Color){ 245, 218, 105, 245 }, TEXT_ALIGN_CENTER);
+
+    if (CheckCollisionPointRec(GetMousePosition(), r))
+    {
+        draw_overlay_tooltip(r,
+            "Gold",
+            "Run currency. Spend it in shops, events, reward rerolls, and extra reward choices. Unspent gold can convert to renown when the run ends.",
+            (Color){ 245, 218, 105, 255 });
+    }
 }
 
 void game_gain_gold(int amount, const char *context)
@@ -286,4 +316,162 @@ void game_settings_save(void)
     fprintf(f, "music_volume=%.3f\n", g_state.music_volume);
     fprintf(f, "sfx_volume=%.3f\n", g_state.sfx_volume);
     fclose(f);
+}
+
+static float tutorial_clampf(float value, float min, float max)
+{
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
+}
+
+static bool tutorial_rect_valid(Rectangle rect)
+{
+    return rect.width > 1.0f && rect.height > 1.0f;
+}
+
+static Rectangle tutorial_expand_highlight(Rectangle rect, float pad)
+{
+    float x = tutorial_clampf(rect.x - pad, 0.0f, (float)VIRT_W);
+    float y = tutorial_clampf(rect.y - pad, 0.0f, (float)VIRT_H);
+    float right = tutorial_clampf(rect.x + rect.width + pad, 0.0f, (float)VIRT_W);
+    float bottom = tutorial_clampf(rect.y + rect.height + pad, 0.0f, (float)VIRT_H);
+    return (Rectangle){ x, y, right - x, bottom - y };
+}
+
+static Rectangle tutorial_panel_rect(Rectangle highlight, int panel_w, int panel_h)
+{
+    const float margin = 8.0f;
+    float x = ((float)VIRT_W - (float)panel_w) * 0.5f;
+    float y = (float)VIRT_H - (float)panel_h - 12.0f;
+
+    if (tutorial_rect_valid(highlight))
+    {
+        float below = highlight.y + highlight.height + 10.0f;
+        float above = highlight.y - (float)panel_h - 10.0f;
+        bool room_below = below + (float)panel_h <= (float)VIRT_H - margin;
+        bool room_above = above >= margin;
+
+        if (room_below || room_above)
+        {
+            y = room_below ? below : above;
+            x = highlight.x + highlight.width * 0.5f - (float)panel_w * 0.5f;
+        }
+        else
+        {
+            bool place_right = highlight.x + highlight.width * 0.5f < (float)VIRT_W * 0.5f;
+            x = place_right ? highlight.x + highlight.width + 10.0f : highlight.x - (float)panel_w - 10.0f;
+            y = highlight.y + highlight.height * 0.5f - (float)panel_h * 0.5f;
+        }
+    }
+
+    x = tutorial_clampf(x, margin, (float)VIRT_W - (float)panel_w - margin);
+    y = tutorial_clampf(y, margin, (float)VIRT_H - (float)panel_h - margin);
+    return (Rectangle){ x, y, (float)panel_w, (float)panel_h };
+}
+
+void game_skip_tutorial(void)
+{
+    g_state.tutorial_active = false;
+    g_state.tutorial_step = TUTORIAL_STEP_DONE;
+}
+
+bool game_tutorial_handle_skip(void)
+{
+    if (!g_state.tutorial_active) return false;
+    if (IsKeyPressed(KEY_ESCAPE) || IsMouseButtonPressed(MOUSE_RIGHT_BUTTON))
+    {
+        game_skip_tutorial();
+        return true;
+    }
+    return false;
+}
+
+bool game_tutorial_handle_close(void)
+{
+    if (!g_state.tutorial_active) return false;
+    if (game_tutorial_handle_skip())
+        return true;
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE))
+    {
+        game_skip_tutorial();
+        return true;
+    }
+    return false;
+}
+
+bool game_start_tutorial_once(bool *seen_flag, int step)
+{
+    if (!seen_flag || *seen_flag || g_state.tutorial_active)
+        return false;
+    *seen_flag = true;
+    meta_save(&g_state.meta);
+    g_state.tutorial_active = true;
+    g_state.tutorial_step = step;
+    return true;
+}
+
+void game_draw_tutorial_overlay_ex(Rectangle highlight, const char *title, const char *body, const char *footer, int step, int total_steps)
+{
+    if (!g_state.tutorial_active) return;
+
+    const char *safe_title = title && title[0] ? title : "Tutorial";
+    const char *safe_body = body ? body : "";
+    const char *safe_footer = footer && footer[0] ? footer : "Click to continue";
+
+    Color accent = (Color){ 255, 218, 92, 255 };
+    Color dim = (Color){ 0, 0, 0, 88 };
+    if (tutorial_rect_valid(highlight))
+    {
+        Rectangle focus = tutorial_expand_highlight(highlight, 10.0f);
+        DrawRectangleRec((Rectangle){ 0.0f, 0.0f, (float)VIRT_W, focus.y }, dim);
+        DrawRectangleRec((Rectangle){ 0.0f, focus.y + focus.height, (float)VIRT_W, (float)VIRT_H - focus.y - focus.height }, dim);
+        DrawRectangleRec((Rectangle){ 0.0f, focus.y, focus.x, focus.height }, dim);
+        DrawRectangleRec((Rectangle){ focus.x + focus.width, focus.y, (float)VIRT_W - focus.x - focus.width, focus.height }, dim);
+
+        Rectangle halo = tutorial_expand_highlight(highlight, 5.0f);
+        DrawRectangleRec(halo, (Color){ 255, 218, 92, 24 });
+        DrawRectangleLinesEx(halo, 2.0f, accent);
+        DrawRectangleLinesEx(tutorial_expand_highlight(highlight, 9.0f), 1.0f, (Color){ 255, 218, 92, 92 });
+    }
+    else
+    {
+        DrawRectangle(0, 0, VIRT_W, VIRT_H, dim);
+    }
+
+    int panel_w = 292;
+    int body_w = panel_w - 20;
+    int body_h = measure_text_box(safe_body, body_w, 10, 0);
+    if (body_h < 26) body_h = 26;
+    int panel_h = 60 + body_h;
+    if (panel_h < 92) panel_h = 92;
+    if (panel_h > 150) panel_h = 150;
+
+    Rectangle panel = tutorial_panel_rect(highlight, panel_w, panel_h);
+    Rectangle shadow = { panel.x + 2.0f, panel.y + 2.0f, panel.width, panel.height };
+    DrawRectangleRec(shadow, (Color){ 0, 0, 0, 110 });
+    DrawRectangleRec(panel, (Color){ 10, 11, 18, 246 });
+    DrawRectangleRec((Rectangle){ panel.x, panel.y, 4.0f, panel.height }, (Color){ 255, 218, 92, 205 });
+    DrawRectangleLinesEx(panel, 1.0f, (Color){ 255, 218, 92, 230 });
+
+    draw_text_box((Rectangle){ panel.x + 10.0f, panel.y + 8.0f, panel.width - 20.0f, 22.0f },
+        safe_title, 18, 0, accent, TEXT_ALIGN_LEFT);
+
+    if (step > 0 && total_steps > 0)
+    {
+        char count[16];
+        snprintf(count, sizeof(count), "%d/%d", step, total_steps);
+        draw_text_box((Rectangle){ panel.x + panel.width - 48.0f, panel.y + 10.0f, 36.0f, 12.0f },
+            count, 10, 0, (Color){ 180, 184, 210, 220 }, TEXT_ALIGN_RIGHT);
+    }
+
+    draw_text_box((Rectangle){ panel.x + 10.0f, panel.y + 34.0f, panel.width - 20.0f, panel.height - 54.0f },
+        safe_body, 10, 0, RAYWHITE, TEXT_ALIGN_LEFT);
+    draw_text_box((Rectangle){ panel.x + 10.0f, panel.y + panel.height - 16.0f, panel.width - 20.0f, 12.0f },
+        safe_footer, 10, 0, (Color){ 178, 184, 210, 225 }, TEXT_ALIGN_CENTER);
+}
+
+void game_draw_tutorial_overlay(Rectangle highlight, const char *text)
+{
+    game_draw_tutorial_overlay_ex(highlight, "Tutorial", text, "Click to continue", 0, 0);
 }

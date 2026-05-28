@@ -466,6 +466,14 @@ void event_screen_update(void)
 {
     init_event_if_needed();
 
+    if (!g_state.tutorial_active)
+        game_start_tutorial_once(&g_state.meta.tutorial_seen_event, TUTORIAL_STEP_EVENT);
+    if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_EVENT)
+    {
+        if (game_tutorial_handle_close())
+            return;
+    }
+
     Vector2 mouse = GetMousePosition();
     hovered_choice = -1;
 
@@ -569,5 +577,15 @@ void event_screen_draw(void)
     {
         draw_text_box((Rectangle){ 96.0f, 154.0f, 448.0f, 38.0f }, event_msg, 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
         draw_text_box((Rectangle){ 96.0f, 192.0f, 448.0f, 14.0f }, "Click to continue.", 10, 0, (Color){ 160, 160, 190, 220 }, TEXT_ALIGN_CENTER);
+    }
+
+    if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_EVENT)
+    {
+        game_draw_tutorial_overlay_ex((Rectangle){ 58.0f, 88.0f, 524.0f, 150.0f },
+            "Events",
+            "Events are branching choices. Some cost gold, HP, cards, or curses; grey choices show requirements you do not currently meet.",
+            "Click to continue  |  Right-click/Esc: skip",
+            0,
+            0);
     }
 }

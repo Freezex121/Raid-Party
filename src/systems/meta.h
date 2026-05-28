@@ -41,6 +41,15 @@ typedef struct {
     int first_draw_bonus;
     bool seasoned_adventurer;
     bool master_raider;
+    bool tutorial_seen_elite;
+    bool tutorial_seen_boss;
+    bool tutorial_seen_shop;
+    bool tutorial_seen_event;
+    bool tutorial_seen_rest;
+    bool tutorial_seen_level_up;
+    bool tutorial_seen_discard;
+    bool tutorial_seen_game_over;
+    bool tutorial_seen_meta_shop;
 } MetaProgress;
 
 void meta_set_defaults(MetaProgress *meta);

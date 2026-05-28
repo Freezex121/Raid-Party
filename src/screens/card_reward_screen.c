@@ -80,15 +80,31 @@ void reward_screen_update(void)
         generate_rewards();
         generated = true;
     }
+
+    if (!g_state.tutorial_active && g_state.tutorial_reward_pending)
+    {
+        g_state.tutorial_reward_pending = false;
+        g_state.tutorial_active = true;
+        g_state.tutorial_step = TUTORIAL_STEP_REWARD;
+    }
+
+    if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_REWARD)
+    {
+        if (game_tutorial_handle_skip())
+            return;
+    }
+
     if (g_state.reward_count == 0) return;
 
     Vector2 mouse = GetMousePosition();
     hovered_reward = -1;
 
     // Skip button
-    Rectangle skip_btn = { (float)(VIRT_W / 2 - 90), 206.0f, 80.0f, 22.0f };
+    Rectangle skip_btn = { (float)(VIRT_W / 2 - 138), 206.0f, 84.0f, 22.0f };
     if (CheckCollisionPointRec(mouse, skip_btn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
     {
+        if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_REWARD)
+            game_skip_tutorial();
         generated = false;
         extra_choices = 0;
         if (g_state.encounter_is_elite)
@@ -139,6 +155,8 @@ void reward_screen_update(void)
             hovered_reward = i;
             if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
             {
+                if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_REWARD)
+                    game_skip_tutorial();
                 const CardDef *chosen = g_state.reward_cards[i];
                 deck_add_card_with_level(&g_state.run_deck, chosen, g_state.reward_upgrade_level[i]);
                 LOG_I(CAT_CARD, "Reward chosen: %s (%s)%s", chosen->name, class_name(chosen->class),
@@ -239,6 +257,18 @@ void reward_screen_draw(void)
     {
         const CardDef *card = g_state.reward_cards[hovered_reward];
         theme_draw_card_tooltip(layout_reward_inspector_panel(), card, g_state.reward_upgrade_level[hovered_reward]);
+    }
+
+    // Tutorial overlay
+    if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_REWARD)
+    {
+        Rectangle hl = { 100.0f, 60.0f, 440.0f, 152.0f };
+        game_draw_tutorial_overlay_ex(hl,
+            "Card Rewards",
+            "Pick a card to add it to your deck. Reroll costs gold, Extra Choice adds another option, and Skip keeps your deck lean.",
+            "Choose a reward  |  Right-click/Esc: skip tutorial",
+            TUTORIAL_STEP_REWARD,
+            TUTORIAL_STEP_REWARD);
     }
 
 }

@@ -60,6 +60,89 @@ static void draw_preview_box(int x, int y, const char *title, const char *line1,
             line2, 10, 0, (Color){ 180, 180, 205, 230 }, TEXT_ALIGN_LEFT);
 }
 
+static void draw_hud_tooltip(Rectangle anchor, const char *title, const char *body, Color accent)
+{
+    int w = 226;
+    int body_h = measure_text_box(body, w - 12, 10, 0);
+    if (body_h < ui_line_height(10)) body_h = ui_line_height(10);
+    int h = 26 + body_h;
+    int x = (int)(anchor.x + anchor.width * 0.5f - w * 0.5f);
+    int y = (int)(anchor.y + anchor.height + 5.0f);
+
+    if (x < 4) x = 4;
+    if (x + w > VIRT_W - 4) x = VIRT_W - w - 4;
+    if (y + h > HAND_Y - 4) y = HAND_Y - h - 5;
+    if (y < 4) y = 4;
+    if (y + h > VIRT_H - 4) y = VIRT_H - h - 4;
+
+    Rectangle tip = { (float)x, (float)y, (float)w, (float)h };
+    DrawRectangleRec(tip, (Color){ 10, 11, 18, 248 });
+    DrawRectangleLinesEx(tip, 1.0f, (Color){ accent.r, accent.g, accent.b, 230 });
+    draw_text_box((Rectangle){ tip.x + 6.0f, tip.y + 5.0f, tip.width - 12.0f, 12.0f },
+        title, 10, 0, accent, TEXT_ALIGN_LEFT);
+    draw_text_box((Rectangle){ tip.x + 6.0f, tip.y + 18.0f, tip.width - 12.0f, tip.height - 22.0f },
+        body, 10, 0, (Color){ 215, 218, 238, 238 }, TEXT_ALIGN_LEFT);
+}
+
+static void draw_combat_hud_tooltips(CombatState *cs, Rectangle turn_rect, Rectangle energy_panel, Rectangle deck_btn, Rectangle end_turn_btn, Rectangle inspector)
+{
+    Vector2 mouse = GetMousePosition();
+    Rectangle discard = layout_discard_pile_rect();
+    Rectangle feed = layout_action_feed_panel();
+
+    if (CheckCollisionPointRec(mouse, energy_panel))
+    {
+        char body[192];
+        snprintf(body, sizeof(body),
+            "Energy pays card costs. You have %d/%d now and refresh by %d each turn. Drain effects reduce available energy.",
+            cs->energy.current, cs->energy.max, cs->energy.regen);
+        draw_hud_tooltip(energy_panel, "Energy", body, (Color){ 245, 218, 105, 255 });
+    }
+    else if (CheckCollisionPointRec(mouse, turn_rect))
+    {
+        draw_hud_tooltip(turn_rect,
+            "Turn Counter",
+            "Current combat turn. Enemy cast bars tick down when turns advance, then ready abilities fire.",
+            (Color){ 155, 165, 210, 255 });
+    }
+    else if (CheckCollisionPointRec(mouse, discard))
+    {
+        char body[192];
+        snprintf(body, sizeof(body),
+            "Discard contains %d card%s. Played cards and unplayed hand cards go here. When the draw pile empties, discard reshuffles into draw.",
+            cs->deck.discard_count, cs->deck.discard_count == 1 ? "" : "s");
+        draw_hud_tooltip(discard, "Discard Pile", body, (Color){ 190, 180, 230, 255 });
+    }
+    else if (CheckCollisionPointRec(mouse, deck_btn))
+    {
+        draw_hud_tooltip(deck_btn,
+            "Deck",
+            "Open your current run deck to review cards, upgrades, exhausted cards, and class composition. Shortcut: D.",
+            (Color){ 185, 190, 235, 255 });
+    }
+    else if (CheckCollisionPointRec(mouse, end_turn_btn))
+    {
+        draw_hud_tooltip(end_turn_btn,
+            "End Turn",
+            "Ends your action window. Remaining hand cards are discarded, enemies tick and act, then you draw a new hand.",
+            (Color){ 185, 190, 235, 255 });
+    }
+    else if (CheckCollisionPointRec(mouse, feed))
+    {
+        draw_hud_tooltip(feed,
+            "Action Feed",
+            "Recent damage, healing, status changes, synergies, and enemy actions appear here for quick review.",
+            (Color){ 155, 165, 210, 255 });
+    }
+    else if (CheckCollisionPointRec(mouse, inspector) && cs->hovered_card < 0 && cs->target_hand_idx < 0)
+    {
+        draw_hud_tooltip(inspector,
+            "Card Inspector",
+            "Hover a card to read full effects, target rules, exhaust or consume text, and upgrade details.",
+            (Color){ 155, 165, 210, 255 });
+    }
+}
+
 static void draw_target_preview(CombatState *cs)
 {
     if (cs->target_mode == TGT_NONE) return;
@@ -410,6 +493,45 @@ void run_screen_update(void)
     {
         combat_start(&g_state.combat, &g_state.run_party, g_state.encounter);
         combat_initialized = true;
+        if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_MAP)
+            g_state.tutorial_step = TUTORIAL_STEP_COMBAT_PARTY;
+    }
+    if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_MAP)
+        g_state.tutorial_step = TUTORIAL_STEP_COMBAT_PARTY;
+
+    if (!g_state.tutorial_active)
+    {
+        if (g_state.encounter_is_boss)
+            game_start_tutorial_once(&g_state.meta.tutorial_seen_boss, TUTORIAL_STEP_BOSS);
+        else if (g_state.encounter_is_elite)
+            game_start_tutorial_once(&g_state.meta.tutorial_seen_elite, TUTORIAL_STEP_ELITE);
+    }
+
+    if (g_state.tutorial_active &&
+        g_state.tutorial_step >= TUTORIAL_STEP_COMBAT_PARTY &&
+        g_state.tutorial_step <= TUTORIAL_STEP_COMBAT_END)
+    {
+        if (game_tutorial_handle_skip())
+            return;
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+        {
+            if (g_state.tutorial_step < TUTORIAL_STEP_COMBAT_END)
+            {
+                g_state.tutorial_step++;
+            }
+            else
+            {
+                g_state.tutorial_reward_pending = true;
+                game_skip_tutorial();
+            }
+            return;
+        }
+    }
+    else if (g_state.tutorial_active &&
+        (g_state.tutorial_step == TUTORIAL_STEP_ELITE || g_state.tutorial_step == TUTORIAL_STEP_BOSS))
+    {
+        if (game_tutorial_handle_close())
+            return;
     }
 
     combat_update(&g_state.combat);
@@ -627,7 +749,8 @@ void run_screen_draw(void)
         draw_panel(inspector, "CARD", (Color){ 130, 145, 185, 220 });
     }
 
-    draw_text_box((Rectangle){ 12.0f, (float)(VIRT_H - 14), 76.0f, 12.0f },
+    Rectangle turn_rect = { 12.0f, (float)(VIRT_H - 14), 76.0f, 12.0f };
+    draw_text_box(turn_rect,
         TextFormat("Turn %d", cs->turn), 10, 0, (Color){ 100, 100, 130, 200 }, TEXT_ALIGN_LEFT);
 
     Rectangle energy_panel = layout_energy_panel();
@@ -672,6 +795,7 @@ void run_screen_draw(void)
     for (int i = 0; i < cs->enemy_count; i++)
         enemy_render_draw_status_tooltip(&cs->enemies[i]);
     party_frames_draw_tooltips(&cs->party);
+    draw_combat_hud_tooltips(cs, turn_rect, energy_panel, deck_btn, end_turn_btn, inspector);
 
     // PRIMED combo hover tooltip
     if (cs->combo_prime != COMBO_PRIME_NONE)
@@ -698,6 +822,112 @@ void run_screen_draw(void)
         }
     }
 
+    // Tutorial overlay
+    if (g_state.tutorial_active && g_state.tutorial_step < TUTORIAL_STEP_DONE && g_state.tutorial_step > 0)
+    {
+        Rectangle hl = { 0, 0, 0, 0 };
+        const char *title = "Tutorial";
+        const char *body = "";
+        const char *footer = "Left click: next  |  Right-click/Esc: skip";
+        switch (g_state.tutorial_step)
+        {
+            case TUTORIAL_STEP_COMBAT_PARTY:
+            {
+                if (cs->party.count > 0)
+                {
+                    Rectangle first = layout_party_frame_rect(cs->party.count, 0);
+                    Rectangle last = layout_party_frame_rect(cs->party.count, cs->party.count - 1);
+                    hl = (Rectangle){ first.x, first.y, last.x + last.width - first.x, first.height };
+                }
+                else
+                {
+                    hl = (Rectangle){ 120.0f, 8.0f, 400.0f, 42.0f };
+                }
+                title = "Your Party";
+                body = "Each member shows HP, Shield, status icons, and a yellow XP bar. Hover a frame to read full details, passives, and afflictions.";
+                break;
+            }
+            case TUTORIAL_STEP_COMBAT_THREAT:
+            {
+                if (cs->party.count > 0)
+                {
+                    Rectangle first = layout_party_frame_rect(cs->party.count, 0);
+                    Rectangle last = layout_party_frame_rect(cs->party.count, cs->party.count - 1);
+                    hl = (Rectangle){ first.x, first.y, last.x + last.width - first.x, first.height };
+                }
+                else
+                {
+                    hl = (Rectangle){ 120.0f, 8.0f, 400.0f, 42.0f };
+                }
+                title = "Threat";
+                body = "Aggro is threat. Enemies usually prefer the living party member with the most aggro. Attacks, taunts, and some cards raise or lower it.";
+                break;
+            }
+            case TUTORIAL_STEP_COMBAT_INTENT:
+            {
+                if (cs->enemy_count > 0)
+                {
+                    Vector2 pos = layout_enemy_position(cs->enemy_count, 0);
+                    Rectangle bounds = layout_enemy_hit_rect(pos);
+                    for (int i = 0; i < cs->enemy_count; i++)
+                    {
+                        Vector2 ep = layout_enemy_position(cs->enemy_count, i);
+                        Rectangle er = layout_enemy_hit_rect(ep);
+                        Rectangle bar = layout_enemy_cast_bar_rect(ep, cs->enemy_count, i);
+                        float er_right = er.x + er.width;
+                        float er_bottom = er.y + er.height;
+                        float bar_right = bar.x + bar.width;
+                        float bar_bottom = bar.y + bar.height;
+                        float min_x = bounds.x < er.x ? bounds.x : er.x;
+                        min_x = min_x < bar.x ? min_x : bar.x;
+                        float min_y = bounds.y < er.y ? bounds.y : er.y;
+                        min_y = min_y < bar.y ? min_y : bar.y;
+                        float max_x = bounds.x + bounds.width > er_right ? bounds.x + bounds.width : er_right;
+                        max_x = max_x > bar_right ? max_x : bar_right;
+                        float max_y = bounds.y + bounds.height > er_bottom ? bounds.y + bounds.height : er_bottom;
+                        max_y = max_y > bar_bottom ? max_y : bar_bottom;
+                        bounds = (Rectangle){ min_x, min_y, max_x - min_x, max_y - min_y };
+                    }
+                    hl = bounds;
+                }
+                else
+                {
+                    hl = (Rectangle){ 200.0f, 92.0f, 240.0f, 136.0f };
+                }
+                title = "Enemy Intent";
+                body = "Enemies announce their next action in cast bars. The turn number counts down; hover a bar to read damage, targets, and effects.";
+                break;
+            }
+            case TUTORIAL_STEP_COMBAT_CARDS:
+                hl = (Rectangle){ 8.0f, (float)(HAND_Y - 8), 536.0f, (float)(HAND_CARD_H + 18) };
+                title = "Cards And Energy";
+                body = "Cards cost Energy, shown on the left. Hover a card to fill the inspector, then click it to play. If it needs a target, choose the target next.";
+                break;
+            case TUTORIAL_STEP_COMBAT_END:
+                hl = layout_end_turn_button();
+                title = "End Your Turn";
+                body = "Right-click cancels targeting. When you are done spending Energy, press End Turn. Unplayed cards are discarded and a fresh hand is drawn.";
+                break;
+            case TUTORIAL_STEP_ELITE:
+                hl = (Rectangle){ 190.0f, 86.0f, 260.0f, 150.0f };
+                title = "Elite Fight";
+                body = "Elites are optional danger spikes with stronger casts and better rewards. After an elite reward, you also get a chance to remove a card.";
+                footer = "Click to continue  |  Right-click/Esc: skip";
+                break;
+            case TUTORIAL_STEP_BOSS:
+                hl = (Rectangle){ 170.0f, 80.0f, 300.0f, 164.0f };
+                title = "Boss Fight";
+                body = "Bosses end floors or areas. Expect larger health pools, phase changes, and nastier casts. Winning boss fights can award relics.";
+                footer = "Click to continue  |  Right-click/Esc: skip";
+                break;
+        }
+        if (hl.width > 0)
+        {
+            int numbered = (g_state.tutorial_step >= TUTORIAL_STEP_COMBAT_PARTY &&
+                            g_state.tutorial_step <= TUTORIAL_STEP_COMBAT_END) ? g_state.tutorial_step : 0;
+            game_draw_tutorial_overlay_ex(hl, title, body, footer, numbered, numbered ? TUTORIAL_STEP_REWARD : 0);
+        }
+    }
 }
 
 

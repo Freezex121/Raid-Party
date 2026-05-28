@@ -12,6 +12,24 @@
 
 #define MAX_REWARD_CARDS 5
 
+#define TUTORIAL_STEP_MAP 0
+#define TUTORIAL_STEP_COMBAT_PARTY 1
+#define TUTORIAL_STEP_COMBAT_THREAT 2
+#define TUTORIAL_STEP_COMBAT_INTENT 3
+#define TUTORIAL_STEP_COMBAT_CARDS 4
+#define TUTORIAL_STEP_COMBAT_END 5
+#define TUTORIAL_STEP_REWARD 6
+#define TUTORIAL_STEP_ELITE 20
+#define TUTORIAL_STEP_BOSS 21
+#define TUTORIAL_STEP_SHOP 22
+#define TUTORIAL_STEP_EVENT 23
+#define TUTORIAL_STEP_REST 24
+#define TUTORIAL_STEP_LEVEL_UP 25
+#define TUTORIAL_STEP_DISCARD 26
+#define TUTORIAL_STEP_GAME_OVER 27
+#define TUTORIAL_STEP_META_SHOP 28
+#define TUTORIAL_STEP_DONE 99
+
 typedef enum {
     SCREEN_TITLE,
     SCREEN_CODEX,
@@ -96,16 +114,24 @@ typedef struct {
     int run_deaths;
     int run_interrupts;
     int run_best_combat_turns;
+    bool tutorial_active;
+    bool tutorial_reward_pending;
+    int tutorial_step;
 } GameState;
 
 extern GameState g_state;
 
 void game_init(void);
 void game_change_screen(GameScreen screen);
-void game_go_to_level_up_or(GameScreen destination);
 void game_update_transition(float dt);
 void game_draw_transition(void);
 bool game_transition_allows_update(void);
+void game_draw_tutorial_overlay(Rectangle highlight, const char *text);
+void game_draw_tutorial_overlay_ex(Rectangle highlight, const char *title, const char *body, const char *footer, int step, int total_steps);
+void game_skip_tutorial(void);
+bool game_tutorial_handle_skip(void);
+bool game_tutorial_handle_close(void);
+bool game_start_tutorial_once(bool *seen_flag, int step);
 void game_draw_gold_overlay(void);
 void game_gain_gold(int amount, const char *context);
 bool game_spend_gold(int amount, const char *context);

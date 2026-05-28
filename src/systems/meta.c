@@ -89,6 +89,15 @@ void meta_load(MetaProgress *meta)
                 else if (strcmp(key, "first_draw_bonus") == 0) meta->first_draw_bonus = value;
                 else if (strcmp(key, "seasoned_adventurer") == 0) meta->seasoned_adventurer = value != 0;
                 else if (strcmp(key, "master_raider") == 0) meta->master_raider = value != 0;
+                else if (strcmp(key, "tutorial_seen_elite") == 0) meta->tutorial_seen_elite = value != 0;
+                else if (strcmp(key, "tutorial_seen_boss") == 0) meta->tutorial_seen_boss = value != 0;
+                else if (strcmp(key, "tutorial_seen_shop") == 0) meta->tutorial_seen_shop = value != 0;
+                else if (strcmp(key, "tutorial_seen_event") == 0) meta->tutorial_seen_event = value != 0;
+                else if (strcmp(key, "tutorial_seen_rest") == 0) meta->tutorial_seen_rest = value != 0;
+                else if (strcmp(key, "tutorial_seen_level_up") == 0) meta->tutorial_seen_level_up = value != 0;
+                else if (strcmp(key, "tutorial_seen_discard") == 0) meta->tutorial_seen_discard = value != 0;
+                else if (strcmp(key, "tutorial_seen_game_over") == 0) meta->tutorial_seen_game_over = value != 0;
+                else if (strcmp(key, "tutorial_seen_meta_shop") == 0) meta->tutorial_seen_meta_shop = value != 0;
                 else if (strncmp(key, "achievement_", 12) == 0)
                 {
                     int idx = atoi(key + 12);
@@ -153,6 +162,15 @@ void meta_load(MetaProgress *meta)
         else if (strcmp(key, "first_draw_bonus") == 0) meta->first_draw_bonus = value;
         else if (strcmp(key, "seasoned_adventurer") == 0) meta->seasoned_adventurer = value != 0;
         else if (strcmp(key, "master_raider") == 0) meta->master_raider = value != 0;
+        else if (strcmp(key, "tutorial_seen_elite") == 0) meta->tutorial_seen_elite = value != 0;
+        else if (strcmp(key, "tutorial_seen_boss") == 0) meta->tutorial_seen_boss = value != 0;
+        else if (strcmp(key, "tutorial_seen_shop") == 0) meta->tutorial_seen_shop = value != 0;
+        else if (strcmp(key, "tutorial_seen_event") == 0) meta->tutorial_seen_event = value != 0;
+        else if (strcmp(key, "tutorial_seen_rest") == 0) meta->tutorial_seen_rest = value != 0;
+        else if (strcmp(key, "tutorial_seen_level_up") == 0) meta->tutorial_seen_level_up = value != 0;
+        else if (strcmp(key, "tutorial_seen_discard") == 0) meta->tutorial_seen_discard = value != 0;
+        else if (strcmp(key, "tutorial_seen_game_over") == 0) meta->tutorial_seen_game_over = value != 0;
+        else if (strcmp(key, "tutorial_seen_meta_shop") == 0) meta->tutorial_seen_meta_shop = value != 0;
         else if (strncmp(key, "achievement_", 12) == 0)
         {
             int idx = atoi(key + 12);
@@ -210,6 +228,15 @@ void meta_save(const MetaProgress *meta)
     FMT("first_draw_bonus=%d\n", meta->first_draw_bonus);
     FMT("seasoned_adventurer=%d\n", meta->seasoned_adventurer ? 1 : 0);
     FMT("master_raider=%d\n", meta->master_raider ? 1 : 0);
+    FMT("tutorial_seen_elite=%d\n", meta->tutorial_seen_elite ? 1 : 0);
+    FMT("tutorial_seen_boss=%d\n", meta->tutorial_seen_boss ? 1 : 0);
+    FMT("tutorial_seen_shop=%d\n", meta->tutorial_seen_shop ? 1 : 0);
+    FMT("tutorial_seen_event=%d\n", meta->tutorial_seen_event ? 1 : 0);
+    FMT("tutorial_seen_rest=%d\n", meta->tutorial_seen_rest ? 1 : 0);
+    FMT("tutorial_seen_level_up=%d\n", meta->tutorial_seen_level_up ? 1 : 0);
+    FMT("tutorial_seen_discard=%d\n", meta->tutorial_seen_discard ? 1 : 0);
+    FMT("tutorial_seen_game_over=%d\n", meta->tutorial_seen_game_over ? 1 : 0);
+    FMT("tutorial_seen_meta_shop=%d\n", meta->tutorial_seen_meta_shop ? 1 : 0);
     for (int i = 0; i < ACH_COUNT; i++)
     {
         FMT("achievement_%d=%d\n", i, meta->achievements[i] ? 1 : 0);
@@ -255,6 +282,15 @@ void meta_save(const MetaProgress *meta)
     fprintf(f, "first_draw_bonus=%d\n", meta->first_draw_bonus);
     fprintf(f, "seasoned_adventurer=%d\n", meta->seasoned_adventurer ? 1 : 0);
     fprintf(f, "master_raider=%d\n", meta->master_raider ? 1 : 0);
+    fprintf(f, "tutorial_seen_elite=%d\n", meta->tutorial_seen_elite ? 1 : 0);
+    fprintf(f, "tutorial_seen_boss=%d\n", meta->tutorial_seen_boss ? 1 : 0);
+    fprintf(f, "tutorial_seen_shop=%d\n", meta->tutorial_seen_shop ? 1 : 0);
+    fprintf(f, "tutorial_seen_event=%d\n", meta->tutorial_seen_event ? 1 : 0);
+    fprintf(f, "tutorial_seen_rest=%d\n", meta->tutorial_seen_rest ? 1 : 0);
+    fprintf(f, "tutorial_seen_level_up=%d\n", meta->tutorial_seen_level_up ? 1 : 0);
+    fprintf(f, "tutorial_seen_discard=%d\n", meta->tutorial_seen_discard ? 1 : 0);
+    fprintf(f, "tutorial_seen_game_over=%d\n", meta->tutorial_seen_game_over ? 1 : 0);
+    fprintf(f, "tutorial_seen_meta_shop=%d\n", meta->tutorial_seen_meta_shop ? 1 : 0);
     for (int i = 0; i < ACH_COUNT; i++)
         fprintf(f, "achievement_%d=%d\n", i, meta->achievements[i] ? 1 : 0);
     for (int i = 0; i < ACH_COUNT; i++)

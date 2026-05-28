@@ -66,6 +66,14 @@ static void rest_leave(void)
 
 void rest_screen_update(void)
 {
+    if (!g_state.tutorial_active)
+        game_start_tutorial_once(&g_state.meta.tutorial_seen_rest, TUTORIAL_STEP_REST);
+    if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_REST)
+    {
+        if (game_tutorial_handle_close())
+            return;
+    }
+
     if (mode == REST_CHOICE)
     {
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
@@ -224,6 +232,16 @@ void rest_screen_draw(void)
     {
         draw_text_box((Rectangle){ 80.0f, 164.0f, 480.0f, 22.0f }, "PARTY RESTED", 18, 0, (Color){ 100, 220, 120, 255 }, TEXT_ALIGN_CENTER);
         draw_text_box((Rectangle){ 80.0f, 190.0f, 480.0f, 14.0f }, "Click to continue.", 10, 0, (Color){ 160, 160, 180, 200 }, TEXT_ALIGN_CENTER);
+    }
+
+    if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_REST)
+    {
+        game_draw_tutorial_overlay_ex((Rectangle){ 128.0f, 150.0f, 384.0f, 60.0f },
+            "Rest Sites",
+            "Rest sites are recovery choices. Heal restores the party; Upgrade improves one card if that card has upgradeable values.",
+            "Click to continue  |  Right-click/Esc: skip",
+            0,
+            0);
     }
 }
 

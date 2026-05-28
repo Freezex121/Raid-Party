@@ -110,6 +110,14 @@ void level_up_screen_update(void)
     if (current_member < 0)
         return;
 
+    if (!g_state.tutorial_active)
+        game_start_tutorial_once(&g_state.meta.tutorial_seen_level_up, TUTORIAL_STEP_LEVEL_UP);
+    if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_LEVEL_UP)
+    {
+        if (game_tutorial_handle_close())
+            return;
+    }
+
     Vector2 mouse = GetMousePosition();
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
     {
@@ -185,4 +193,14 @@ void level_up_screen_draw(void)
         remaining_choices, remaining_choices == 1 ? "" : "s");
     draw_text_box((Rectangle){ 80.0f, 302.0f, 480.0f, 14.0f },
         footer, 10, 0, (Color){ 170, 175, 205, 220 }, TEXT_ALIGN_CENTER);
+
+    if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_LEVEL_UP)
+    {
+        game_draw_tutorial_overlay_ex((Rectangle){ 100.0f, 64.0f, 440.0f, 220.0f },
+            "Level Ups",
+            "Party members gain XP from cards they play. Level-up rewards are specific to that member and reset between runs.",
+            "Click to continue  |  Right-click/Esc: skip",
+            0,
+            0);
+    }
 }

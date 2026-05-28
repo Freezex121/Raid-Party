@@ -168,6 +168,14 @@ void shop_screen_update(void)
 {
     reset_shop_for_visit();
 
+    if (!g_state.tutorial_active)
+        game_start_tutorial_once(&g_state.meta.tutorial_seen_shop, TUTORIAL_STEP_SHOP);
+    if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_SHOP)
+    {
+        if (game_tutorial_handle_close())
+            return;
+    }
+
     if (!lucky_coin_given && relic_has(g_state.relics, g_state.relic_count, RELIC_LUCKY_COIN))
     {
         game_gain_gold(10, "lucky_coin_shop");
@@ -478,5 +486,15 @@ void shop_screen_draw(void)
             draw_text_box((Rectangle){ r.x + 8.0f, r.y + 8.0f, r.width - 16.0f, 12.0f },
                 line, 10, 0, RAYWHITE, TEXT_ALIGN_LEFT);
         }
+    }
+
+    if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_SHOP)
+    {
+        game_draw_tutorial_overlay_ex((Rectangle){ 24.0f, 58.0f, 596.0f, 220.0f },
+            "Shops",
+            "Spend gold on cards, upgrades, removals, HP training, or next-combat boons. Grey options are unaffordable or unavailable.",
+            "Click to continue  |  Right-click/Esc: skip",
+            0,
+            0);
     }
 }

@@ -28,10 +28,10 @@ static const char *intent_icon(IntentType intent, bool is_wipe)
     switch (intent)
     {
         case INTENT_AOE:         return "AOE";
-        case INTENT_TANK_BUSTER: return "TNK";
+        case INTENT_TANK_BUSTER: return "TB";
         case INTENT_HEAL:        return "HEAL";
-        case INTENT_SHIELD:      return "SHD";
-        case INTENT_BUFF:        return "BUF";
+        case INTENT_SHIELD:      return "SHLD";
+        case INTENT_BUFF:        return "BUFF";
         default:                 return "ATK";
     }
 }
@@ -54,8 +54,21 @@ void cast_bar_draw_ability_tooltip(const EnemyAbility *ability, Rectangle bounds
     int w = 196;
     int body_w = w - 10;
     char details[512];
-    snprintf(details, sizeof(details), "%s\n\nDmg %d   Heal %d   Shield %d\n%s",
+    const char *intent_name = "ATTACK";
+    switch (ability->intent)
+    {
+        case INTENT_ATTACK:    intent_name = "ATTACK — standard damage"; break;
+        case INTENT_TANK_BUSTER: intent_name = "TANK BUSTER — high damage to the current tank"; break;
+        case INTENT_AOE:       intent_name = "AOE — damages all party members"; break;
+        case INTENT_WIPE:      intent_name = "WIPE — extremely high damage to all"; break;
+        case INTENT_HEAL:      intent_name = "HEAL — restores HP to enemies"; break;
+        case INTENT_SHIELD:    intent_name = "SHIELD — grants protection to enemies"; break;
+        case INTENT_BUFF:      intent_name = "BUFF — strengthens enemies"; break;
+        default:               intent_name = "UNKNOWN"; break;
+    }
+    snprintf(details, sizeof(details), "%s\n\n%s\n\nDmg %d   Heal %d   Shield %d\n%s",
         ability->description,
+        intent_name,
         ability->base_damage,
         ability->heal_amount,
         ability->shield_amount,
@@ -140,7 +153,7 @@ void cast_bar_draw_ability(const EnemyAbility *ability, int remaining_turns, int
     DrawRectangleLinesEx(bounds, 1.0f, locked ? (Color){ 230, 90, 80, 230 } : (Color){ 80, 90, 125, 230 });
 
     const char *icon = intent_icon(ability->intent, ability->is_wipe);
-    int icon_w = 31;
+    int icon_w = 36;
     DrawRectangleRec((Rectangle){ (float)(bar_x + 1), (float)(bar_y + 1), (float)icon_w, (float)(bar_h - 2) }, (Color){ bar_color.r, bar_color.g, bar_color.b, 120 });
     draw_text_box((Rectangle){ (float)(bar_x + 2), (float)(bar_y + 4), (float)(icon_w - 2), (float)(bar_h - 6) },
         icon, 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
@@ -158,19 +171,19 @@ void cast_bar_draw_ability(const EnemyAbility *ability, int remaining_turns, int
     int turns_w = MeasureText(turns_text, 10);
     DrawText(turns_text, bar_x + bar_w - turns_w - 4, bar_y + 3, 10, (Color){ 230, 230, 245, 235 });
 
-    int amount_w = 30;
-    int amount_x = bar_x + bar_w - turns_w - amount_w - 8;
-    draw_text_box((Rectangle){ (float)amount_x, (float)(bar_y + 4), (float)amount_w, (float)(bar_h - 6) },
+    int amount_w = MeasureText(amount, 10);
+    int amount_x = bar_x + bar_w - amount_w - 4;
+    draw_text_box((Rectangle){ (float)(bar_x + icon_w + 5), (float)(bar_y + bar_h - 12), (float)(bar_w - icon_w - 9), 12.0f },
         amount, 10, 0, (Color){ 220, 220, 235, 230 }, TEXT_ALIGN_RIGHT);
 
     int name_x = bar_x + icon_w + 5;
     int name_w = amount_x - name_x - 3;
-    if (name_w > 0)
-        draw_text_box((Rectangle){ (float)name_x, (float)(bar_y + 4), (float)name_w, (float)(bar_h - 6) },
-            ability->name, 10, 0, RAYWHITE, TEXT_ALIGN_LEFT);
+    if (name_w < 0) name_w = bar_w - icon_w - 10;
+    draw_text_box((Rectangle){ (float)name_x, (float)(bar_y + 4), (float)name_w, (float)(bar_h - 6) },
+        ability->name, 10, 0, RAYWHITE, TEXT_ALIGN_LEFT);
 
     if (locked)
-        DrawText("!", bar_x + bar_w - turns_w - 41, bar_y + 3, 10, (Color){ 250, 105, 80, 240 });
+        DrawText("!", bar_x + bar_w - turns_w - 38, bar_y + 14, 10, (Color){ 250, 105, 80, 240 });
 }
 
 

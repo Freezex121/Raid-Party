@@ -135,6 +135,14 @@ void title_screen_update(void)
     ach_btn.bounds.y = button_y + 56.0f;
     settings_btn.bounds.y = button_y + 56.0f;
 
+    if (!g_state.tutorial_active && g_state.meta.runs_completed > 0)
+        game_start_tutorial_once(&g_state.meta.tutorial_seen_meta_shop, TUTORIAL_STEP_META_SHOP);
+    if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_META_SHOP)
+    {
+        game_tutorial_handle_close();
+        return;
+    }
+
     bool selected_unlocked = meta_area_unlocked(&g_state.meta, g_state.selected_area);
     if (selected_unlocked)
         button_update(&start_btn);
@@ -302,6 +310,16 @@ void title_screen_draw(void)
     button_draw(&codex_btn);
     button_draw(&ach_btn);
     button_draw(&settings_btn);
+
+    if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_META_SHOP)
+    {
+        game_draw_tutorial_overlay_ex(shop_btn.bounds,
+            "Meta Shop",
+            "Runs earn renown. Spend it here on permanent unlocks like party slots, classes, starting gold, and opening-run bonuses.",
+            "Click to continue  |  Right-click/Esc: skip",
+            0,
+            0);
+    }
 
     Color credit_color = { 100, 100, 120, 180 };
     game_draw_text("devlog v0.1", VIRT_W - game_measure_text("devlog v0.1" - 15, 10) / 2, VIRT_H - 20, 10, credit_color);

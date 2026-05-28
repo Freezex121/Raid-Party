@@ -26,7 +26,7 @@
 #define ENEMY_Y 130
 
 // Cast bar
-#define CAST_BAR_W 132
+#define CAST_BAR_W 144
 #define CAST_BAR_HEIGHT 28
 
 // Reward cards

@@ -47,6 +47,14 @@ void game_over_screen_update(void)
         g_state.result_recorded = true;
     }
 
+    if (!g_state.tutorial_active)
+        game_start_tutorial_once(&g_state.meta.tutorial_seen_game_over, TUTORIAL_STEP_GAME_OVER);
+    if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_GAME_OVER)
+    {
+        if (game_tutorial_handle_close())
+            return;
+    }
+
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE))
     {
         g_state.run_party_active = false;
@@ -152,6 +160,16 @@ void game_over_screen_draw(void)
     const char *hint = "Click to return to title";
     draw_text_box((Rectangle){ 80.0f, (float)(VIRT_H - 28), 480.0f, 14.0f },
         hint, 10, 0, (Color){ 160, 160, 190, 220 }, TEXT_ALIGN_CENTER);
+
+    if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_GAME_OVER)
+    {
+        game_draw_tutorial_overlay_ex((Rectangle){ 210.0f, 128.0f, 220.0f, 150.0f },
+            "Run Results",
+            "Renown is permanent progression currency. Gold can convert into renown here, then you can spend renown in the Meta Shop from the title screen.",
+            "Click to continue  |  Right-click/Esc: skip",
+            0,
+            0);
+    }
 }
 
 

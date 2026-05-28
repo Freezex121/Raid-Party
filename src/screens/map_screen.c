@@ -87,6 +87,12 @@ void map_screen_update(void)
         LOG_I(CAT_SCREEN, "Map screen: floor %d, %d nodes", g_state.map.floor, g_state.map.node_count);
     }
 
+    if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_MAP)
+    {
+        if (game_tutorial_handle_skip())
+            return;
+    }
+
     // Deck button
     Rectangle deck_btn = { 10.0f, 10.0f, 66.0f, 16.0f };
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(GetMousePosition(), deck_btn))
@@ -143,6 +149,16 @@ void map_screen_update(void)
             g_state.map.current_index = -1;
             map_unlock_next(&g_state.map);
             return;
+        }
+
+        if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_MAP &&
+            (t == NODE_COMBAT || t == NODE_ELITE || t == NODE_BOSS))
+        {
+            g_state.tutorial_step = TUTORIAL_STEP_COMBAT_PARTY;
+        }
+        else if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_MAP)
+        {
+            game_skip_tutorial();
         }
 
         game_change_screen(t == NODE_REST ? SCREEN_REST :
@@ -455,5 +471,16 @@ void map_screen_draw(void)
             theme_node_name(n->type), 10, 0, theme_node_color(n->type), TEXT_ALIGN_CENTER);
         draw_text_box((Rectangle){ tip.x + 4.0f, tip.y + 16.0f, tip.width - 8.0f, 10.0f },
             "Click to travel", 10, 0, (Color){ 175, 178, 205, 220 }, TEXT_ALIGN_CENTER);
+    }
+
+    if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_MAP)
+    {
+        Rectangle hl = { 54.0f, 52.0f, 532.0f, 268.0f };
+        game_draw_tutorial_overlay_ex(hl,
+            "Choose A Route",
+            "Lit nodes are available. You can only move through connected paths and cannot backtrack to higher floors once you commit.",
+            "Click a lit node to travel  |  Right-click/Esc: skip",
+            0,
+            0);
     }
 }

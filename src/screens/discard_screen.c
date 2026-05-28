@@ -57,6 +57,14 @@ void discard_screen_update(void)
         return;
     }
 
+    if (!g_state.tutorial_active)
+        game_start_tutorial_once(&g_state.meta.tutorial_seen_discard, TUTORIAL_STEP_DISCARD);
+    if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_DISCARD)
+    {
+        if (game_tutorial_handle_close())
+            return;
+    }
+
     Deck *deck = &g_state.run_deck;
     build_sorted_index(deck);
 
@@ -203,5 +211,15 @@ void discard_screen_draw(void)
         DrawRectangleLinesEx(confirm_btn, 1.0f, (Color){ 100, 220, 120, 220 });
         draw_text_box((Rectangle){ confirm_btn.x + 5.0f, confirm_btn.y + 5.0f, confirm_btn.width - 10.0f, confirm_btn.height - 8.0f },
             "Confirm", 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
+    }
+
+    if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_DISCARD)
+    {
+        game_draw_tutorial_overlay_ex((Rectangle){ 82.0f, 72.0f, 476.0f, 244.0f },
+            "Discard Rewards",
+            "Elite and boss rewards can include deck trimming. Select cards you no longer want, then confirm, or skip if your deck is already clean.",
+            "Click to continue  |  Right-click/Esc: skip",
+            0,
+            0);
     }
 }
