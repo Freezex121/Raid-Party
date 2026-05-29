@@ -1,5 +1,6 @@
 #include "screens.h"
 #include "game.h"
+#include "assets.h"
 #include "constants.h"
 #include "ui/theme.h"
 #include "ui/ui.h"
@@ -73,7 +74,7 @@ static void init_if_needed(void)
 {
     if (initialized) return;
     back_btn = button_create(
-        (Rectangle){ (float)(VIRT_W / 2 - 64), 330.0f, 128.0f, (float)BTN_H },
+        (Rectangle){ (float)(VIRT_W / 2 - BTN_MED / 2), 330.0f, (float)BTN_MED, (float)BTN_H },
         "BACK",
         (Color){ 42, 48, 70, 255 },
         (Color){ 70, 78, 110, 255 },
@@ -280,15 +281,10 @@ static void draw_item(Rectangle r, const char *title, const char *body, const ch
                can_buy && hover ? (Color){ 38, 55, 78, 245 } :
                can_buy ? (Color){ 24, 33, 50, 238 } :
                (Color){ 20, 21, 30, 225 };
-    Color border = complete ? (Color){ 95, 210, 130, 210 } :
-                   can_buy && hover ? RAYWHITE :
-                   can_buy ? (Color){ 105, 150, 210, 190 } :
-                   (Color){ 70, 72, 88, 170 };
     Color title_col = can_buy || complete ? RAYWHITE : (Color){ 112, 116, 135, 230 };
     Color body_col = can_buy || complete ? (Color){ 175, 184, 210, 225 } : (Color){ 95, 98, 116, 205 };
 
-    DrawRectangleRec(r, bg);
-    DrawRectangleLinesEx(r, hover && can_buy ? 2.0f : 1.0f, border);
+    draw_9slice(g_assets.btn_large, 8, 8, r, bg);
     draw_text_box((Rectangle){ r.x + 10.0f, r.y + 7.0f, r.width - 20.0f, 14.0f },
         title, 10, 0, title_col, TEXT_ALIGN_LEFT);
     draw_text_box((Rectangle){ r.x + 10.0f, r.y + 23.0f, r.width - 20.0f, 24.0f },
@@ -298,7 +294,7 @@ static void draw_item(Rectangle r, const char *title, const char *body, const ch
     Color buy_bg = complete ? (Color){ 42, 95, 58, 255 } :
                    can_buy ? (Color){ 46, 117, 182, 255 } :
                    (Color){ 38, 39, 50, 255 };
-    DrawRectangleRec(buy, buy_bg);
+    draw_9slice(g_assets.btn_standard, 6, 6, buy, buy_bg);
 
     char label[48];
     if (complete || cost <= 0)
@@ -306,7 +302,7 @@ static void draw_item(Rectangle r, const char *title, const char *body, const ch
     else
         snprintf(label, sizeof(label), "%s  %dR", status, cost);
     Color label_col = can_buy || complete ? RAYWHITE : (Color){ 105, 108, 125, 220 };
-    draw_text_box((Rectangle){ buy.x + 4.0f, buy.y + 2.0f, buy.width - 8.0f, buy.height - 3.0f },
+    draw_text_box((Rectangle){ buy.x + 4.0f, buy.y + (buy.height - 12.0f) * 0.5f, buy.width - 8.0f, 12.0f },
         label, 10, 0, label_col, TEXT_ALIGN_CENTER);
 }
 
@@ -383,5 +379,5 @@ void meta_shop_screen_draw(void)
     if (shop_msg[0])
         draw_text_box((Rectangle){ 96.0f, 310.0f, 448.0f, 16.0f }, shop_msg, 10, 0, (Color){ 230, 205, 115, 240 }, TEXT_ALIGN_CENTER);
 
-    button_draw(&back_btn);
+    button_draw_9slice(&back_btn);
 }

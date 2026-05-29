@@ -55,35 +55,35 @@ void title_screen_update(void)
     if (!initialized)
     {
         start_btn = button_create(
-            (Rectangle){ (float)(VIRT_W / 2 - 72), button_y, 144, (float)BTN_H },
+            (Rectangle){ (float)(VIRT_W / 2 - BTN_WIDE / 2), button_y, BTN_WIDE, (float)BTN_H },
             "START AREA",
             (Color){ 46, 117, 182, 255 },
             (Color){ 80, 160, 230, 255 },
             WHITE
         );
         shop_btn = button_create(
-            (Rectangle){ (float)(VIRT_W / 2 - 118), button_y + 28.0f, 112, (float)BTN_H },
+            (Rectangle){ (float)(VIRT_W / 2 - BTN_MED - 8), button_y + 28.0f, BTN_MED, (float)BTN_H },
             "META SHOP",
             (Color){ 42, 48, 70, 255 },
             (Color){ 70, 78, 110, 255 },
             WHITE
         );
         codex_btn = button_create(
-            (Rectangle){ (float)(VIRT_W / 2 + 6), button_y + 28.0f, 112, (float)BTN_H },
+            (Rectangle){ (float)(VIRT_W / 2 + 8), button_y + 28.0f, BTN_MED, (float)BTN_H },
             "COLLECTIVE",
             (Color){ 42, 48, 70, 255 },
             (Color){ 70, 78, 110, 255 },
             WHITE
         );
         ach_btn = button_create(
-            (Rectangle){ (float)(VIRT_W / 2 - 118), button_y + 56.0f, 112, (float)BTN_H },
+            (Rectangle){ (float)(VIRT_W / 2 - BTN_MED - 8), button_y + 56.0f, BTN_MED, (float)BTN_H },
             "ACHIEVEMENTS",
             (Color){ 42, 48, 70, 255 },
             (Color){ 70, 78, 110, 255 },
             WHITE
         );
         settings_btn = button_create(
-            (Rectangle){ (float)(VIRT_W / 2 + 6), button_y + 56.0f, 112, (float)BTN_H },
+            (Rectangle){ (float)(VIRT_W / 2 + 8), button_y + 56.0f, BTN_MED, (float)BTN_H },
             "SETTINGS",
             (Color){ 42, 48, 70, 255 },
             (Color){ 70, 78, 110, 255 },
@@ -91,42 +91,42 @@ void title_screen_update(void)
         );
         Rectangle area_panel = area_panel_rect();
         prev_area_btn = button_create(
-            (Rectangle){ area_panel.x - 32.0f, area_panel.y + 55.0f, 24.0f, 24.0f },
+            (Rectangle){ area_panel.x - BTN_ICON - 8.0f, area_panel.y + 55.0f, BTN_ICON, (float)BTN_H },
             "<",
             (Color){ 42, 48, 70, 255 },
             (Color){ 70, 78, 110, 255 },
             WHITE
         );
         next_area_btn = button_create(
-            (Rectangle){ area_panel.x + area_panel.width + 8.0f, area_panel.y + 55.0f, 24.0f, 24.0f },
+            (Rectangle){ area_panel.x + area_panel.width + 8.0f, area_panel.y + 55.0f, BTN_ICON, (float)BTN_H },
             ">",
             (Color){ 42, 48, 70, 255 },
             (Color){ 70, 78, 110, 255 },
             WHITE
         );
         asc_down_btn = button_create(
-            (Rectangle){ area_panel.x + 96.0f, area_panel.y + 96.0f, 24.0f, 20.0f },
+            (Rectangle){ area_panel.x + 94.0f, area_panel.y + 96.0f, BTN_ICON, (float)BTN_H },
             "-",
             (Color){ 42, 48, 70, 255 },
             (Color){ 70, 78, 110, 255 },
             WHITE
         );
         asc_up_btn = button_create(
-            (Rectangle){ area_panel.x + area_panel.width - 120.0f, area_panel.y + 96.0f, 24.0f, 20.0f },
+            (Rectangle){ area_panel.x + area_panel.width - 116.0f, area_panel.y + 96.0f, BTN_ICON, (float)BTN_H },
             "+",
             (Color){ 42, 48, 70, 255 },
             (Color){ 70, 78, 110, 255 },
             WHITE
         );
         telemetry_allow_btn = button_create(
-            (Rectangle){ 254.0f, 230.0f, 72.0f, (float)BTN_H },
+            (Rectangle){ 222.0f, 236.0f, BTN_MED, (float)BTN_H },
             "ALLOW",
             (Color){ 46, 117, 182, 255 },
             (Color){ 80, 160, 230, 255 },
             WHITE
         );
         telemetry_decline_btn = button_create(
-            (Rectangle){ 334.0f, 230.0f, 82.0f, (float)BTN_H },
+            (Rectangle){ 222.0f + BTN_MED + 10.0f, 236.0f, BTN_MED, (float)BTN_H },
             "NO THANKS",
             (Color){ 42, 48, 70, 255 },
             (Color){ 70, 78, 110, 255 },
@@ -297,7 +297,7 @@ void title_screen_draw(void)
     char asc[96];
     snprintf(asc, sizeof(asc), "ASCENSION %d / %d", g_state.meta.ascension_level, g_state.meta.max_ascension_unlocked);
     Color asc_col = g_state.meta.max_ascension_unlocked > 0 ? (Color){ 190, 160, 255, 230 } : (Color){ 110, 112, 135, 180 };
-    draw_text_box((Rectangle){ panel.x + 128.0f, panel.y + 96.0f, panel.width - 256.0f, 14.0f },
+    draw_text_box((Rectangle){ panel.x + 124.0f, panel.y + 96.0f, panel.width - 248.0f, 14.0f },
         asc, 10, 0, asc_col, TEXT_ALIGN_CENTER);
     char asc_effect[128];
     snprintf(asc_effect, sizeof(asc_effect), "%s", ascension_effect_text(g_state.meta.ascension_level));
@@ -306,14 +306,14 @@ void title_screen_draw(void)
 
     if (g_state.meta.max_ascension_unlocked > 0)
     {
-        button_draw(&asc_down_btn);
-        button_draw(&asc_up_btn);
+        button_draw_9slice(&asc_down_btn);
+        button_draw_9slice(&asc_up_btn);
     }
 
     if (g_state.selected_area > 0)
-        button_draw(&prev_area_btn);
+        button_draw_9slice(&prev_area_btn);
     if (g_state.selected_area < area_count - 1)
-        button_draw(&next_area_btn);
+        button_draw_9slice(&next_area_btn);
 
     char meta[128];
     snprintf(meta, sizeof(meta), "Runs: %d      |       Wins: %d        |       Renown: %d      |       Max Party: %d",
@@ -326,19 +326,18 @@ void title_screen_draw(void)
 
     if (selected_unlocked)
     {
-        button_draw(&start_btn);
+        button_draw_9slice(&start_btn);
     }
     else
     {
         Rectangle r = start_btn.bounds;
-        DrawRectangleRec(r, (Color){ 35, 36, 48, 220 });
-        DrawRectangleLinesEx(r, 1.0f, (Color){ 75, 78, 95, 180 });
+        draw_9slice(g_assets.btn_standard, 6, 6, r, (Color){ 35, 36, 48, 220 });
         game_draw_text("LOCKED", snap_i(r.x + r.width / 2 - game_measure_text("LOCKED", 10) / 2), snap_i(r.y) + 7, 10, (Color){ 110, 113, 130, 230 });
     }
-    button_draw(&shop_btn);
-    button_draw(&codex_btn);
-    button_draw(&ach_btn);
-    button_draw(&settings_btn);
+    button_draw_9slice(&shop_btn);
+    button_draw_9slice(&codex_btn);
+    button_draw_9slice(&ach_btn);
+    button_draw_9slice(&settings_btn);
 
     if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_META_SHOP)
     {
@@ -353,18 +352,18 @@ void title_screen_draw(void)
     if (!g_state.telemetry_prompt_seen)
     {
         DrawRectangle(0, 0, VIRT_W, VIRT_H, (Color){ 0, 0, 0, 145 });
-        Rectangle modal = { 166.0f, 118.0f, 308.0f, 142.0f };
+        Rectangle modal = { 166.0f, 106.0f, 308.0f, 160.0f };
         DrawRectangleRec(modal, (Color){ 12, 14, 24, 245 });
         DrawRectangleLinesEx(modal, 1.0f, (Color){ 95, 150, 210, 220 });
         draw_text_box((Rectangle){ modal.x + 14.0f, modal.y + 12.0f, modal.width - 28.0f, 22.0f },
             "Help improve Raid Paper Legends?", 18, 0, RAYWHITE, TEXT_ALIGN_CENTER);
-        draw_text_box((Rectangle){ modal.x + 16.0f, modal.y + 42.0f, modal.width - 32.0f, 66.0f },
+        draw_text_box((Rectangle){ modal.x + 16.0f, modal.y + 42.0f, modal.width - 32.0f, 70.0f },
             "Send anonymous gameplay metrics like card choices, combat outcomes, shop purchases, and run results. No names, Steam IDs, chat, or personal information are collected.",
             10, 0, (Color){ 190, 196, 220, 235 }, TEXT_ALIGN_CENTER);
-        draw_text_box((Rectangle){ modal.x + 20.0f, modal.y + 108.0f, modal.width - 40.0f, 12.0f },
+        draw_text_box((Rectangle){ modal.x + 20.0f, modal.y + 116.0f, modal.width - 40.0f, 12.0f },
             "You can change this later in Settings.", 10, 0, (Color){ 145, 155, 190, 220 }, TEXT_ALIGN_CENTER);
-        button_draw(&telemetry_allow_btn);
-        button_draw(&telemetry_decline_btn);
+        button_draw_9slice(&telemetry_allow_btn);
+        button_draw_9slice(&telemetry_decline_btn);
     }
 
     Color credit_color = { 100, 100, 120, 180 };

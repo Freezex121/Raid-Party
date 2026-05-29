@@ -63,6 +63,7 @@ typedef struct {
     bool active;
     const CardDef *card;
     int upgrade_level;
+    unsigned int seed;
     float t;
     float duration;
     Vector2 start;

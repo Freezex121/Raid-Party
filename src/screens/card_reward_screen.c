@@ -10,6 +10,7 @@
 #include "ui/layout.h"
 #include "constants.h"
 #include "raylib.h"
+#include "ui/ui.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -170,7 +171,7 @@ void reward_screen_update(void)
     hovered_reward = -1;
 
     // Skip button
-    Rectangle skip_btn = { (float)(VIRT_W / 2 - 138), 206.0f, 84.0f, 22.0f };
+    Rectangle skip_btn = { 172.0f, 206.0f, (float)BTN_NARROW, (float)BTN_H };
     if (CheckCollisionPointRec(mouse, skip_btn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
     {
         if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_REWARD)
@@ -197,7 +198,7 @@ void reward_screen_update(void)
         return;
     }
 
-    Rectangle reroll_btn = { (float)(VIRT_W / 2 - 42), 206.0f, 84.0f, 22.0f };
+    Rectangle reroll_btn = { 260.0f, 206.0f, (float)BTN_NARROW, (float)BTN_H };
     if (CheckCollisionPointRec(mouse, reroll_btn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
     {
         if (game_spend_gold(10, "reward_reroll"))
@@ -208,7 +209,7 @@ void reward_screen_update(void)
         return;
     }
 
-    Rectangle extra_btn = { (float)(VIRT_W / 2 + 50), 206.0f, 96.0f, 22.0f };
+    Rectangle extra_btn = { 348.0f, 206.0f, (float)BTN_MED, (float)BTN_H };
     if (CheckCollisionPointRec(mouse, extra_btn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
     {
         if (g_state.reward_count >= MAX_REWARD_CARDS)
@@ -292,34 +293,26 @@ void reward_screen_draw(void)
     draw_text_box((Rectangle){ 80.0f, 40.0f, 480.0f, 14.0f }, pick_label, 10, 0, (Color){ 160, 160, 180, 200 }, TEXT_ALIGN_CENTER);
 
     // Skip and Reroll buttons
-    Vector2 mouse = GetMousePosition();
-    Rectangle skip_btn = { (float)(VIRT_W / 2 - 138), 206.0f, 84.0f, 22.0f };
-    bool skip_hover = CheckCollisionPointRec(mouse, skip_btn);
-    Color skip_col = skip_hover ? (Color){ 100, 100, 100, 255 } : (Color){ 60, 60, 60, 255 };
-    DrawRectangleRec(skip_btn, skip_col);
-    DrawRectangleLinesEx(skip_btn, 1.0f, (Color){ 120, 120, 120, 200 });
-    draw_text_box((Rectangle){ skip_btn.x + 4.0f, skip_btn.y + 4.0f, skip_btn.width - 8.0f, skip_btn.height - 8.0f },
-        "Skip", 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
+    Rectangle skip_btn = { 172.0f, 206.0f, (float)BTN_NARROW, (float)BTN_H };
+    draw_btn_standard(skip_btn, (Color){ 60, 60, 60, 255 }, (Color){ 100, 100, 100, 255 }, "Skip");
 
-    Rectangle reroll_btn = { (float)(VIRT_W / 2 - 42), 206.0f, 84.0f, 22.0f };
+    Rectangle reroll_btn = { 260.0f, 206.0f, (float)BTN_NARROW, (float)BTN_H };
     bool can_reroll = g_state.gold >= 10;
-    bool reroll_hover = can_reroll && CheckCollisionPointRec(mouse, reroll_btn);
-    Color reroll_col = reroll_hover ? (Color){ 70, 180, 90, 255 } : (can_reroll ? (Color){ 45, 120, 60, 255 } : (Color){ 40, 40, 60, 255 });
-    DrawRectangleRec(reroll_btn, reroll_col);
-    DrawRectangleLinesEx(reroll_btn, 1.0f, can_reroll ? (Color){ 100, 220, 120, 220 } : (Color){ 80, 80, 100, 150 });
     char reroll_label[24];
     snprintf(reroll_label, sizeof(reroll_label), "Reroll 10g");
-    draw_text_box((Rectangle){ reroll_btn.x + 4.0f, reroll_btn.y + 4.0f, reroll_btn.width - 8.0f, reroll_btn.height - 8.0f },
-        reroll_label, 10, 0, can_reroll ? RAYWHITE : (Color){ 100, 100, 120, 180 }, TEXT_ALIGN_CENTER);
+    draw_btn_standard(reroll_btn,
+        can_reroll ? (Color){ 45, 120, 60, 255 } : (Color){ 40, 40, 60, 255 },
+        can_reroll ? (Color){ 70, 180, 90, 255 } : (Color){ 40, 40, 60, 255 },
+        reroll_label);
 
-    Rectangle extra_btn = { (float)(VIRT_W / 2 + 50), 206.0f, 96.0f, 22.0f };
+    Rectangle extra_btn = { 348.0f, 206.0f, (float)BTN_MED, (float)BTN_H };
     bool can_extra = g_state.gold >= 15 && g_state.reward_count < MAX_REWARD_CARDS;
-    bool extra_hover = can_extra && CheckCollisionPointRec(mouse, extra_btn);
-    Color extra_col = extra_hover ? (Color){ 80, 150, 210, 255 } : (can_extra ? (Color){ 45, 88, 150, 255 } : (Color){ 40, 40, 60, 255 });
-    DrawRectangleRec(extra_btn, extra_col);
-    DrawRectangleLinesEx(extra_btn, 1.0f, can_extra ? (Color){ 120, 185, 245, 220 } : (Color){ 80, 80, 100, 150 });
-    draw_text_box((Rectangle){ extra_btn.x + 4.0f, extra_btn.y + 4.0f, extra_btn.width - 8.0f, extra_btn.height - 8.0f },
-        "Extra +1 15g", 10, 0, can_extra ? RAYWHITE : (Color){ 100, 100, 120, 180 }, TEXT_ALIGN_CENTER);
+    char extra_label[24];
+    snprintf(extra_label, sizeof(extra_label), "Extra +1 15g");
+    draw_btn_standard(extra_btn,
+        can_extra ? (Color){ 45, 88, 150, 255 } : (Color){ 40, 40, 60, 255 },
+        can_extra ? (Color){ 80, 150, 210, 255 } : (Color){ 40, 40, 60, 255 },
+        extra_label);
 
     for (int i = 0; i < g_state.reward_count; i++)
     {
@@ -327,7 +320,8 @@ void reward_screen_draw(void)
 
         const CardDef *card = g_state.reward_cards[i];
         Rectangle card_rect = layout_reward_card_rect(g_state.reward_count, i);
-        theme_draw_card_art(card_rect, card, g_state.reward_upgrade_level[i]);
+        unsigned int seed = theme_card_seed_from_id(card && card->id ? card->id : "reward", (unsigned int)(i + 1));
+        theme_draw_card_art_seeded(card_rect, card, g_state.reward_upgrade_level[i], seed);
     }
 
     if (hovered_reward >= 0 && hovered_reward < g_state.reward_count && !g_state.reward_picked[hovered_reward])

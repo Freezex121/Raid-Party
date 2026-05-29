@@ -1,3 +1,4 @@
 timestamp,run_id,source,action,discard_count,selected_count,selected_cards
 1779975567,"5","elite","confirm","1","1","mag_frostbolt"
 1779975655,"5","boss","confirm","2","2","shm_heal_totem|shm_lightning"
+1779984957,"8","elite","confirm","1","1","rog_stealth"

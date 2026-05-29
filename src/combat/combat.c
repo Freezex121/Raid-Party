@@ -756,6 +756,7 @@ static void combat_spawn_card_throw(CombatState *cs, int hand_idx, const CardDef
     anim->active = true;
     anim->card = card;
     anim->upgrade_level = upgrade_level;
+    anim->seed = (unsigned int)cs->deck.cards[cs->deck.hand[hand_idx]].uid;
     anim->t = 0.0f;
     anim->duration = 0.32f;
     anim->start = start;
@@ -802,7 +803,7 @@ void combat_draw_card_throws(CombatState *cs)
             (float)anim->width,
             (float)anim->height
         };
-        theme_draw_card_art(r, anim->card, anim->upgrade_level);
+        theme_draw_card_art_seeded(r, anim->card, anim->upgrade_level, anim->seed);
     }
 }
 

@@ -2,6 +2,7 @@
 #include "ui/ui.h"
 #include "ui/theme.h"
 #include "game.h"
+#include "assets.h"
 #include "data/area_defs.h"
 #include "data/card_defs.h"
 #include "systems/relic.h"
@@ -99,7 +100,7 @@ static Rectangle draft_card_rect_for(int index)
 
 static Rectangle draft_begin_rect(void)
 {
-    return (Rectangle){ (float)(VIRT_W / 2 - 90), 318.0f, 180.0f, (float)BTN_H };
+    return (Rectangle){ (float)(VIRT_W / 2 - BTN_WIDE / 2), 318.0f, (float)BTN_WIDE, (float)BTN_H };
 }
 
 static void card_click_cb(int index)
@@ -428,7 +429,7 @@ void draft_screen_draw(void)
 
     if (selected_count > 0)
     {
-        button_draw(&begin_btn);
+        button_draw_9slice(&begin_btn);
         if (selected_count < max_selected)
         {
             char warn[96];
@@ -440,12 +441,10 @@ void draft_screen_draw(void)
     else
     {
         Color bg = { 46, 117, 182, (unsigned char)(begin_btn_alpha * 100) };
-        Color border = { 100, 100, 130, (unsigned char)(begin_btn_alpha * 80) };
         Rectangle btn_rect = draft_begin_rect();
-        DrawRectangleRec(btn_rect, bg);
-        DrawRectangleLinesEx(btn_rect, 1.0f, border);
+        draw_9slice(g_assets.btn_standard, 6, 6, btn_rect, bg);
         Color txt = { 160, 160, 180, (unsigned char)(begin_btn_alpha * 100) };
-        draw_text_box((Rectangle){ btn_rect.x + 6.0f, btn_rect.y + 5.0f, btn_rect.width - 12.0f, btn_rect.height - 8.0f },
+        draw_text_box((Rectangle){ btn_rect.x + 6.0f, btn_rect.y + 5.0f, btn_rect.width - 12.0f, 12.0f },
             begin_btn.text, 10, 0, txt, TEXT_ALIGN_CENTER);
     }
 
@@ -453,6 +452,5 @@ void draft_screen_draw(void)
     DrawRectangle(0, 300, VIRT_W, 1, sep);
     Color hint = { 100, 100, 130, 120 };
 }
-
 
 

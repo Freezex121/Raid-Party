@@ -9,6 +9,7 @@
 #include "ui/theme.h"
 #include "ui/layout.h"
 #include "ui/relic_tray.h"
+#include "ui/ui.h"
 #include "data/area_defs.h"
 #include "data/enemy_defs.h"
 #include "data/encounter_defs.h"
@@ -606,7 +607,7 @@ void run_screen_update(void)
         return;
     }
 
-    Rectangle deck_btn = { 552.0f, 220.0f, 76.0f, 16.0f };
+    Rectangle deck_btn = { 550.0f, 214.0f, (float)BTN_NARROW, (float)BTN_H };
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(GetMousePosition(), deck_btn))
     {
         game_change_screen(SCREEN_DECK);
@@ -831,20 +832,11 @@ void run_screen_draw(void)
 
     // Deck button
     Vector2 mouse = GetMousePosition();
-    Rectangle deck_btn = { 552.0f, 220.0f, 76.0f, 16.0f };
-    Color deck_col = CheckCollisionPointRec(mouse, deck_btn) ? (Color){ 80, 80, 120, 255 } : (Color){ 50, 50, 80, 255 };
-    DrawRectangleRec(deck_btn, deck_col);
-    DrawRectangleLinesEx(deck_btn, 1.0f, (Color){ 100, 100, 140, 200 });
-    draw_text_box((Rectangle){ deck_btn.x + 4.0f, deck_btn.y + 3.0f, deck_btn.width - 8.0f, deck_btn.height - 6.0f },
-        "DECK", 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
+    Rectangle deck_btn = { 550.0f, 214.0f, (float)BTN_NARROW, (float)BTN_H };
+    draw_btn_standard(deck_btn, (Color){ 50, 50, 80, 255 }, (Color){ 80, 80, 120, 255 }, "DECK");
 
     Rectangle end_turn_btn = layout_end_turn_button();
-    bool hover = CheckCollisionPointRec(mouse, end_turn_btn);
-    Color btn_col = hover ? (Color){ 80, 80, 120, 255 } : (Color){ 50, 50, 80, 255 };
-    DrawRectangleRec(end_turn_btn, btn_col);
-    DrawRectangleLinesEx(end_turn_btn, 1.0f, (Color){ 100, 100, 140, 200 });
-    draw_text_box((Rectangle){ end_turn_btn.x + 4.0f, end_turn_btn.y + 5.0f, end_turn_btn.width - 8.0f, end_turn_btn.height - 8.0f },
-        "End Turn", 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
+    draw_btn_standard(end_turn_btn, (Color){ 50, 50, 80, 255 }, (Color){ 80, 80, 120, 255 }, "End Turn");
 
     draw_pair_passives(cs);
     draw_target_preview(cs);

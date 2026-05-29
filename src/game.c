@@ -3,6 +3,7 @@
 #include "data/area_defs.h"
 #include "systems/economy_metrics.h"
 #include "systems/telemetry.h"
+#include "ui/ui.h"
 #include "util/tween.h"
 #include "util/text.h"
 #include "constants.h"
@@ -193,13 +194,13 @@ void game_draw_gold_overlay(void)
         g_state.screen == SCREEN_SETTINGS)
         return;
 
-    Rectangle r = { 10.0f, 30.0f, 66.0f, 16.0f };
+    Rectangle r = { 10.0f, 34.0f, (float)BTN_NARROW, 18.0f };
     DrawRectangleRec(r, (Color){ 12, 10, 18, 225 });
     DrawRectangleLinesEx(r, 1.0f, (Color){ 220, 185, 70, 190 });
 
     char text[32];
     snprintf(text, sizeof(text), "Gold %d", g_state.gold);
-    draw_text_box((Rectangle){ r.x + 4.0f, r.y + 3.0f, r.width - 8.0f, 11.0f },
+    draw_text_box((Rectangle){ r.x + 4.0f, r.y + 3.0f, r.width - 8.0f, 12.0f },
         text, 10, 0, (Color){ 245, 218, 105, 245 }, TEXT_ALIGN_CENTER);
 
     if (CheckCollisionPointRec(GetMousePosition(), r))

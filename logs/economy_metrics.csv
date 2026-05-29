@@ -7,3 +7,8 @@ timestamp,event,amount,gold_before,gold_after,context
 1779975690,gain,12,65,77,event_gain_gold
 1779975697,convert_gold_to_renown,1,77,77,game_over
 1779977201,gain,10,0,10,combat_reward
+1779983856,gain,10,0,10,combat_reward
+1779983933,gain,10,10,20,combat_reward
+1779984883,gain,10,0,10,combat_reward
+1779984938,gain,25,10,35,combat_reward
+1780000136,gain,10,0,10,combat_reward

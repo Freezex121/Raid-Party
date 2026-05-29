@@ -286,7 +286,7 @@ void party_frames_draw(Party *party)
         {
             DrawRectangleLinesEx((Rectangle){ (float)(x - 1), (float)(y - 1), (float)(frame_w + 2), (float)(frame_h + 2) },
                 2.0f, (Color){ 245, 165, 65, 255 });
-            DrawText("SHIELD", x + 6, y + 2, 10, (Color){ 245, 165, 65, 240 });
+            DrawText("", x + 6, y + 2, 10, (Color){ 245, 165, 65, 240 });
         }
 
         Color bar_bg = (Color){ 20, 20, 30, 255 };

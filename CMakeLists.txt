@@ -26,6 +26,9 @@ if(NOT EMSCRIPTEN)
     add_custom_command(TARGET RaidParty POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:RaidParty>"
             "${CMAKE_SOURCE_DIR}/Builds/Standalone/$<TARGET_FILE_NAME:RaidParty>"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_SOURCE_DIR}/assets"
+            "${CMAKE_SOURCE_DIR}/Builds/Standalone/assets"
         COMMENT "Copying exe to Builds/Standalone/"
     )
 endif()

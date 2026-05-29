@@ -28,7 +28,7 @@ static void init_if_needed(void)
 {
     if (initialized) return;
     back_btn = button_create(
-        (Rectangle){ (float)(VIRT_W / 2 - 64), 322.0f, 128.0f, (float)BTN_H },
+        (Rectangle){ (float)(VIRT_W / 2 - BTN_MED / 2), 322.0f, (float)BTN_MED, (float)BTN_H },
         "BACK",
         (Color){ 42, 48, 70, 255 },
         (Color){ 70, 78, 110, 255 },
@@ -163,5 +163,5 @@ void codex_screen_draw(void)
     else draw_passives(&y);
     EndScissorMode();
 
-    button_draw(&back_btn);
+    button_draw_9slice(&back_btn);
 }

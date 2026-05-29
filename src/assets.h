@@ -9,6 +9,7 @@
 
 #define CARD_ART_SOURCE_W CARD_SOURCE_W
 #define CARD_ART_SOURCE_H CARD_SOURCE_H
+#define CARD_BACKGROUND_MAX 12
 #define UI_FONT_MIN_SIZE 18
 #define UI_FONT_MAX_SIZE 72
 #define PIXEL_FONT_MAX_SIZE 17
@@ -53,11 +54,20 @@ typedef struct {
     Texture2D card_template;
     Texture2D card_template_upgraded;
     Texture2D card_template_maxed;
+    Texture2D card_backgrounds[CARD_BACKGROUND_MAX];
+    int card_background_count;
+    Texture2D card_tint_mask;
+    Texture2D card_info;
+    Texture2D card_border;
+    Texture2D card_border_upgraded;
+    Texture2D card_border_maxed;
     Texture2D relic_template;
     Texture2D class_icons[CLASS_COUNT];
     Texture2D relic_icons[RELIC_COUNT];
     Texture2D relic_icon_placeholder;
     Texture2D node_sprites[8];
+    Texture2D btn_standard;
+    Texture2D btn_large;
     Sound sfx[SFX_COUNT];
     bool sfx_loaded[SFX_COUNT];
     Music music[MUSIC_COUNT];

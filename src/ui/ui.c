@@ -1,4 +1,5 @@
 #include "ui.h"
+#include "assets.h"
 #include "util/tween.h"
 #include "util/text.h"
 #include "util/math_utils.h"
@@ -20,20 +21,37 @@ Button button_create(Rectangle bounds, const char *text, Color bg, Color hover, 
     return btn;
 }
 
+static void draw_button_label_centered(Rectangle bounds, const char *text, Color color)
+{
+    if (!text || !text[0]) return;
+
+    const int font_size = 10;
+    const float pad_x = 4.0f;
+    int text_w = snap_i(bounds.width - pad_x * 2.0f);
+    if (text_w < 1) text_w = 1;
+
+    int text_h = measure_text_box(text, text_w, font_size, 0);
+    if (text_h <= 0) text_h = ui_line_height(font_size);
+
+    int y = snap_i(bounds.y + (bounds.height - (float)text_h) * 0.5f);
+    int min_y = snap_i(bounds.y + 1.0f);
+    if (y < min_y) y = min_y;
+
+    draw_text_box((Rectangle){
+            bounds.x + pad_x,
+            (float)y,
+            bounds.width - pad_x * 2.0f,
+            bounds.y + bounds.height - (float)y - 1.0f
+        },
+        text, font_size, 0, color, TEXT_ALIGN_CENTER);
+}
+
 void button_update(Button *btn)
 {
     btn->pressed_this_frame = false;
     Vector2 mouse = GetMousePosition();
     bool hovered = CheckCollisionPointRec(mouse, btn->bounds);
-
-    if (hovered && !btn->last_hovered && !tween_is_active(btn->tween_id))
-    {
-        btn->tween_id = tween_create(&btn->hover_t, 1.0f, 0.12f, EASE_OUT_QUAD);
-    }
-    else if (!hovered && btn->last_hovered && !tween_is_active(btn->tween_id))
-    {
-        btn->tween_id = tween_create(&btn->hover_t, 0.0f, 0.15f, EASE_OUT_QUAD);
-    }
+    btn->hover_t = hovered ? 1.0f : 0.0f;
 
     if (hovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         btn->pressed_this_frame = true;
@@ -56,24 +74,92 @@ void button_draw(Button *btn)
     if (btn->border_color.a > 0)
         DrawRectangleLinesEx(btn->bounds, 2.0f, btn->border_color);
 
-    int font_size = 10;
-    int text_h = measure_text_box(btn->text, snap_i(btn->bounds.width - 8), font_size, 0);
-    if (text_h <= 0) text_h = ui_line_height(font_size);
-    int y = snap_i(btn->bounds.y + (btn->bounds.height - text_h) * 0.5f);
-    if (y < snap_i(btn->bounds.y + 2)) y = snap_i(btn->bounds.y + 2);
-
-    draw_text_box((Rectangle){
-            btn->bounds.x + 4.0f,
-            (float)y,
-            btn->bounds.width - 8.0f,
-            btn->bounds.y + btn->bounds.height - y - 2.0f
-        },
-        btn->text, font_size, 0, btn->text_color, TEXT_ALIGN_CENTER);
+    draw_button_label_centered(btn->bounds, btn->text, btn->text_color);
 }
 
 void button_set_disabled(Button *btn, bool disabled)
 {
     (void)disabled;
+}
+
+void button_draw_9slice(Button *btn)
+{
+    float t = btn->hover_t;
+    Color tint;
+    tint.r = (unsigned char)(btn->bg_color.r + (btn->hover_color.r - btn->bg_color.r) * t);
+    tint.g = (unsigned char)(btn->bg_color.g + (btn->hover_color.g - btn->bg_color.g) * t);
+    tint.b = (unsigned char)(btn->bg_color.b + (btn->hover_color.b - btn->bg_color.b) * t);
+    tint.a = 255;
+
+    draw_9slice(g_assets.btn_standard, 6, 6, btn->bounds, tint);
+
+    draw_button_label_centered(btn->bounds, btn->text, btn->text_color);
+}
+
+void draw_9slice(Texture2D tex, int left, int right, Rectangle dest, Color tint)
+{
+    if (tex.id == 0)
+    {
+        DrawRectangleRec(dest, tint);
+        return;
+    }
+    int src_h = tex.height;
+    int center_src_w = tex.width - left - right;
+    if (center_src_w < 1) center_src_w = 1;
+    float cw = dest.width - (float)left - (float)right;
+    if (cw < 1.0f) cw = 1.0f;
+
+    // Left cap
+    DrawTexturePro(tex,
+        (Rectangle){ 0.0f, 0.0f, (float)left, (float)src_h },
+        (Rectangle){ dest.x, dest.y, (float)left, dest.height },
+        (Vector2){ 0, 0 }, 0.0f, tint);
+    // Center stretch
+    DrawTexturePro(tex,
+        (Rectangle){ (float)left, 0.0f, (float)center_src_w, (float)src_h },
+        (Rectangle){ dest.x + (float)left, dest.y, cw, dest.height },
+        (Vector2){ 0, 0 }, 0.0f, tint);
+    // Right cap
+    DrawTexturePro(tex,
+        (Rectangle){ (float)(left + center_src_w), 0.0f, (float)right, (float)src_h },
+        (Rectangle){ dest.x + dest.width - (float)right, dest.y, (float)right, dest.height },
+        (Vector2){ 0, 0 }, 0.0f, tint);
+}
+
+void draw_btn_standard(Rectangle dest, Color normal, Color hover, const char *label)
+{
+    if (!label || !label[0]) return;
+    Vector2 mouse = GetMousePosition();
+    bool hovered = CheckCollisionPointRec(mouse, dest);
+    Color tint = hovered ? hover : normal;
+    Texture2D tex = g_assets.btn_standard;
+    int left = 6, right = 6;
+    draw_9slice(tex, left, right, dest, tint);
+    draw_button_label_centered(dest, label, RAYWHITE);
+}
+
+void draw_btn_large(Rectangle dest, Color normal, Color hover, const char *title, const char *subtitle)
+{
+    Vector2 mouse = GetMousePosition();
+    bool hovered = CheckCollisionPointRec(mouse, dest);
+    Color tint = hovered ? hover : normal;
+    Texture2D tex = g_assets.btn_large;
+    int left = 8, right = 8;
+    draw_9slice(tex, left, right, dest, tint);
+    int title_h = title && title[0] ? ui_line_height(10) : 0;
+    int sub_h = subtitle && subtitle[0] ? ui_line_height(10) : 0;
+    int gap = title_h > 0 && sub_h > 0 ? 2 : 0;
+    int total_h = title_h + gap + sub_h;
+    int y = snap_i(dest.y + (dest.height - (float)total_h) * 0.5f);
+    if (title && title[0])
+        draw_text_box((Rectangle){ dest.x + 4.0f, (float)y, dest.width - 8.0f, (float)title_h },
+            title, 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
+    if (subtitle && subtitle[0])
+    {
+        Color sub_col = { 180, 185, 210, 220 };
+        draw_text_box((Rectangle){ dest.x + 4.0f, (float)(y + title_h + gap), dest.width - 8.0f, (float)sub_h },
+            subtitle, 10, 0, sub_col, TEXT_ALIGN_CENTER);
+    }
 }
 
 void draw_panel(Rectangle bounds, Color bg, float corner_radius, Color border)

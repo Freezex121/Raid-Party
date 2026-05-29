@@ -9,6 +9,7 @@
 #include "util/math_utils.h"
 #include "util/text.h"
 #include "raylib.h"
+#include "ui/ui.h"
 #include <stdio.h>
 
 typedef enum {
@@ -74,12 +75,12 @@ static void log_rest_metric(const char *choice, const char *card_id)
 
 static Rectangle rest_heal_button(void)
 {
-    return (Rectangle){ (float)((VIRT_W / 2) - 190), 158.0f, 170.0f, 44.0f };
+    return (Rectangle){ (float)((VIRT_W / 2) - 185), 158.0f, (float)BTN_WIDE, 44.0f };
 }
 
 static Rectangle rest_upgrade_button(void)
 {
-    return (Rectangle){ (float)((VIRT_W / 2) + 20), 158.0f, 170.0f, 44.0f };
+    return (Rectangle){ (float)((VIRT_W / 2) + 25), 158.0f, (float)BTN_WIDE, 44.0f };
 }
 
 static Rectangle rest_browser_bounds(void)
@@ -221,25 +222,11 @@ void rest_screen_draw(void)
         draw_text_box((Rectangle){ 80.0f, 76.0f, 480.0f, 22.0f }, "REST SITE", 18, 0, RAYWHITE, TEXT_ALIGN_CENTER);
         draw_text_box((Rectangle){ 80.0f, 104.0f, 480.0f, 14.0f }, "Choose:", 10, 0, (Color){ 160, 160, 180, 200 }, TEXT_ALIGN_CENTER);
 
-        Vector2 m = GetMousePosition();
         Rectangle heal_btn = rest_heal_button();
         Rectangle upg_btn  = rest_upgrade_button();
 
-        Color hc = CheckCollisionPointRec(m, heal_btn) ? (Color){ 60, 180, 80, 255 } : (Color){ 40, 120, 60, 255 };
-        Color uc = CheckCollisionPointRec(m, upg_btn)  ? (Color){ 80, 140, 220, 255 } : (Color){ 50, 80, 140, 255 };
-
-        DrawRectangleRec(heal_btn, hc);
-        draw_text_box((Rectangle){ heal_btn.x + 6.0f, heal_btn.y + 8.0f, heal_btn.width - 12.0f, 14.0f },
-            "HEAL PARTY", 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
-
-        DrawRectangleRec(upg_btn, uc);
-        draw_text_box((Rectangle){ upg_btn.x + 6.0f, upg_btn.y + 8.0f, upg_btn.width - 12.0f, 14.0f },
-            "UPGRADE A CARD", 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
-
-        draw_text_box((Rectangle){ heal_btn.x + 6.0f, heal_btn.y + 28.0f, heal_btn.width - 12.0f, 14.0f },
-            "Fully restore HP", 10, 0, (Color){ 160, 220, 170, 200 }, TEXT_ALIGN_CENTER);
-        draw_text_box((Rectangle){ upg_btn.x + 6.0f, upg_btn.y + 28.0f, upg_btn.width - 12.0f, 14.0f },
-            "Boost one card's power", 10, 0, (Color){ 160, 180, 220, 200 }, TEXT_ALIGN_CENTER);
+        draw_btn_large(heal_btn, (Color){ 40, 120, 60, 255 }, (Color){ 60, 180, 80, 255 }, "HEAL PARTY", "Fully restore HP");
+        draw_btn_large(upg_btn, (Color){ 50, 80, 140, 255 }, (Color){ 80, 140, 220, 255 }, "UPGRADE A CARD", "Boost one card's power");
 
         if (rest_msg[0])
             draw_text_box((Rectangle){ 96.0f, 228.0f, 448.0f, 26.0f }, rest_msg, 10, 0, (Color){ 200, 150, 100, 220 }, TEXT_ALIGN_CENTER);

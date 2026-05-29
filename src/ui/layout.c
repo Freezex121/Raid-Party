@@ -1,4 +1,5 @@
 #include "layout.h"
+#include "ui.h"
 
 int layout_party_frame_width(int party_count)
 {
@@ -133,7 +134,7 @@ Rectangle layout_energy_panel(void)
 
 Rectangle layout_end_turn_button(void)
 {
-    return (Rectangle){ 552.0f, 297.0f, 76.0f, (float)BTN_H };
+    return (Rectangle){ (float)(VIRT_W - BTN_NARROW - 12), 297.0f, (float)BTN_NARROW, (float)BTN_H };
 }
 
 Rectangle layout_discard_pile_rect(void)

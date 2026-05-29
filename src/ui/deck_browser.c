@@ -197,7 +197,7 @@ void deck_browser_draw(DeckBrowser *browser, Deck *deck, int upgrade_target_leve
         CardInstance *inst = &deck->cards[deck_index];
         Rectangle r = card_rect_for(browser, visible_pos);
 
-        theme_draw_card_art(r, inst->def, inst->upgrade_level);
+        theme_draw_card_art_seeded(r, inst->def, inst->upgrade_level, (unsigned int)inst->uid);
         if (upgrade_target_level > 0 &&
             (inst->upgrade_level != upgrade_target_level - 1 ||
              !card_upgrade_changes_values_at(inst->def, inst->upgrade_level)))

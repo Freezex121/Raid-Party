@@ -30,33 +30,35 @@ static void init_if_needed(void)
     if (initialized) return;
 
     back_btn = button_create(
-        (Rectangle){ (float)(VIRT_W / 2 - 52), 328.0f, 104.0f, (float)BTN_H },
+        (Rectangle){ (float)(VIRT_W / 2 - BTN_MED / 2), 328.0f, (float)BTN_MED, (float)BTN_H },
         "BACK",
         (Color){ 42, 48, 70, 255 },
         (Color){ 70, 78, 110, 255 },
         RAYWHITE);
 
     Rectangle v = visual_panel_rect();
+    const float scale_group_w = (float)BTN_ICON + 12.0f + 52.0f + 12.0f + (float)BTN_ICON;
+    const float scale_group_x = v.x + (v.width - scale_group_w) * 0.5f;
     fullscreen_btn = button_create(
-        (Rectangle){ v.x + 24.0f, v.y + 52.0f, v.width - 48.0f, (float)BTN_H },
+        (Rectangle){ v.x + (v.width - BTN_WIDE) * 0.5f, v.y + 52.0f, (float)BTN_WIDE, (float)BTN_H },
         "FULLSCREEN",
         (Color){ 42, 48, 70, 255 },
         (Color){ 70, 78, 110, 255 },
         RAYWHITE);
     scale_down_btn = button_create(
-        (Rectangle){ v.x + 55.0f, v.y + 112.0f, 28.0f, (float)BTN_H },
+        (Rectangle){ scale_group_x, v.y + 112.0f, (float)BTN_ICON, (float)BTN_H },
         "-",
         (Color){ 42, 48, 70, 255 },
         (Color){ 70, 78, 110, 255 },
         RAYWHITE);
     scale_up_btn = button_create(
-        (Rectangle){ v.x + v.width - 83.0f, v.y + 112.0f, 28.0f, (float)BTN_H },
+        (Rectangle){ scale_group_x + BTN_ICON + 12.0f + 52.0f + 12.0f, v.y + 112.0f, (float)BTN_ICON, (float)BTN_H },
         "+",
         (Color){ 42, 48, 70, 255 },
         (Color){ 70, 78, 110, 255 },
         RAYWHITE);
     telemetry_btn = button_create(
-        (Rectangle){ (float)(VIRT_W / 2 - 70), 266.0f, 140.0f, (float)BTN_H },
+        (Rectangle){ (float)(VIRT_W / 2 - BTN_WIDE / 2), 266.0f, (float)BTN_WIDE, (float)BTN_H },
         "TELEMETRY: OFF",
         (Color){ 42, 48, 70, 255 },
         (Color){ 70, 78, 110, 255 },
@@ -166,16 +168,18 @@ void settings_screen_draw(void)
         "AUDIO", 18, 0, (Color){ 190, 210, 245, 245 }, TEXT_ALIGN_CENTER);
 
     fullscreen_btn.text = g_state.fullscreen ? "FULLSCREEN: ON" : "FULLSCREEN: OFF";
-    button_draw(&fullscreen_btn);
+    button_draw_9slice(&fullscreen_btn);
 
-    draw_text_box((Rectangle){ visual.x + 24.0f, visual.y + 92.0f, visual.width - 48.0f, 12.0f },
-        "WINDOW SCALE", 10, 0, (Color){ 170, 178, 205, 220 }, TEXT_ALIGN_CENTER);
-    button_draw(&scale_down_btn);
-    button_draw(&scale_up_btn);
+    // Scale buttons
+    button_draw_9slice(&scale_down_btn);
+    button_draw_9slice(&scale_up_btn);
 
+    // ... (existing scale display code)
     char scale_text[32];
     snprintf(scale_text, sizeof(scale_text), "%dx", g_state.window_scale);
-    draw_text_box((Rectangle){ visual.x + 88.0f, visual.y + 116.0f, visual.width - 176.0f, 14.0f },
+    const float scale_group_w = (float)BTN_ICON + 12.0f + 52.0f + 12.0f + (float)BTN_ICON;
+    const float scale_group_x = visual.x + (visual.width - scale_group_w) * 0.5f;
+    draw_text_box((Rectangle){ scale_group_x + BTN_ICON + 12.0f, visual.y + 116.0f, 52.0f, 14.0f },
         scale_text, 10, 0, (Color){ 245, 235, 160, 245 }, TEXT_ALIGN_CENTER);
     draw_text_box((Rectangle){ visual.x + 18.0f, visual.y + 144.0f, visual.width - 36.0f, 24.0f },
         "Fullscreen preserves 16:9 with letterboxing when needed.", 10, 0, (Color){ 150, 158, 185, 215 }, TEXT_ALIGN_CENTER);
@@ -185,10 +189,10 @@ void settings_screen_draw(void)
     draw_slider(slider_track(2), "SFX", g_state.sfx_volume);
 
     telemetry_btn.text = g_state.telemetry_opt_in ? "TELEMETRY: ON" : "TELEMETRY: OFF";
-    button_draw(&telemetry_btn);
+    button_draw_9slice(&telemetry_btn);
     draw_text_box((Rectangle){ 120.0f, 292.0f, 400.0f, 28.0f },
         "Sends anonymous gameplay metrics for balance. No names, Steam IDs, or personal data.",
         10, 0, (Color){ 150, 158, 185, 215 }, TEXT_ALIGN_CENTER);
 
-    button_draw(&back_btn);
+    button_draw_9slice(&back_btn);
 }

@@ -94,6 +94,17 @@ static Texture2D load_art_texture(const char *filename)
     return (Texture2D){0};
 }
 
+static Texture2D load_card_layer_texture(const char *filename)
+{
+    char nested[96];
+    snprintf(nested, sizeof(nested), "cards/%s", filename);
+
+    Texture2D tex = load_art_texture(nested);
+    if (tex.id != 0)
+        return tex;
+    return load_art_texture(filename);
+}
+
 static bool build_asset_path(char *out, int out_size, const char *folder, const char *filename)
 {
     const char *roots[] = {
@@ -261,14 +272,22 @@ void assets_load(void)
     SetTextureWrap(g_assets.paper_texture, TEXTURE_WRAP_REPEAT);
 
     const char *card_paths[] = {
-        "assets/art/card_template.png",
-        "../assets/art/card_template.png",
-        "../../assets/art/card_template.png",
+        "assets/art/card.png",
+        "../assets/art/card.png",
+        "../../assets/art/card.png",
     };
 
     g_assets.card_template = (Texture2D){0};
     g_assets.card_template_upgraded = (Texture2D){0};
     g_assets.card_template_maxed = (Texture2D){0};
+    g_assets.card_background_count = 0;
+    for (int i = 0; i < CARD_BACKGROUND_MAX; i++)
+        g_assets.card_backgrounds[i] = (Texture2D){0};
+    g_assets.card_tint_mask = (Texture2D){0};
+    g_assets.card_info = (Texture2D){0};
+    g_assets.card_border = (Texture2D){0};
+    g_assets.card_border_upgraded = (Texture2D){0};
+    g_assets.card_border_maxed = (Texture2D){0};
     g_assets.relic_template = (Texture2D){0};
     for (int i = 0; i < 3; i++)
     {
@@ -285,9 +304,9 @@ void assets_load(void)
     SetTextureFilter(g_assets.card_template, TEXTURE_FILTER_POINT);
 
     const char *upgraded_card_paths[] = {
-        "assets/art/card_template_upgraded.png",
-        "../assets/art/card_template_upgraded.png",
-        "../../assets/art/card_template_upgraded.png",
+        "assets/art/card_upgraded.png",
+        "../assets/art/card_upgraded.png",
+        "../../assets/art/card_upgraded.png",
     };
 
     for (int i = 0; i < 3; i++)
@@ -303,9 +322,9 @@ void assets_load(void)
         SetTextureFilter(g_assets.card_template_upgraded, TEXTURE_FILTER_POINT);
 
     const char *maxed_card_paths[] = {
-        "assets/art/card_template_maxed.png",
-        "../assets/art/card_template_maxed.png",
-        "../../assets/art/card_template_maxed.png",
+        "assets/art/card_maxed.png",
+        "../assets/art/card_maxed.png",
+        "../../assets/art/card_maxed.png",
     };
 
     for (int i = 0; i < 3; i++)
@@ -319,6 +338,20 @@ void assets_load(void)
 
     if (g_assets.card_template_maxed.id != 0)
         SetTextureFilter(g_assets.card_template_maxed, TEXTURE_FILTER_POINT);
+
+    for (int i = 0; i < CARD_BACKGROUND_MAX; i++)
+    {
+        char filename[64];
+        snprintf(filename, sizeof(filename), "card_background_%02d.png", i);
+        Texture2D tex = load_card_layer_texture(filename);
+        if (tex.id != 0)
+            g_assets.card_backgrounds[g_assets.card_background_count++] = tex;
+    }
+    g_assets.card_tint_mask = load_card_layer_texture("card_tint_mask.png");
+    g_assets.card_info = load_card_layer_texture("card_info.png");
+    g_assets.card_border = load_card_layer_texture("card_border.png");
+    g_assets.card_border_upgraded = load_card_layer_texture("card_border_upgraded.png");
+    g_assets.card_border_maxed = load_card_layer_texture("card_border_maxed.png");
 
     g_assets.relic_template = load_art_texture("relic_template.png");
     g_assets.relic_icon_placeholder = load_art_texture("relic_icon.png");
@@ -367,6 +400,9 @@ void assets_load(void)
         if (node_files[i])
             g_assets.node_sprites[i] = load_art_texture(node_files[i]);
 
+    g_assets.btn_standard = load_art_texture("btn_standard.png");
+    g_assets.btn_large = load_art_texture("btn_large.png");
+
     load_audio_assets();
 
     g_assets.loaded = true;
@@ -404,6 +440,19 @@ void assets_unload(void)
         UnloadTexture(g_assets.card_template_upgraded);
     if (g_assets.card_template_maxed.id != 0)
         UnloadTexture(g_assets.card_template_maxed);
+    for (int i = 0; i < g_assets.card_background_count; i++)
+        if (g_assets.card_backgrounds[i].id != 0)
+            UnloadTexture(g_assets.card_backgrounds[i]);
+    if (g_assets.card_tint_mask.id != 0)
+        UnloadTexture(g_assets.card_tint_mask);
+    if (g_assets.card_info.id != 0)
+        UnloadTexture(g_assets.card_info);
+    if (g_assets.card_border.id != 0)
+        UnloadTexture(g_assets.card_border);
+    if (g_assets.card_border_upgraded.id != 0)
+        UnloadTexture(g_assets.card_border_upgraded);
+    if (g_assets.card_border_maxed.id != 0)
+        UnloadTexture(g_assets.card_border_maxed);
     if (g_assets.relic_template.id != 0)
         UnloadTexture(g_assets.relic_template);
     for (int i = 0; i < CLASS_COUNT; i++)
@@ -417,6 +466,10 @@ void assets_unload(void)
     for (int i = 0; i < 8; i++)
         if (g_assets.node_sprites[i].id != 0)
             UnloadTexture(g_assets.node_sprites[i]);
+    if (g_assets.btn_standard.id != 0)
+        UnloadTexture(g_assets.btn_standard);
+    if (g_assets.btn_large.id != 0)
+        UnloadTexture(g_assets.btn_large);
     g_assets.loaded = false;
 }
 

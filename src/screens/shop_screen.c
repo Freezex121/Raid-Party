@@ -1,5 +1,6 @@
 #include "screens.h"
 #include "game.h"
+#include "assets.h"
 #include "constants.h"
 #include "data/card_defs.h"
 #include "systems/relic.h"
@@ -8,6 +9,7 @@
 #include "ui/deck_browser.h"
 #include "ui/theme.h"
 #include "ui/layout.h"
+#include "ui/ui.h"
 #include "util/text.h"
 #include "raylib.h"
 #include <stdio.h>
@@ -186,22 +188,22 @@ static Rectangle sale_card_rect(void)
 
 static Rectangle sale_buy_button(void)
 {
-    return (Rectangle){ 42.0f, 214.0f, 132.0f, 24.0f };
+    return (Rectangle){ 28.0f, 214.0f, (float)BTN_WIDE, (float)BTN_H };
 }
 
 static Rectangle sale_reroll_button(void)
 {
-    return (Rectangle){ 42.0f, 244.0f, 132.0f, 22.0f };
+    return (Rectangle){ 48.0f, 244.0f, (float)BTN_MED, (float)BTN_H };
 }
 
 static Rectangle option_rect(int col, int row)
 {
-    return (Rectangle){ 214.0f + col * 202.0f, 74.0f + row * 58.0f, 190.0f, 44.0f };
+    return (Rectangle){ 212.0f + col * 204.0f, 74.0f + row * 58.0f, (float)BTN_FULL, 44.0f };
 }
 
 static Rectangle leave_button(void)
 {
-    return (Rectangle){ 500.0f, 286.0f, 92.0f, 24.0f };
+    return (Rectangle){ 520.0f, 286.0f, (float)BTN_NARROW, (float)BTN_H };
 }
 
 static bool clicked(Rectangle r)
@@ -421,7 +423,7 @@ void shop_screen_update(void)
         Vector2 mouse = GetMousePosition();
         for (int i = 0; i < g_state.run_party.count; i++)
         {
-            Rectangle r = { 170.0f, 86.0f + i * 38.0f, 300.0f, 28.0f };
+            Rectangle r = { (float)(VIRT_W / 2 - BTN_FULL / 2), 86.0f + i * 38.0f, (float)BTN_FULL, 28.0f };
             if (!CheckCollisionPointRec(mouse, r) || !IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
                 continue;
             int gold_before = g_state.gold;
@@ -460,17 +462,24 @@ static void draw_shop_button(Rectangle r, const char *label, const char *body, b
     bool hover = enabled && CheckCollisionPointRec(mouse, r);
     Color bg = !enabled ? (Color){ 28, 29, 38, 230 } :
         hover ? (Color){ accent.r, accent.g, accent.b, 210 } : (Color){ accent.r / 3, accent.g / 3, accent.b / 3, 235 };
-    Color border = !enabled ? (Color){ 70, 72, 88, 165 } :
-        hover ? RAYWHITE : (Color){ accent.r, accent.g, accent.b, 190 };
     Color title_col = enabled ? RAYWHITE : (Color){ 110, 112, 130, 215 };
     Color body_col = enabled ? (Color){ 185, 190, 215, 220 } : (Color){ 95, 98, 115, 200 };
 
-    DrawRectangleRec(r, bg);
-    DrawRectangleLinesEx(r, hover ? 2.0f : 1.0f, border);
-    draw_text_box((Rectangle){ r.x + 8.0f, r.y + 6.0f, r.width - 16.0f, 12.0f },
+    Texture2D tex = r.height >= 40.0f ? g_assets.btn_large : g_assets.btn_standard;
+    draw_9slice(tex, r.height >= 40.0f ? 8 : 6, r.height >= 40.0f ? 8 : 6, r, bg);
+
+    int label_h = label && label[0] ? measure_text_box(label, (int)r.width - 16, 10, 0) : 0;
+    if (label_h <= 0 && label && label[0]) label_h = ui_line_height(10);
+    int body_h = body && body[0] ? measure_text_box(body, (int)r.width - 16, 10, 0) : 0;
+    if (body_h <= 0 && body && body[0]) body_h = ui_line_height(10);
+    int gap = label_h > 0 && body_h > 0 ? 2 : 0;
+    int total_h = label_h + gap + body_h;
+    int y = (int)(r.y + (r.height - total_h) * 0.5f);
+
+    draw_text_box((Rectangle){ r.x + 8.0f, (float)y, r.width - 16.0f, (float)label_h },
         label, 10, 0, title_col, TEXT_ALIGN_CENTER);
     if (body && body[0])
-        draw_text_box((Rectangle){ r.x + 8.0f, r.y + 22.0f, r.width - 16.0f, 14.0f },
+        draw_text_box((Rectangle){ r.x + 8.0f, (float)(y + label_h + gap), r.width - 16.0f, (float)body_h },
             body, 10, 0, body_col, TEXT_ALIGN_CENTER);
 }
 
@@ -507,7 +516,7 @@ void shop_screen_draw(void)
 
         Rectangle card_rect = sale_card_rect();
         if (shop_card)
-            theme_draw_card_art(card_rect, shop_card, 0);
+            theme_draw_card_art_seeded(card_rect, shop_card, 0, theme_card_seed_from_id(shop_card->id, 91u));
 
         bool deck_space = g_state.run_deck.card_count < MAX_DECK_SIZE;
         draw_shop_button(sale_buy_button(), "BUY CARD - 25g", "", g_state.gold >= CARD_SALE_COST && deck_space, (Color){ 80, 150, 220, 255 });
@@ -577,7 +586,7 @@ void shop_screen_draw(void)
         for (int i = 0; i < g_state.run_party.count; i++)
         {
             PartyMember *pm = &g_state.run_party.members[i];
-            Rectangle r = { 170.0f, 86.0f + i * 38.0f, 300.0f, 28.0f };
+            Rectangle r = { (float)(VIRT_W / 2 - BTN_FULL / 2), 86.0f + i * 38.0f, (float)BTN_FULL, 28.0f };
             bool hover = CheckCollisionPointRec(mouse, r);
             DrawRectangleRec(r, hover ? (Color){ 36, 72, 48, 245 } : (Color){ 22, 36, 30, 235 });
             DrawRectangleLinesEx(r, 1.0f, hover ? RAYWHITE : (Color){ 95, 210, 130, 180 });

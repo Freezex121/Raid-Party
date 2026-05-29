@@ -7,6 +7,7 @@
 #include "util/text.h"
 #include "constants.h"
 #include "raylib.h"
+#include "ui/ui.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -177,7 +178,7 @@ void discard_screen_update(void)
         }
     }
 
-    Rectangle skip_btn = { (float)(VIRT_W / 2 + 10), (float)(VIRT_H - 40), 80.0f, 26.0f };
+    Rectangle skip_btn = { 345.0f, (float)(VIRT_H - 36), (float)BTN_NARROW, (float)BTN_H };
     if (CheckCollisionPointRec(mouse, skip_btn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
     {
         LOG_I(CAT_SCREEN, "Skipped card discard");
@@ -189,7 +190,7 @@ void discard_screen_update(void)
 
     if (g_state.discard_selected >= g_state.discard_count)
     {
-        Rectangle confirm_btn = { (float)(VIRT_W / 2 - 90), (float)(VIRT_H - 40), 100.0f, 26.0f };
+        Rectangle confirm_btn = { 215.0f, (float)(VIRT_H - 36), (float)BTN_MED, (float)BTN_H };
         if (CheckCollisionPointRec(mouse, confirm_btn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
         {
             log_discard_metric("confirm");
@@ -247,30 +248,19 @@ void discard_screen_draw(void)
         for (int j = 0; j < g_state.discard_selected; j++)
             if (g_state.discard_uids[j] == deck->cards[di].uid) { selected = true; break; }
 
-        theme_draw_card_art(r, deck->cards[di].def, deck->cards[di].upgrade_level);
+        theme_draw_card_art_seeded(r, deck->cards[di].def, deck->cards[di].upgrade_level, (unsigned int)deck->cards[di].uid);
 
         if (selected)
             DrawRectangleRec(r, (Color){ 255, 80, 80, 50 });
     }
 
-    Rectangle skip_btn = { (float)(VIRT_W / 2 + 10), (float)(VIRT_H - 40), 80.0f, 26.0f };
-    Vector2 mouse = GetMousePosition();
-    bool skip_hover = CheckCollisionPointRec(mouse, skip_btn);
-    Color skip_col = skip_hover ? (Color){ 100, 100, 130, 255 } : (Color){ 60, 60, 85, 255 };
-    DrawRectangleRec(skip_btn, skip_col);
-    DrawRectangleLinesEx(skip_btn, 1.0f, (Color){ 110, 110, 140, 200 });
-    draw_text_box((Rectangle){ skip_btn.x + 5.0f, skip_btn.y + 5.0f, skip_btn.width - 10.0f, skip_btn.height - 8.0f },
-        "Skip", 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
+    Rectangle skip_btn = { 345.0f, (float)(VIRT_H - 36), (float)BTN_NARROW, (float)BTN_H };
+    draw_btn_standard(skip_btn, (Color){ 60, 60, 85, 255 }, (Color){ 100, 100, 130, 255 }, "Skip");
 
     if (g_state.discard_selected >= g_state.discard_count)
     {
-        Rectangle confirm_btn = { (float)(VIRT_W / 2 - 90), (float)(VIRT_H - 40), 100.0f, 26.0f };
-        bool hover = CheckCollisionPointRec(mouse, confirm_btn);
-        Color btn_col = hover ? (Color){ 70, 180, 90, 255 } : (Color){ 45, 120, 60, 255 };
-        DrawRectangleRec(confirm_btn, btn_col);
-        DrawRectangleLinesEx(confirm_btn, 1.0f, (Color){ 100, 220, 120, 220 });
-        draw_text_box((Rectangle){ confirm_btn.x + 5.0f, confirm_btn.y + 5.0f, confirm_btn.width - 10.0f, confirm_btn.height - 8.0f },
-            "Confirm", 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
+        Rectangle confirm_btn = { 215.0f, (float)(VIRT_H - 36), (float)BTN_MED, (float)BTN_H };
+        draw_btn_standard(confirm_btn, (Color){ 45, 120, 60, 255 }, (Color){ 70, 180, 90, 255 }, "Confirm");
     }
 
     if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_DISCARD)

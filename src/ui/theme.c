@@ -39,6 +39,81 @@ static Rectangle fit_card_art_rect(Rectangle bounds)
     });
 }
 
+unsigned int theme_card_seed_from_id(const char *id, unsigned int salt)
+{
+    unsigned int hash = 2166136261u ^ salt;
+    const unsigned char *p = (const unsigned char *)(id ? id : "");
+    while (*p)
+    {
+        hash ^= (unsigned int)(*p++);
+        hash *= 16777619u;
+    }
+    hash ^= salt + 0x9e3779b9u + (hash << 6) + (hash >> 2);
+    return hash;
+}
+
+static bool card_layers_available(void)
+{
+    return g_assets.card_background_count > 0 &&
+           g_assets.card_info.id != 0 &&
+           g_assets.card_border.id != 0;
+}
+
+static Color card_background_tint(ClassType class_type)
+{
+    Color c = theme_class_color(class_type);
+    return (Color){
+        (unsigned char)((255 * 78 + c.r * 22) / 100),
+        (unsigned char)((255 * 78 + c.g * 22) / 100),
+        (unsigned char)((255 * 78 + c.b * 22) / 100),
+        255
+    };
+}
+
+static void draw_card_layer(Texture2D tex, Rectangle bounds, Color tint)
+{
+    if (tex.id == 0) return;
+    DrawTexturePro(tex,
+        (Rectangle){ 0.0f, 0.0f, (float)tex.width, (float)tex.height },
+        bounds,
+        (Vector2){ 0.0f, 0.0f },
+        0.0f,
+        tint);
+}
+
+static Texture2D card_border_for_upgrade(int upgrade_level)
+{
+    if (upgrade_level >= 2 && g_assets.card_border_maxed.id != 0)
+        return g_assets.card_border_maxed;
+    if (upgrade_level >= 1 && g_assets.card_border_upgraded.id != 0)
+        return g_assets.card_border_upgraded;
+    return g_assets.card_border;
+}
+
+static void draw_layered_card_base(Rectangle bounds, const CardDef *card, unsigned int seed)
+{
+    Texture2D bg = g_assets.card_backgrounds[seed % (unsigned int)g_assets.card_background_count];
+    if (g_assets.card_tint_mask.id != 0)
+    {
+        draw_card_layer(bg, bounds, WHITE);
+        Color mask = card ? theme_class_color(card->class) : (Color){ 130, 135, 160, 255 };
+        mask.a = 62;
+        draw_card_layer(g_assets.card_tint_mask, bounds, mask);
+    }
+    else
+    {
+        draw_card_layer(bg, bounds, card ? card_background_tint(card->class) : WHITE);
+    }
+
+    draw_card_layer(g_assets.card_info, bounds, WHITE);
+}
+
+static void draw_layered_card_border(Rectangle bounds, int upgrade_level)
+{
+    Texture2D border = card_border_for_upgrade(upgrade_level);
+    draw_card_layer(border, bounds, WHITE);
+}
+
 static int scaled_x(Rectangle r, float sx)
 {
     return (int)(r.x + sx * (r.width / (float)CARD_ART_SOURCE_W));
@@ -697,26 +772,40 @@ void theme_draw_class_portrait(ClassType ct, int cx, int cy, int radius, bool al
 
 void theme_draw_card_art(Rectangle bounds, const CardDef *card, int upgrade_level)
 {
+    unsigned int seed = theme_card_seed_from_id(card && card->id ? card->id : "card", 0);
+    theme_draw_card_art_seeded(bounds, card, upgrade_level, seed);
+}
+
+void theme_draw_card_art_seeded(Rectangle bounds, const CardDef *card, int upgrade_level, unsigned int seed)
+{
     bounds = snap_rect(bounds);
 
-    Texture2D template = g_assets.card_template;
-    if (upgrade_level >= 2 && g_assets.card_template_maxed.id != 0)
-        template = g_assets.card_template_maxed;
-    else if (upgrade_level >= 1 && g_assets.card_template_upgraded.id != 0)
-        template = g_assets.card_template_upgraded;
-
-    if (template.id != 0)
+    bool layered = card_layers_available();
+    if (layered)
     {
-        DrawTexturePro(template,
-            (Rectangle){ 0.0f, 0.0f, (float)template.width, (float)template.height },
-            bounds,
-            (Vector2){ 0.0f, 0.0f },
-            0.0f,
-            WHITE);
+        draw_layered_card_base(bounds, card, seed);
     }
     else
     {
-        DrawRectangleRec(bounds, (Color){ 9, 10, 16, 245 });
+        Texture2D template = g_assets.card_template;
+        if (upgrade_level >= 2 && g_assets.card_template_maxed.id != 0)
+            template = g_assets.card_template_maxed;
+        else if (upgrade_level >= 1 && g_assets.card_template_upgraded.id != 0)
+            template = g_assets.card_template_upgraded;
+
+        if (template.id != 0)
+        {
+            DrawTexturePro(template,
+                (Rectangle){ 0.0f, 0.0f, (float)template.width, (float)template.height },
+                bounds,
+                (Vector2){ 0.0f, 0.0f },
+                0.0f,
+                WHITE);
+        }
+        else
+        {
+            DrawRectangleRec(bounds, (Color){ 9, 10, 16, 245 });
+        }
     }
 
     Rectangle dest = fit_card_art_rect(bounds);
@@ -764,6 +853,9 @@ void theme_draw_card_art(Rectangle bounds, const CardDef *card, int upgrade_leve
             10,
             color_fade_alpha(label_color, 240));
     }
+
+    if (layered)
+        draw_layered_card_border(bounds, upgrade_level);
 }
 
 Rectangle theme_draw_card_tooltip_limited(Rectangle bounds, const CardDef *card, int upgrade_level, int explicit_max_bottom)

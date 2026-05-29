@@ -19,12 +19,14 @@ const char *theme_node_icon(NodeType type);
 const char *theme_node_name(NodeType type);
 const char *theme_card_type_label(CardType type);
 const char *theme_primary_effect_label(const CardDef *card);
+unsigned int theme_card_seed_from_id(const char *id, unsigned int salt);
 
 void theme_draw_background(void);
 void theme_draw_cost_gem(int cx, int cy, int cost, bool enabled);
 void theme_draw_effect_badge(Rectangle bounds, const char *label, Color color);
 void theme_draw_class_portrait(ClassType ct, int cx, int cy, int radius, bool alive);
 void theme_draw_card_art(Rectangle bounds, const CardDef *card, int upgrade_level);
+void theme_draw_card_art_seeded(Rectangle bounds, const CardDef *card, int upgrade_level, unsigned int seed);
 Rectangle theme_draw_card_tooltip(Rectangle bounds, const CardDef *card, int upgrade_level);
 Rectangle theme_draw_card_tooltip_limited(Rectangle bounds, const CardDef *card, int upgrade_level, int max_bottom);
 

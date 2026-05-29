@@ -5,3 +5,8 @@ timestamp,run_id,area,floor,encounter,action,offered,picked,pick_number,picks_re
 1779975646,"5","1","2","boss","pick","shm_chain_lightning|mag_firestorm|rng_rain|util_rejuv","util_rejuv","2","0","55"
 1779975685,"5","1","2","normal","pick","rng_rain|rng_pounce|shm_storm","rng_rain","1","0","65"
 1779977206,"6","1","1","normal","pick","clr_divine|grd_shield_wall|clr_smite","clr_smite","1","0","10"
+1779983867,"7","1","1","normal","pick","util_battle_plan|clr_divine|clr_smite","clr_smite","1","0","10"
+1779983938,"7","1","1","normal","pick","util_energ|util_battle_plan|clr_smite","clr_smite","1","0","20"
+1779984886,"8","1","1","normal","pick","util_for|util_rejuv|rng_aim","util_for","1","0","10"
+1779984946,"8","1","1","elite","pick","rog_evis|rng_snipe|rng_rain|util_energ","rng_rain","1","0","35"
+1780000151,"8","1","1","normal","pick","util_prep|rog_poison|rog_kick","rog_kick","1","0","10"

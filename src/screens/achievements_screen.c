@@ -5,6 +5,7 @@
 #include "ui/theme.h"
 #include "constants.h"
 #include "raylib.h"
+#include "ui/ui.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -68,7 +69,7 @@ void achievements_screen_update(void)
     }
 
     // Back button
-    Rectangle back_btn = { (float)(VIRT_W / 2 - 40), (float)(VIRT_H - 28), 80.0f, 20.0f };
+    Rectangle back_btn = { (float)(VIRT_W / 2 - 40), (float)(VIRT_H - 29), (float)BTN_NARROW, 22.0f };
     if (CheckCollisionPointRec(mouse, back_btn) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
     {
         scroll_offset = 0;
@@ -250,11 +251,6 @@ void achievements_screen_draw(void)
         }
     }
 
-    Rectangle back_btn = { (float)(VIRT_W / 2 - 40), (float)(VIRT_H - 28), 80.0f, 20.0f };
-    bool back_hover = CheckCollisionPointRec(mouse, back_btn);
-    Color back_col = back_hover ? (Color){ 100, 100, 130, 255 } : (Color){ 60, 60, 85, 255 };
-    DrawRectangleRec(back_btn, back_col);
-    DrawRectangleLinesEx(back_btn, 1.0f, (Color){ 110, 110, 140, 200 });
-    draw_text_box((Rectangle){ back_btn.x + 4.0f, back_btn.y + 3.0f, back_btn.width - 8.0f, back_btn.height - 6.0f },
-        "BACK", 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
+    Rectangle back_btn = { (float)(VIRT_W / 2 - 40), (float)(VIRT_H - 29), (float)BTN_NARROW, 22.0f };
+    draw_btn_standard(back_btn, (Color){ 60, 60, 85, 255 }, (Color){ 100, 100, 130, 255 }, "BACK");
 }
