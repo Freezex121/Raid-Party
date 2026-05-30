@@ -1,2 +1,7 @@
 timestamp,run_id,area,floor,source,offered,picked
 1779975662,"5","1","2","boss_reward","lantern_oil|scholar_notes|bandage_roll","lantern_oil"
+1780090635,"9","0","2","boss_reward","whetstone|frugal_tome|lantern_oil","lantern_oil"
+1780091522,"9","0","2","boss_reward","spirit_stone|split_prism|lantern_oil","split_prism"
+1780091678,"9","0","3","boss_reward","grave_bell|phoenix_feather|rabbit_foot","rabbit_foot"
+1780092386,"10","0","2","boss_reward","warden_crest|battle_drum|mending_bead","warden_crest"
+1780119644,"12","0","2","boss_reward","veil_pin|resonant_charm|lucky_coin","resonant_charm"

@@ -59,6 +59,11 @@ typedef struct {
     bool consume;
     bool channel;
     int channel_turns;
+    bool echo;
+    int lifesteal;
+    int splash;
+    bool retain;
+    bool fleeting;
     TargetType target;
     int repeat_hits;
     const CardEffect *effects;

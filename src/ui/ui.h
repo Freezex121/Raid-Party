@@ -36,4 +36,14 @@ void draw_btn_large(Rectangle dest, Color normal, Color hover, const char *title
 void draw_panel(Rectangle bounds, Color bg, float corner_radius, Color border);
 void draw_label(const char *text, Vector2 pos, int size, Color color);
 
+typedef struct {
+    Rectangle bounds;
+    int content_height;
+    int scroll_y;
+} ScrollPanel;
+
+void scroll_panel_begin(ScrollPanel *panel, Rectangle bounds);
+int  scroll_panel_y(ScrollPanel *panel);
+void scroll_panel_end(ScrollPanel *panel);
+
 #endif

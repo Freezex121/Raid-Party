@@ -236,28 +236,88 @@ void map_screen_draw(void)
         g_state.map.floor + 1,
         floor_count);
     draw_text_box((Rectangle){ 184.0f, 36.0f, 288.0f, 14.0f }, subtitle, 10, 0, (Color){ 150, 155, 180, 210 }, TEXT_ALIGN_CENTER);
-    relic_tray_draw(g_state.relics, g_state.relic_count, (Rectangle){ 482.0f, 10.0f, 146.0f, 42.0f });
 
     MapState *map = &g_state.map;
     clamp_map_scroll();
 
     BeginScissorMode(0, 52, VIRT_W, VIRT_H - 52);
 
+    // Draw map background — load from area def per floor
+    {
+        static Texture2D cached_bg = {0};
+        static int cached_area = -2;
+        static int cached_floor = -2;
+
+        Texture2D bg_tex = {0};
+        const AreaDef *area_def_ptr = area_def(g_state.current_area);
+        int load_area = g_state.current_area;
+        int load_floor = g_state.map.floor;
+
+        // Check cache
+        if (cached_bg.id != 0 && cached_area == load_area && cached_floor == load_floor)
+        {
+            bg_tex = cached_bg;
+        }
+        else
+        {
+            // Unload old cached texture
+            if (cached_bg.id != 0)
+            {
+                UnloadTexture(cached_bg);
+                cached_bg = (Texture2D){0};
+            }
+
+            if (area_def_ptr && area_def_ptr->map_bg_files && area_def_ptr->map_bg_count > 0)
+            {
+                int idx = load_floor < area_def_ptr->map_bg_count ? load_floor : area_def_ptr->map_bg_count - 1;
+                if (idx < 0) idx = 0;
+                cached_bg = load_art_texture(area_def_ptr->map_bg_files[idx]);
+                if (cached_bg.id != 0)
+                    SetTextureFilter(cached_bg, TEXTURE_FILTER_POINT);
+                bg_tex = cached_bg;
+                cached_area = load_area;
+                cached_floor = load_floor;
+            }
+        }
+        if (bg_tex.id != 0)
+        {
+            Rectangle bounds = map_content_bounds(map);
+            float view_h = (float)(VIRT_H - 52);
+            float max_scroll = bounds.height - view_h;
+            if (max_scroll < 0.0f) max_scroll = 0.0f;
+            float scroll_ratio = max_scroll > 0.0f ? map_scroll_y / max_scroll : 0.0f;
+            if (scroll_ratio < 0.0f) scroll_ratio = 0.0f;
+            if (scroll_ratio > 1.0f) scroll_ratio = 1.0f;
+            // Parallax: move at 30% speed so nodes feel like they're in the world
+            float parallax_ratio = scroll_ratio * 0.3f;
+            float img_h = (float)bg_tex.height;
+            float y_offset = (img_h - view_h) * parallax_ratio;
+            if (y_offset < 0.0f) y_offset = 0.0f;
+            if (y_offset > img_h - view_h) y_offset = img_h - view_h;
+            DrawTexturePro(bg_tex,
+                (Rectangle){ 0.0f, y_offset, (float)bg_tex.width, view_h },
+                (Rectangle){ 0.0f, 52.0f, (float)VIRT_W, view_h },
+                (Vector2){ 0, 0 }, 0.0f, WHITE);
+        }
+    }
+
+    // Draw connection lines with black outline + thicker
     for (int i = 0; i < map->node_count; i++)
     {
         MapNode *n = &map->nodes[i];
         Vector2 from = node_screen_pos(n);
-        Color conn_col = n->completed ? (Color){ 125, 140, 165, 170 } : (Color){ 60, 64, 86, 90 };
+        Color conn_col = n->completed ? (Color){ 125, 140, 165, 170 } : (Color){ 60, 64, 86, 120 };
+        float line_w = n->completed ? 3.0f : 2.0f;
         for (int c = 0; c < n->conn_count; c++)
         {
             int ni = n->conns[c];
             if (ni < 0 || ni >= map->node_count) continue;
             MapNode *next = &map->nodes[ni];
             Vector2 to = node_screen_pos(next);
-            DrawLineEx(from,
-                       to,
-                       n->completed ? 2.0f : 1.0f,
-                       conn_col);
+            // Black outline
+            DrawLineEx(from, to, line_w + 2.0f, (Color){ 0, 0, 0, 180 });
+            // Colored line on top
+            DrawLineEx(from, to, line_w, conn_col);
         }
     }
 
@@ -274,13 +334,13 @@ void map_screen_draw(void)
         int half = (int)(sprite_size * 0.5f);
         Rectangle dest_rect = { (float)(sx - half), (float)(sy - half), sprite_size, sprite_size };
         Rectangle src_rect = { 0.0f, 0.0f, (float)tex.width, (float)tex.height };
-
+        Color sprite_tint = { 255, 255, 255, 255 };
         bool has_tex = (tex.id != 0);
 
         if (!n->available && !n->completed)
         {
             if (has_tex)
-                DrawTexturePro(tex, src_rect, dest_rect, (Vector2){0, 0}, 0.0f, (Color){ 80, 80, 80, 180 });
+                DrawTexturePro(tex, src_rect, dest_rect, (Vector2){0, 0}, 0.0f, (Color){ 150, 150, 150, 200 });
             else
             {
                 int r = (n->type == NODE_BOSS) ? 18 : 14;
@@ -291,16 +351,18 @@ void map_screen_draw(void)
                 dim.a = 128;
                 DrawText(theme_node_icon(n->type), sx - MeasureText(theme_node_icon(n->type), locked_size) / 2, sy - locked_size / 2, locked_size, dim);
             }
-            DrawText(name, sx - MeasureText(name, 10) / 2, sy + half + 4, 10, (Color){ 58, 58, 78, 120 });
+            int name_w = MeasureText(name, 10);
+            DrawRectangle(sx - name_w / 2 - 3, sy + half + 2, name_w + 6, 12, (Color){ 0, 0, 0, 140 });
+            DrawText(name, sx - name_w / 2, sy + half + 4, 10, (Color){ 255, 255, 255, 180 });
             continue;
         }
 
+        // Completed: full sprite tinted green
         if (n->completed)
         {
             if (has_tex)
             {
-                DrawTexturePro(tex, src_rect, dest_rect, (Vector2){0, 0}, 0.0f, WHITE);
-                DrawCircle(sx, sy, (float)(half - 2), (Color){ 70, 200, 115, 130 });
+                DrawTexturePro(tex, src_rect, dest_rect, (Vector2){0, 0}, 0.0f, (Color){ 70, 230, 130, 230 });
             }
             else
             {
@@ -311,16 +373,17 @@ void map_screen_draw(void)
         }
         else if (i == hovered_node)
         {
-            Color c = theme_node_color(n->type);
-            float pulse = 1.0f + 0.07f * sinf((float)GetTime() * 5.5f);
-            DrawCircle(sx, sy, (float)(half + 5) * pulse, (Color){ c.r, c.g, c.b, 55 });
+            // Pulse tint between dark grey and white
+            float pulse = 0.5f + 0.5f * sinf((float)GetTime() * 5.5f);
+            unsigned char grey = (unsigned char)(100 + 155 * pulse);
+            Color hover_tint = { grey, grey, grey, 230 };
             if (has_tex)
             {
-                DrawRectangleLinesEx(dest_rect, 2.0f, RAYWHITE);
-                DrawTexturePro(tex, src_rect, dest_rect, (Vector2){0, 0}, 0.0f, WHITE);
+                DrawTexturePro(tex, src_rect, dest_rect, (Vector2){0, 0}, 0.0f, hover_tint);
             }
             else
             {
+                Color c = theme_node_color(n->type);
                 DrawCircle(sx, sy, half + 2, RAYWHITE);
                 DrawCircle(sx, sy, (float)half, c);
                 int icon_size = n->type == NODE_BOSS ? 18 : 10;
@@ -330,9 +393,7 @@ void map_screen_draw(void)
         else
         {
             if (has_tex)
-            {
-                DrawTexturePro(tex, src_rect, dest_rect, (Vector2){0, 0}, 0.0f, WHITE);
-            }
+                DrawTexturePro(tex, src_rect, dest_rect, (Vector2){0, 0}, 0.0f, sprite_tint);
             else
             {
                 int r = (n->type == NODE_BOSS) ? 18 : 14;
@@ -345,8 +406,9 @@ void map_screen_draw(void)
             }
         }
 
-        // Name label below node (all states except locked)
-        DrawText(name, sx - MeasureText(name, 10) / 2, sy + half + 4, 10, theme_node_color(n->type));
+        int name_w = MeasureText(name, 10);
+        DrawRectangle(sx - name_w / 2 - 3, sy + half + 2, name_w + 6, 12, (Color){ 0, 0, 0, 140 });
+        DrawText(name, sx - name_w / 2, sy + half + 4, 10, RAYWHITE);
     }
 
     // Debug overlay — shows cumulative path values per lane
@@ -446,6 +508,8 @@ void map_screen_draw(void)
     }
 
     EndScissorMode();
+
+    relic_tray_draw(g_state.relics, g_state.relic_count, (Rectangle){ 482.0f, 10.0f, 146.0f, 42.0f });
 
     Rectangle bounds = map_content_bounds(map);
     if (bounds.height > VIRT_H - 52 || bounds.width > VIRT_W)

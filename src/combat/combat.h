@@ -55,9 +55,20 @@ typedef struct {
     int pos_x, pos_y;
     StatusEffect statuses[MAX_STATUSES];
     int status_count;
+    int deck[ENEMY_DECK_SIZE];
+    int deck_count;
+    int deck_top;
+    int hand[ENEMY_DECK_SIZE];
+    int hand_count;
+    int discard[ENEMY_DECK_SIZE];
+    int discard_count;
+    int energy_current;
+    int energy_max;
+    bool cast_pending;
 } EnemyState;
 
 #define MAX_CARD_THROW_ANIMS 8
+#define MAX_ENEMY_CARD_THROWS 8
 
 typedef struct {
     bool active;
@@ -72,6 +83,22 @@ typedef struct {
     int width;
     int height;
 } CardThrowAnim;
+
+typedef struct {
+    bool active;
+    int enemy_index;
+    int card_idx;
+    const char *ability_name;
+    IntentType intent;
+    float t;
+    float duration;
+    float pause_timer;
+    Vector2 start;
+    Vector2 control;
+    Vector2 end;
+    int target_enemy;
+    int target_ally;
+} EnemyCardThrow;
 
 typedef struct {
     CombatPhase phase;
@@ -93,7 +120,7 @@ typedef struct {
     int combo_last_cost;
     int combo_count;
     ClassType last_played_class;
-    ComboPrime combo_prime;
+    int combo_prime_index;
     int combo_prime_turns_remaining;
     float synergy_banner_timer;
     float synergy_flash_timer;
@@ -140,14 +167,20 @@ typedef struct {
     bool ranger_marked_dmg_used;
     bool warlock_blight_boost_used;
     bool bard_first_draw_used;
+    bool musical_mend_used;
+    bool magical_might_used;
+    bool deadly_poison_used;
     int vengeful_ally;
     int mana_gem_bonus;
     CardThrowAnim card_throws[MAX_CARD_THROW_ANIMS];
+    EnemyCardThrow enemy_card_throws[MAX_ENEMY_CARD_THROWS];
 } CombatState;
 
 void combat_start(CombatState *cs, const Party *party, const EncounterDef *encounter);
 void combat_update(CombatState *cs);
 void combat_end_turn(CombatState *cs);
 void combat_draw_card_throws(CombatState *cs);
+void combat_draw_enemy_card_throws(CombatState *cs);
+bool combat_any_pending(CombatState *cs);
 
 #endif

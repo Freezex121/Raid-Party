@@ -1,5 +1,6 @@
 #include "screens.h"
 #include "game.h"
+#include "data/synergy_defs.h"
 #include "constants.h"
 #include "raylib.h"
 #include "ui/theme.h"
@@ -67,13 +68,13 @@ static void draw_line(int *y, const char *title, const char *body, Color accent)
     *y += body_h + 8;
 }
 
-static void draw_compact_line(int *y, const char *title, const char *body, Color accent)
+static void draw_compact_line(int *y, const char *title, const char *body, Color accent, int x_offset)
 {
     int body_h = measure_text_box(body, 430, 10, 0);
     if (body_h < ui_line_height(10)) body_h = ui_line_height(10);
-    draw_text_box((Rectangle){ 54.0f, (float)*y, 90.0f, (float)body_h },
+    draw_text_box((Rectangle){ 54.0f, (float)*y, 90.0f + x_offset, (float)body_h },
         title, 10, 0, accent, TEXT_ALIGN_LEFT);
-    draw_text_box((Rectangle){ 154.0f, (float)*y, 430.0f, (float)body_h },
+    draw_text_box((Rectangle){ 154.0f + x_offset, (float)*y, 430.0f, (float)body_h },
         body, 10, 0, (Color){ 205, 210, 230, 230 }, TEXT_ALIGN_LEFT);
     *y += body_h + 6;
 }
@@ -99,41 +100,46 @@ static void draw_synergies(int *y)
 
 static void draw_combos(int *y)
 {
-    draw_compact_line(y, "Guardian > Cleric", "Shield of Faith: next heal is 50% stronger.", (Color){ 235, 205, 95, 255 });
-    draw_compact_line(y, "Mage > Rogue", "Arcane Assault: next attack applies 2 Burning.", (Color){ 235, 205, 95, 255 });
-    draw_compact_line(y, "Shaman > Ranger", "Storm Volley: next AoE deals 50% more damage.", (Color){ 235, 205, 95, 255 });
-    draw_compact_line(y, "Rogue > Cleric", "Shadow Dance: next heal costs 0.", (Color){ 235, 205, 95, 255 });
-    draw_compact_line(y, "Shaman > Mage", "Elemental Fury: next Mage damage card costs 0.", (Color){ 235, 205, 95, 255 });
-    draw_compact_line(y, "Rogue > Mage", "Backdraft: next damage card deals 25% more damage.", (Color){ 235, 205, 95, 255 });
-    draw_compact_line(y, "Paladin > Bard", "Sacred Chorus: next group heal/shield is 50% stronger.", (Color){ 235, 205, 95, 255 });
-    draw_compact_line(y, "Bard > Warlock", "Dark Refrain: next Warlock damage applies BLIGHT.", (Color){ 235, 205, 95, 255 });
-    draw_compact_line(y, "Warlock > Paladin", "Absolution: next Paladin card consumes BLIGHT to heal.", (Color){ 235, 205, 95, 255 });
+    draw_compact_line(y, "Guardian > Cleric", "Shield of Faith: next heal is 50% stronger.", (Color){ 235, 205, 95, 255 }, 25);
+    draw_compact_line(y, "Mage > Rogue", "Arcane Assault: next attack applies 2 Burning.", (Color){ 235, 205, 95, 255 }, 25);
+    draw_compact_line(y, "Shaman > Ranger", "Storm Volley: next AoE deals 50% more damage.", (Color){ 235, 205, 95, 255 }, 25);
+    draw_compact_line(y, "Rogue > Cleric", "Shadow Dance: next heal costs 0.", (Color){ 235, 205, 95, 255 }, 25);
+    draw_compact_line(y, "Shaman > Mage", "Elemental Fury: next Mage damage card costs 0.", (Color){ 235, 205, 95, 255 }, 25);
+    draw_compact_line(y, "Rogue > Mage", "Backdraft: next damage card deals 25% more damage.", (Color){ 235, 205, 95, 255 }, 25);
+    draw_compact_line(y, "Paladin > Bard", "Sacred Chorus: next group heal/shield is 50% stronger.", (Color){ 235, 205, 95, 255 }, 25);
+    draw_compact_line(y, "Bard > Warlock", "Dark Refrain: next Warlock damage applies BLIGHT.", (Color){ 235, 205, 95, 255 }, 25);
+    draw_compact_line(y, "Warlock > Paladin", "Absolution: next Paladin card consumes BLIGHT to heal.", (Color){ 235, 205, 95, 255 }, 25);
 }
 
 static void draw_classes(int *y)
 {
-    draw_compact_line(y, "Guardian", "Shield pressure; consumes BLIGHT with Shield Slam.", theme_class_color(CLASS_GUARDIAN));
-    draw_compact_line(y, "Cleric", "Consumes MARKED/BLIGHT for recovery.", theme_class_color(CLASS_CLERIC));
-    draw_compact_line(y, "Mage", "Detonates CONDUCTIVE with arcs and Meteor.", theme_class_color(CLASS_MAGE));
-    draw_compact_line(y, "Rogue", "Consumes MARKED and applies BLIGHT.", theme_class_color(CLASS_ROGUE));
-    draw_compact_line(y, "Shaman", "Applies CONDUCTIVE and extends totems.", theme_class_color(CLASS_SHAMAN));
-    draw_compact_line(y, "Ranger", "Applies MARKED and enables Ambush.", theme_class_color(CLASS_RANGER));
-    draw_compact_line(y, "Paladin", "Consumes MARKED/BLIGHT; chains with Bard/Warlock.", theme_class_color(CLASS_PALADIN));
-    draw_compact_line(y, "Warlock", "Turns CONDUCTIVE into BLIGHT; cashes out BLIGHT.", theme_class_color(CLASS_WARLOCK));
-    draw_compact_line(y, "Bard", "Marks, conducts, extends, and amplifies setup.", theme_class_color(CLASS_BARD));
+    draw_compact_line(y, "Guardian", "Shield pressure; consumes BLIGHT with Shield Slam.", theme_class_color(CLASS_GUARDIAN), 0);
+    draw_compact_line(y, "Cleric", "Consumes MARKED/BLIGHT for recovery.", theme_class_color(CLASS_CLERIC), 0);
+    draw_compact_line(y, "Mage", "Detonates CONDUCTIVE with arcs and Meteor.", theme_class_color(CLASS_MAGE), 0);
+    draw_compact_line(y, "Rogue", "Consumes MARKED and applies BLIGHT.", theme_class_color(CLASS_ROGUE), 0);
+    draw_compact_line(y, "Shaman", "Applies CONDUCTIVE and extends totems.", theme_class_color(CLASS_SHAMAN), 0);
+    draw_compact_line(y, "Ranger", "Applies MARKED and enables Ambush.", theme_class_color(CLASS_RANGER), 0);
+    draw_compact_line(y, "Paladin", "Consumes MARKED/BLIGHT; chains with Bard/Warlock.", theme_class_color(CLASS_PALADIN), 0);
+    draw_compact_line(y, "Warlock", "Turns CONDUCTIVE into BLIGHT; cashes out BLIGHT.", theme_class_color(CLASS_WARLOCK), 0);
+    draw_compact_line(y, "Bard", "Marks, conducts, extends, and amplifies setup.", theme_class_color(CLASS_BARD), 0);
 }
 
 static void draw_passives(int *y)
 {
-    draw_line(y, "Molten Armor", "Guardian + Mage: when Guardian gains Shield, a random enemy takes 2 damage.", (Color){ 245, 105, 70, 255 });
-    draw_line(y, "Ambush", "Rogue + Ranger: first damaging card each combat deals double damage.", (Color){ 245, 220, 75, 255 });
-    draw_line(y, "Shadow Mend", "Cleric + Rogue: Rogue aggro drops heal the Rogue for 8.", (Color){ 120, 245, 170, 255 });
-    draw_line(y, "Earthen Bulwark", "Guardian + Shaman: Healing Totem lasts 2 extra turns.", (Color){ 95, 185, 255, 255 });
-    draw_line(y, "Absolution", "Paladin + Warlock: consuming BLIGHT heals the lowest HP ally.", (Color){ 230, 205, 95, 255 });
+    for (int i = 0; i < synergy_pair_count(); i++)
+    {
+        const SynergyPairDef *p = synergy_pair_by_index(i);
+        if (!p || !p->name || !p->desc) continue;
+        char title[64];
+        snprintf(title, sizeof(title), "%s", p->name);
+        draw_compact_line(y, title, p->desc, (Color){ 205, 210, 230, 230 }, 25);
+    }
 }
 
 void codex_screen_draw(void)
 {
+    static ScrollPanel codex_panel = { 0 };
+
     theme_draw_background();
     draw_text_box((Rectangle){ 80.0f, 30.0f, 480.0f, 22.0f }, "COLLECTIVE", 18, 0, RAYWHITE, TEXT_ALIGN_CENTER);
 
@@ -154,14 +160,19 @@ void codex_screen_draw(void)
     DrawRectangleRec(panel, (Color){ 9, 10, 17, 225 });
     DrawRectangleLinesEx(panel, 1.0f, (Color){ 105, 115, 150, 180 });
 
-    int y = 112;
-    BeginScissorMode((int)panel.x + 1, (int)panel.y + 1, (int)panel.width - 2, (int)panel.height - 2);
+    scroll_panel_begin(&codex_panel, panel);
+
+    int y = scroll_panel_y(&codex_panel);
+    BeginScissorMode((int)panel.x + 1, (int)panel.y + 1, (int)panel.width - 5, (int)panel.height - 2);
     if (codex_tab == 0) draw_statuses(&y);
     else if (codex_tab == 1) draw_synergies(&y);
     else if (codex_tab == 2) draw_combos(&y);
     else if (codex_tab == 3) draw_classes(&y);
     else draw_passives(&y);
     EndScissorMode();
+
+    codex_panel.content_height = y - scroll_panel_y(&codex_panel);
+    scroll_panel_end(&codex_panel);
 
     button_draw_9slice(&back_btn);
 }

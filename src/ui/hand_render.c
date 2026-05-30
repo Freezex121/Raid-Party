@@ -1,4 +1,6 @@
 #include "hand_render.h"
+#include "data/synergy_defs.h"
+#include "ui/theme.h"
 #include "util/text.h"
 #include "util/log.h"
 #include "ui/theme.h"
@@ -46,45 +48,47 @@ static bool card_is_heal_card(const CardDef *card)
         card_has_effect(card, CARD_EFFECT_APPLY_STATUS_ALL_ALLIES);
 }
 
-static int effective_cost(const CardDef *card, ComboPrime combo_prime)
+static int effective_cost(const CardDef *card, int combo_prime_index)
 {
     if (!card) return 0;
-    if (combo_prime == COMBO_PRIME_SHADOW_DANCE && card_is_heal_card(card))
-        return 0;
-    if (combo_prime == COMBO_PRIME_ELEMENTAL_FURY && card->class == CLASS_MAGE && card->damage > 0)
-        return 0;
+    if (combo_prime_index >= 0 && combo_prime_index < synergy_combo_count())
+    {
+        const SynergyComboDef *c = synergy_combo_by_index(combo_prime_index);
+        if (c && c->free_cost)
+        {
+            if (strcmp(c->consume_card_type, "heal") == 0 && card_is_heal_card(card))
+                return 0;
+            if (strcmp(c->consume_card_type, "mage_fire_spell") == 0 && card->class == CLASS_MAGE && card->damage > 0)
+                return 0;
+        }
+    }
     return card->cost;
 }
 
-static void draw_hand_card(Rectangle card_rect, const CardDef *card, int upgrade_level, unsigned int seed, bool hovered, bool low_energy, bool locked)
+static void draw_hand_card(Rectangle r, const CardDef *card, int upgrade_level, unsigned int seed, bool show_highlight, bool low_energy, bool locked)
 {
-    Color accent = theme_class_color(card->class);
-    int cx = (int)card_rect.x;
-    int cy = (int)card_rect.y;
-    int cw = (int)card_rect.width;
-    int ch = (int)card_rect.height;
+    if (!card) return;
 
-    theme_draw_card_art_seeded(card_rect, card, upgrade_level, seed);
+    theme_draw_card_art_seeded(r, card, upgrade_level, seed);
 
     if (locked)
     {
-        DrawRectangleRec(card_rect, (Color){ 40, 20, 22, 165 });
-        draw_text_box((Rectangle){ card_rect.x + 5.0f, card_rect.y + card_rect.height * 0.5f - 7.0f, card_rect.width - 10.0f, 14.0f },
-            "CHANNELING", 10, 0, (Color){ 240, 120, 120, 230 }, TEXT_ALIGN_CENTER);
+        DrawRectangleRec(r, (Color){ 180, 50, 50, 80 });
+        draw_text_box((Rectangle){ r.x + 4, r.y + r.height / 2 - 8, r.width - 8, 16 },
+            "CHANNELING", 10, 0, (Color){ 255, 200, 100, 230 }, TEXT_ALIGN_CENTER);
         return;
     }
 
     if (low_energy)
     {
-        DrawRectangleRec(card_rect, (Color){ 8, 8, 12, 120 });
-        DrawRectangle(cx, cy + ch - 9, cw, 9, (Color){ 190, 60, 65, 210 });
-        if (hovered)
-            draw_text_box((Rectangle){ card_rect.x + 5.0f, card_rect.y + card_rect.height - 24.0f, card_rect.width - 10.0f, 16.0f },
-                "Not enough energy", 10, 0, (Color){ 240, 110, 115, 240 }, TEXT_ALIGN_CENTER);
+        DrawRectangleRec(r, (Color){ 40, 40, 60, 140 });
     }
+
+    if (show_highlight)
+        DrawRectangleLinesEx(r, 2.0f, (Color){ 255, 255, 200, 220 });
 }
 
-void hand_render_draw(Deck *deck, Energy *energy, int hovered_card, ClassType channel_class, int target_idx, float target_offset, ComboPrime combo_prime)
+void hand_render_draw(Deck *deck, Energy *energy, int hovered_card, ClassType channel_class, int target_idx, float target_offset, int combo_prime_index)
 {
     LOG_T("HRD: start");
 
@@ -147,7 +151,7 @@ void hand_render_draw(Deck *deck, Energy *energy, int hovered_card, ClassType ch
         float select_offset = (i == target_idx) ? target_offset : 0.0f;
         float draw_y = base_rect.y + hover_offset + select_offset + deal_offset;
 
-        bool low_energy = energy->current < effective_cost(card, combo_prime);
+        bool low_energy = energy->current < effective_cost(card, combo_prime_index);
         int cw = hand_layout.card_w;
         int ch = hand_layout.card_h;
         int cx = x;
@@ -176,7 +180,7 @@ void hand_render_draw(Deck *deck, Energy *energy, int hovered_card, ClassType ch
 
     if (hovered_card >= 0 && hovered_card < deck->hand_count && draw_valid[hovered_card])
     {
-        draw_hand_card(draw_rects[hovered_card], draw_cards[hovered_card], draw_upgrade_level[hovered_card], draw_seed[hovered_card], true, draw_low_energy[hovered_card], draw_locked[hovered_card]);
+        draw_hand_card(draw_rects[hovered_card], draw_cards[hovered_card], draw_upgrade_level[hovered_card], draw_seed[hovered_card], false, draw_low_energy[hovered_card], draw_locked[hovered_card]);
     }
     LOG_T("HRD: end");
 }

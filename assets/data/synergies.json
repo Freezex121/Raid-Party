@@ -1,0 +1,214 @@
+{
+  "schema": 1,
+  "pair_passives": [
+    {
+      "id": "molten_armor",
+      "classes": ["guardian", "mage"],
+      "trigger": "shield_gained",
+      "on_class": "guardian",
+      "effect": "damage_random_enemy",
+      "value": 2,
+      "once_per_combat": false,
+      "name": "Molten Armor",
+      "desc": "Guardian+Mage: when the Guardian gains Shield, a random enemy takes 2 damage."
+    },
+    {
+      "id": "sheltered_bulwark",
+      "classes": ["guardian", "paladin"],
+      "trigger": "shield_gained",
+      "on_class": "guardian",
+      "effect": "shield_other",
+      "value": 2,
+      "once_per_combat": false,
+      "name": "Sheltered Bulwark",
+      "desc": "Guardian+Paladin: when the Guardian gains Shield, the Paladin gains 2 Shield."
+    },
+    {
+      "id": "natures_nurture",
+      "classes": ["cleric", "shaman"],
+      "trigger": "totem_tick",
+      "effect": "heal_increase",
+      "value": 2,
+      "once_per_combat": false,
+      "name": "Nature's Nurture",
+      "desc": "Cleric+Shaman: Healing Totem heals +2 per tick."
+    },
+    {
+      "id": "musical_mend",
+      "classes": ["cleric", "bard"],
+      "trigger": "card_heal",
+      "effect": "draw_card",
+      "value": 1,
+      "once_per_turn": true,
+      "name": "Musical Mend",
+      "desc": "Cleric+Bard: first heal each turn also draws 1 card."
+    },
+    {
+      "id": "magical_might",
+      "classes": ["mage", "warlock"],
+      "trigger": "card_damage",
+      "on_class": "mage_or_warlock",
+      "effect": "add_damage",
+      "value": 3,
+      "once_per_turn": true,
+      "name": "Magical Might",
+      "desc": "Mage+Warlock: first spell each turn deals +3 damage."
+    },
+    {
+      "id": "ambush",
+      "classes": ["rogue", "ranger"],
+      "trigger": "first_damage_combat",
+      "effect": "multiply_damage",
+      "value": 1.5,
+      "once_per_combat": true,
+      "name": "Ambush",
+      "desc": "Rogue+Ranger: first damaging card each combat deals 1.5x damage."
+    },
+    {
+      "id": "sneaky_steal",
+      "classes": ["rogue", "paladin"],
+      "trigger": "damage_dealt",
+      "effect": "lifesteal_percent",
+      "value": 10,
+      "once_per_combat": false,
+      "name": "Sneaky Steal",
+      "desc": "Rogue+Paladin: all damage dealt has 10% lifesteal."
+    },
+    {
+      "id": "call_of_nature",
+      "classes": ["shaman", "bard"],
+      "trigger": "status_applied",
+      "on_status": "CONDUCTIVE",
+      "effect": "apply_marked",
+      "value": 1,
+      "once_per_combat": false,
+      "name": "Call of Nature",
+      "desc": "Shaman+Bard: CONDUCTIVE applications also apply MARKED for 1 turn."
+    },
+    {
+      "id": "deadly_poison",
+      "classes": ["ranger", "warlock"],
+      "trigger": "status_applied",
+      "on_status": "BLIGHT",
+      "effect": "blight_immediate_damage",
+      "once_per_combat": false,
+      "name": "Deadly Poison",
+      "desc": "Ranger+Warlock: BLIGHT also deals {turns} immediate damage when applied."
+    }
+  ],
+  "combos": [
+    {
+      "id": "shield_of_faith",
+      "prev_class": "guardian",
+      "next_class": "cleric",
+      "title": "SHIELD OF FAITH",
+      "subtitle": "Next heal +50%",
+      "consume_card_type": "heal",
+      "multiply_heal": 1.5,
+      "combo_turns": 1
+    },
+    {
+      "id": "arcane_assault",
+      "prev_class": "mage",
+      "next_class": "rogue",
+      "title": "ARCANE ASSAULT",
+      "subtitle": "Next attack applies Burning",
+      "consume_card_type": "attack",
+      "apply_status": "BURNING",
+      "status_turns": 3,
+      "status_value": 2,
+      "combo_turns": 1
+    },
+    {
+      "id": "storm_volley",
+      "prev_class": "shaman",
+      "next_class": "ranger",
+      "title": "STORM VOLLEY",
+      "subtitle": "Next AoE +50%",
+      "consume_card_type": "aoe",
+      "multiply_damage": 1.5,
+      "combo_turns": 1
+    },
+    {
+      "id": "shadow_dance",
+      "prev_class": "rogue",
+      "next_class": "cleric",
+      "title": "SHADOW DANCE",
+      "subtitle": "Next heal costs 0",
+      "consume_card_type": "heal",
+      "free_cost": true,
+      "combo_turns": 1
+    },
+    {
+      "id": "elemental_fury",
+      "prev_class": "shaman",
+      "next_class": "mage",
+      "title": "ELEMENTAL FURY",
+      "subtitle": "Next Mage damage card costs 0",
+      "consume_card_type": "mage_fire_spell",
+      "free_cost": true,
+      "combo_turns": 1
+    },
+    {
+      "id": "backdraft",
+      "prev_class": "rogue",
+      "next_class": "mage",
+      "title": "BACKDRAFT",
+      "subtitle": "Next damage card +25%",
+      "consume_card_type": "damage",
+      "multiply_damage": 1.25,
+      "combo_turns": 1
+    },
+    {
+      "id": "sacred_chorus",
+      "prev_class": "paladin",
+      "next_class": "bard",
+      "title": "SACRED CHORUS",
+      "subtitle": "Next group heal/shield +50%",
+      "consume_card_type": "group_heal_or_shield",
+      "multiply_heal": 1.5,
+      "multiply_shield": 1.5,
+      "combo_turns": 1
+    },
+    {
+      "id": "dark_refrain",
+      "prev_class": "bard",
+      "next_class": "warlock",
+      "title": "DARK REFRAIN",
+      "subtitle": "Next Warlock damage applies BLIGHT",
+      "consume_card_type": "warlock_damage",
+      "apply_status": "BLIGHT",
+      "status_turns": 3,
+      "status_value": 2,
+      "combo_turns": 1
+    },
+    {
+      "id": "absolution",
+      "prev_class": "warlock",
+      "next_class": "paladin",
+      "title": "ABSOLUTION",
+      "subtitle": "Consumes BLIGHT to heal party",
+      "consume_card_type": "paladin",
+      "special_effect": "consume_blight_heal_party",
+      "combo_turns": 1
+    }
+  ],
+  "card_status_interactions": [
+    { "card": "rog_evis", "status": "MARKED", "consume": true, "effect": "add_damage", "value": 8 },
+    { "card": "rog_backstab", "status": "MARKED", "consume": true, "effect": "refund_energy", "value": 1 },
+    { "card": "mag_missiles", "status": "MARKED", "consume": false, "effect": "draw_cards", "value": 1 },
+    { "card": "clr_smite", "status": "MARKED", "consume": true, "effect": "add_lowest_heal", "value": 8 },
+    { "card": "pal_holy_strike", "status": "MARKED", "consume": true, "effect": "add_lowest_heal", "value": 6 },
+    { "card": "wlk_drain_life", "status": "MARKED", "consume": false, "effect": "add_lowest_heal", "value": 4 },
+    { "card": "mag_fireball", "status": "CONDUCTIVE", "consume": false, "effect": "splash_adjacent_50" },
+    { "card": "mag_meteor", "status": "CONDUCTIVE", "consume": true, "effect": "add_damage_per_stack", "value": 10 },
+    { "card": "rog_shadow", "status": "CONDUCTIVE", "consume": false, "effect": "aoe_conductive_50" },
+    { "card": "wlk_shadow_bolt", "status": "CONDUCTIVE", "consume": false, "effect": "apply_blight" },
+    { "card": "grd_shield_slam", "status": "BLIGHT", "consume": true, "effect": "add_shield", "value": 6 },
+    { "card": "clr_holy_fire", "status": "BLIGHT", "consume": true, "effect": "heal_caster", "value": 10 },
+    { "card": "pal_judgment", "status": "BLIGHT", "consume": true, "effect": "apply_trap", "value": 4, "turns": 2 },
+    { "card": "pal_aegis_aura", "status": "BLIGHT", "consume": false, "effect": "shield_per_blight", "value": 3 },
+    { "card": "wlk_hellfire", "status": "BLIGHT", "consume": false, "effect": "add_damage_per_blight", "value": 4 },
+    { "card": "wlk_dark_harvest", "status": "BLIGHT", "consume": false, "effect": "damage_all_blight_heal_party", "value": 3 }
+  ]
+}

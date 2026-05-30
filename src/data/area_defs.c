@@ -14,6 +14,12 @@ static void free_areas(void)
         free((void *)areas[i].id);
         free((void *)areas[i].name);
         free((void *)areas[i].description);
+        if (areas[i].map_bg_files)
+        {
+            for (int f = 0; f < areas[i].map_bg_count; f++)
+                free(areas[i].map_bg_files[f]);
+            free(areas[i].map_bg_files);
+        }
     }
     free(areas);
     areas = NULL;
@@ -82,6 +88,26 @@ bool area_defs_load_json(const char *path)
 
         if (out->floor_count < 1) out->floor_count = 1;
         if (out->difficulty_percent < 50) out->difficulty_percent = 50;
+
+        // Parse map background files array
+        const JsonValue *bg_files = field(item, "map_bg_files");
+        if (bg_files && bg_files->type == JSON_ARRAY)
+        {
+            out->map_bg_count = json_array_count(bg_files);
+            if (out->map_bg_count > 0)
+            {
+                out->map_bg_files = (char **)calloc((size_t)out->map_bg_count, sizeof(char *));
+                if (out->map_bg_files)
+                {
+                    for (int f = 0; f < out->map_bg_count; f++)
+                    {
+                        const char *fn = json_string(json_array_get(bg_files, f), NULL);
+                        if (fn && fn[0])
+                            out->map_bg_files[f] = copy_text(fn);
+                    }
+                }
+            }
+        }
 
         area_count++;
     }

@@ -49,6 +49,18 @@ static StatusType parse_status(const char *text)
     return STATUS_NONE;
 }
 
+static EnemyTargetType parse_target(const char *text)
+{
+    if (!text) return ENEMY_TARGET_TANK;
+    if (strcmp(text, "tank") == 0) return ENEMY_TARGET_TANK;
+    if (strcmp(text, "random") == 0) return ENEMY_TARGET_RANDOM;
+    if (strcmp(text, "all") == 0) return ENEMY_TARGET_ALL;
+    if (strcmp(text, "aoe") == 0) return ENEMY_TARGET_ALL;
+    if (strcmp(text, "self") == 0) return ENEMY_TARGET_SELF;
+    if (strcmp(text, "lowest_hp") == 0) return ENEMY_TARGET_LOWEST_HP;
+    return ENEMY_TARGET_TANK;
+}
+
 bool enemy_defs_load_json(const char *path)
 {
     char error[192] = "";
@@ -81,28 +93,40 @@ bool enemy_defs_load_json(const char *path)
         def.name = copy_text(json_string(field(item, "name"), ""));
         def.max_hp = json_int(field(item, "max_hp"), 1);
         def.hp = def.max_hp;
+        def.hand_size = json_int(field(item, "hand_size"), 2);
+        def.energy_per_turn = json_int(field(item, "energy_per_turn"), 2);
 
-        const JsonValue *abilities = field(item, "abilities");
-        int ability_count = json_array_count(abilities);
-        if (ability_count > 4) ability_count = 4;
-        for (int a = 0; a < ability_count; a++)
+        const JsonValue *cards = field(item, "cards");
+        int card_count = json_array_count(cards);
+        if (card_count > MAX_ENEMY_CARDS) card_count = MAX_ENEMY_CARDS;
+        for (int a = 0; a < card_count; a++)
         {
-            const JsonValue *ability = json_array_get(abilities, a);
-            if (!ability || ability->type != JSON_OBJECT) continue;
+            const JsonValue *card = json_array_get(cards, a);
+            if (!card || card->type != JSON_OBJECT) continue;
 
-            EnemyAbility *out = &def.abilities[def.ability_count++];
-            out->name = copy_text(json_string(field(ability, "name"), ""));
-            out->intent = parse_intent(json_string(field(ability, "intent"), ""));
-            out->base_damage = json_int(field(ability, "base_damage"), 0);
-            out->cast_time = json_int(field(ability, "cast_time"), 1);
+            EnemyCardDef *out = &def.cards[def.card_count++];
+            out->name = copy_text(json_string(field(card, "name"), ""));
+            out->intent = parse_intent(json_string(field(card, "intent"), ""));
+            out->target = parse_target(json_string(field(card, "target"), "tank"));
+            out->cost = json_int(field(card, "cost"), 1);
+            out->base_damage = json_int(field(card, "base_damage"), 0);
+            out->cast_time = json_int(field(card, "cast_time"), 1);
             if (out->cast_time < 1) out->cast_time = 1;
-            out->description = copy_text(json_string(field(ability, "description"), ""));
-            out->is_wipe = json_bool(field(ability, "is_wipe"), false);
-            out->heal_amount = json_int(field(ability, "heal_amount"), 0);
-            out->shield_amount = json_int(field(ability, "shield_amount"), 0);
-            out->status = parse_status(json_string(field(ability, "status"), ""));
-            out->status_amount = json_int(field(ability, "status_amount"), 0);
-            out->status_turns = json_int(field(ability, "status_turns"), 0);
+            out->description = copy_text(json_string(field(card, "description"), ""));
+            out->is_wipe = json_bool(field(card, "is_wipe"), false);
+            out->heal_amount = json_int(field(card, "heal_amount"), 0);
+            out->shield_amount = json_int(field(card, "shield_amount"), 0);
+            out->status = parse_status(json_string(field(card, "status"), ""));
+            out->status_amount = json_int(field(card, "status_amount"), 0);
+            out->status_turns = json_int(field(card, "status_turns"), 0);
+            out->count = json_int(field(card, "count"), 1);
+            if (out->count < 1) out->count = 1;
+        }
+
+        if (def.card_count <= 0)
+        {
+            LOG_W(CAT_SCREEN, "Enemy %s has no cards, skipping", def.id ? def.id : "unknown");
+            continue;
         }
 
         enemy_defs[enemy_count++] = def;

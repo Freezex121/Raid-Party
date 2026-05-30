@@ -222,6 +222,11 @@ bool card_defs_load_json(const char *path)
         def.consume = json_bool(field(item, "consume"), false);
         def.channel = json_bool(field(item, "channel"), false);
         def.channel_turns = json_int(field(item, "channel_turns"), 0);
+        def.echo = json_bool(field(item, "echo"), false);
+        def.lifesteal = json_int(field(item, "lifesteal"), 0);
+        def.splash = json_int(field(item, "splash"), 0);
+        def.retain = json_bool(field(item, "retain"), false);
+        def.fleeting = json_bool(field(item, "fleeting"), false);
         def.target = parse_target(json_string(field(item, "target"), "enemy"));
         def.repeat_hits = json_int(field(item, "repeat_hits"), 1);
         if (def.repeat_hits < 1) def.repeat_hits = 1;

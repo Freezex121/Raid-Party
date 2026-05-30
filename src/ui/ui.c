@@ -175,3 +175,50 @@ void draw_label(const char *text, Vector2 pos, int size, Color color)
     DrawText(text, snap_i(pos.x), snap_i(pos.y), ui_font_size(size), color);
 }
 
+void scroll_panel_begin(ScrollPanel *panel, Rectangle bounds)
+{
+    if (panel->bounds.x != bounds.x || panel->bounds.y != bounds.y ||
+        panel->bounds.width != bounds.width || panel->bounds.height != bounds.height)
+    {
+        panel->scroll_y = 0;
+        panel->bounds = bounds;
+    }
+    panel->content_height = 0;
+}
+
+int scroll_panel_y(ScrollPanel *panel)
+{
+    return (int)panel->bounds.y + 8 - panel->scroll_y;
+}
+
+void scroll_panel_end(ScrollPanel *panel)
+{
+    int view_h = (int)panel->bounds.height - 16;
+    if (panel->content_height > view_h)
+    {
+        Vector2 mouse = GetMousePosition();
+        if (CheckCollisionPointRec(mouse, panel->bounds))
+        {
+            float wheel = GetMouseWheelMove();
+            if (wheel != 0.0f)
+                panel->scroll_y -= (int)(wheel * 24.0f);
+        }
+        int max_scroll = panel->content_height - view_h;
+        if (panel->scroll_y < 0) panel->scroll_y = 0;
+        if (panel->scroll_y > max_scroll) panel->scroll_y = max_scroll;
+
+        // Scrollbar
+        int bar_x = (int)(panel->bounds.x + panel->bounds.width - 5);
+        int bar_y = (int)panel->bounds.y + 8;
+        int bar_h = view_h;
+        DrawRectangle(bar_x, bar_y, 2, bar_h, (Color){ 40, 42, 56, 210 });
+
+        float ratio = (float)view_h / (float)panel->content_height;
+        int thumb_h = (int)(bar_h * ratio);
+        if (thumb_h < 8) thumb_h = 8;
+        float t = max_scroll > 0 ? (float)panel->scroll_y / (float)max_scroll : 0.0f;
+        int thumb_y = bar_y + (int)((bar_h - thumb_h) * t);
+        DrawRectangle(bar_x, thumb_y, 2, thumb_h, (Color){ 135, 145, 185, 235 });
+    }
+}
+

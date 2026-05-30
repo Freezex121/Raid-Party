@@ -3,9 +3,11 @@
 #include "data/area_defs.h"
 #include "data/card_defs.h"
 #include "data/enemy_defs.h"
+#include "data/synergy_defs.h"
 #include "systems/relic.h"
 #include "systems/telemetry.h"
 #include "ui/floating_text.h"
+#include "util/text.h"
 #include "ui/layout.h"
 #include "ui/theme.h"
 #include "util/tween.h"
@@ -464,6 +466,21 @@ static void apply_shield_to_ally(CombatState *cs, int ally_idx, int amount)
             apply_damage_to_enemy(cs, target, 2);
         }
     }
+
+    // ── Sheltered Bulwark: Guardian+Paladin — Guardian shield also shields Paladin ──
+    if (pm->class == CLASS_GUARDIAN && party_has_pair(cs, CLASS_GUARDIAN, CLASS_PALADIN))
+    {
+        for (int i = 0; i < cs->party.count; i++)
+        {
+            if (cs->party.members[i].class == CLASS_PALADIN && cs->party.members[i].alive)
+            {
+                int share = amount > 2 ? 2 : amount;
+                cs->party.members[i].shield += share;
+                combat_feed_add(cs, "Sheltered Bulwark: Paladin +%d shield", share);
+                break;
+            }
+        }
+    }
 }
 
 static void revive_ally(CombatState *cs, int ally_idx)
@@ -620,7 +637,7 @@ static bool interrupt_enemy(CombatState *cs, int enemy_idx)
         return false;
     }
 
-    const EnemyAbility *ab = &e->def->abilities[e->intent.ability_idx];
+    const EnemyCardDef *ab = &e->def->cards[e->intent.ability_idx];
     if (ab->is_wipe || ab->intent == INTENT_WIPE)
     {
         ft_spawn((float)(e->pos_x - 14), (float)(e->pos_y - 25), "IMMUNE", 10, (Color){ 230, 120, 80, 255 });
@@ -726,6 +743,178 @@ static Vector2 combat_card_throw_target(CombatState *cs, const CardDef *card, in
     return combat_discard_target();
 }
 
+// ── Enemy card throw animation ────────────────────────────
+static void enemy_action(EnemyState *e, CombatState *cs, int target_enemy, int target_ally);
+
+static void combat_spawn_enemy_card_throw(CombatState *cs, EnemyState *e, const EnemyCardDef *cd, int enemy_idx)
+{
+    int slot = -1;
+    for (int i = 0; i < MAX_ENEMY_CARD_THROWS; i++)
+    {
+        if (!cs->enemy_card_throws[i].active) { slot = i; break; }
+    }
+    if (slot < 0) return;
+
+    Vector2 start = { (float)e->pos_x, (float)e->pos_y };
+    Vector2 end;
+    int tgt_enemy = -1;
+    int tgt_ally = -1;
+
+    if (cd->intent == INTENT_HEAL)
+    {
+        tgt_enemy = enemy_lowest_hp(cs);
+        if (tgt_enemy >= 0 && tgt_enemy < cs->enemy_count && cs->enemies[tgt_enemy].def)
+            end = (Vector2){ (float)cs->enemies[tgt_enemy].pos_x, (float)cs->enemies[tgt_enemy].pos_y };
+        else
+            end = (Vector2){ (float)e->pos_x + 30.0f, (float)e->pos_y + 40.0f };
+    }
+    else if (cd->intent == INTENT_SHIELD || cd->intent == INTENT_BUFF)
+    {
+        tgt_enemy = enemy_idx;
+        end = (Vector2){ (float)e->pos_x + 30.0f, (float)e->pos_y + 40.0f };
+    }
+    else if (cd->intent == INTENT_AOE || cd->intent == INTENT_WIPE)
+    {
+        // Fly to center of party formation
+        int alive = 0;
+        Vector2 avg = { 0, 0 };
+        for (int i = 0; i < cs->party.count; i++)
+        {
+            if (!cs->party.members[i].alive) continue;
+            Rectangle fr = layout_party_frame_rect(cs->party.count, i);
+            avg.x += fr.x + fr.width * 0.5f;
+            avg.y += fr.y + fr.height * 0.5f;
+            alive++;
+        }
+        if (alive > 0) { avg.x /= (float)alive; avg.y /= (float)alive; end = avg; }
+        else end = (Vector2){ VIRT_W / 2.0f, VIRT_H / 2.0f };
+    }
+    else
+    {
+        // Single-target damage: pick same target enemy_action would use
+        if (cs->party.count > 1 && (rand() % 4) == 0)
+            tgt_ally = party_random_alive(&cs->party);
+        else
+            tgt_ally = party_highest_aggro(&cs->party);
+        if (tgt_ally >= 0 && tgt_ally < cs->party.count)
+            end = rect_center(layout_party_frame_rect(cs->party.count, tgt_ally));
+        else
+        {
+            int alive = 0;
+            Vector2 avg = { 0, 0 };
+            for (int i = 0; i < cs->party.count; i++)
+            {
+                if (!cs->party.members[i].alive) continue;
+                Rectangle fr = layout_party_frame_rect(cs->party.count, i);
+                avg.x += fr.x + fr.width * 0.5f;
+                avg.y += fr.y + fr.height * 0.5f;
+                alive++;
+            }
+            if (alive > 0) { avg.x /= (float)alive; avg.y /= (float)alive; end = avg; }
+            else end = (Vector2){ VIRT_W / 2.0f, VIRT_H / 2.0f };
+        }
+    }
+
+    Vector2 mid = { (start.x + end.x) * 0.5f, (start.y + end.y) * 0.5f - 52.0f };
+
+    EnemyCardThrow *thr = &cs->enemy_card_throws[slot];
+    thr->active = true;
+    thr->enemy_index = enemy_idx;
+    thr->card_idx = cd - e->def->cards;
+    thr->ability_name = cd->name;
+    thr->intent = cd->intent;
+    thr->t = 0.0f;
+    thr->duration = 0.7f;
+    thr->pause_timer = enemy_idx * 0.6f;
+    thr->start = start;
+    thr->control = mid;
+    thr->end = end;
+    thr->target_enemy = tgt_enemy;
+    thr->target_ally = tgt_ally;
+
+    // Clear intent immediately so cast bar disappears; card_idx is stored for resolution
+    e->intent.ability_idx = -1;
+    e->intent.remaining_turns = 0;
+}
+
+void combat_draw_enemy_card_throws(CombatState *cs)
+{
+    if (!cs) return;
+
+    for (int i = 0; i < MAX_ENEMY_CARD_THROWS; i++)
+    {
+        EnemyCardThrow *thr = &cs->enemy_card_throws[i];
+        if (!thr->active) continue;
+
+        float t = thr->t;
+        if (t < 0.0f) t = 0.0f;
+        if (t > 1.0f) t = 1.0f;
+        t = 1.0f - (1.0f - t) * (1.0f - t) * (1.0f - t);
+        float u = 1.0f - t;
+        Vector2 p = {
+            u * u * thr->start.x + 2.0f * u * t * thr->control.x + t * t * thr->end.x,
+            u * u * thr->start.y + 2.0f * u * t * thr->control.y + t * t * thr->end.y
+        };
+
+        float w = (float)HAND_CARD_W, h = (float)HAND_CARD_H;
+        Rectangle r = { p.x - w * 0.5f, p.y - h * 0.5f, w, h };
+
+        CardDef fake_card = {0};
+        fake_card.name = thr->ability_name ? thr->ability_name : "ATTACK";
+        fake_card.class = CLASS_NONE;
+        fake_card.cost = 0;
+        fake_card.description = "";
+
+        // Set type and target based on intent
+        switch (thr->intent)
+        {
+            case INTENT_HEAL:
+            case INTENT_SHIELD:
+                fake_card.type = CARD_SKILL;
+                fake_card.target = thr->intent == INTENT_HEAL ? TARGET_ALLY : TARGET_SELF;
+                break;
+            case INTENT_BUFF:
+                fake_card.type = CARD_POWER;
+                fake_card.target = TARGET_SELF;
+                break;
+            case INTENT_AOE:
+            case INTENT_WIPE:
+                fake_card.type = CARD_ATTACK;
+                fake_card.target = TARGET_ALL_ENEMIES;
+                break;
+            default:
+                fake_card.type = CARD_ATTACK;
+                fake_card.target = TARGET_ENEMY;
+                break;
+        }
+
+        // Get real values from the enemy's card definition
+        if (thr->card_idx >= 0 && thr->enemy_index >= 0 && thr->enemy_index < cs->enemy_count)
+        {
+            EnemyState *et = &cs->enemies[thr->enemy_index];
+            if (et->def && thr->card_idx < et->def->card_count)
+            {
+                const EnemyCardDef *ecd = &et->def->cards[thr->card_idx];
+                fake_card.damage = ecd->base_damage;
+                fake_card.heal = ecd->heal_amount;
+                fake_card.shield = ecd->shield_amount;
+            }
+        }
+
+        theme_draw_card_art(r, &fake_card, 0);
+    }
+}
+
+bool combat_any_pending(CombatState *cs)
+{
+    if (!cs) return false;
+    for (int i = 0; i < MAX_ENEMY_CARD_THROWS; i++)
+        if (cs->enemy_card_throws[i].active) return true;
+    for (int i = 0; i < cs->enemy_count; i++)
+        if (cs->enemies[i].cast_pending) return true;
+    return false;
+}
+
 static void combat_spawn_card_throw(CombatState *cs, int hand_idx, const CardDef *card, int upgrade_level, int target_enemy, int target_ally)
 {
     if (!cs || !card || hand_idx < 0 || hand_idx >= cs->deck.hand_count) return;
@@ -775,6 +964,38 @@ static void combat_update_card_throws(CombatState *cs, float dt)
         anim->t += dt / anim->duration;
         if (anim->t >= 1.0f)
             anim->active = false;
+    }
+    for (int i = 0; i < MAX_ENEMY_CARD_THROWS; i++)
+    {
+        EnemyCardThrow *thr = &cs->enemy_card_throws[i];
+        if (!thr->active) continue;
+        if (thr->pause_timer > 0.0f)
+        {
+            thr->pause_timer -= dt;
+            if (thr->pause_timer < 0.0f) thr->pause_timer = 0.0f;
+        }
+        else
+        {
+            thr->t += dt / thr->duration;
+            if (thr->t >= 1.0f)
+            {
+                thr->active = false;
+                // Apply pending enemy action when card reaches target
+                if (thr->enemy_index >= 0 && thr->enemy_index < cs->enemy_count)
+                {
+                    EnemyState *et = &cs->enemies[thr->enemy_index];
+                    if (et->def && et->cast_pending)
+                    {
+                        // Save the next intent (set by deck system in advance_turn)
+                        // so it isn't lost when we overwrite ability_idx for enemy_action
+                        int saved_idx = et->intent.ability_idx;
+                        et->intent.ability_idx = thr->card_idx;
+                        enemy_action(et, cs, thr->target_enemy, thr->target_ally);
+                        et->intent.ability_idx = saved_idx;
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -950,6 +1171,23 @@ static void apply_status_to_enemy(CombatState *cs, int enemy_idx, StatusType sta
         combat_feed_add(cs, "Deeper Rot: +1 BLIGHT");
     }
 
+    // ── Call of Nature: Shaman+Bard — CONDUCTIVE also applies MARKED ──
+    if (status == STATUS_CONDUCTIVE && turns > 0 &&
+        party_has_pair(cs, CLASS_SHAMAN, CLASS_BARD))
+    {
+        status_apply(e->statuses, &e->status_count, STATUS_MARKED, 1, 1);
+        combat_feed_add(cs, "Call of Nature: +MARKED");
+    }
+
+    // ── Deadly Poison: Ranger+Warlock — BLIGHT deals immediate damage ──
+    if (status == STATUS_BLIGHT && amount > 0 &&
+        party_has_pair(cs, CLASS_RANGER, CLASS_WARLOCK))
+    {
+        int dmg = amount * turns;
+        apply_damage_to_enemy(cs, enemy_idx, dmg);
+        combat_feed_add(cs, "Deadly Poison: +%d immediate", dmg);
+    }
+
     status_apply(e->statuses, &e->status_count, status, turns, amount);
     LOG_I(CAT_CARD, "  enemy[%d]: +%s (%d for %d turns)", enemy_idx, status_label(status), amount, turns);
     combat_feed_add(cs, "%s: %s", e->def->name, status_label(status));
@@ -1113,26 +1351,39 @@ static bool card_is_fire_spell(const CardDef *card)
 static int combat_effective_card_cost(CombatState *cs, const CardDef *card)
 {
     if (!cs || !card) return 0;
-    if (cs->combo_prime == COMBO_PRIME_SHADOW_DANCE && card_is_heal_card(card))
-        return 0;
-    if (cs->combo_prime == COMBO_PRIME_ELEMENTAL_FURY && card_is_fire_spell(card))
-        return 0;
+    // Check data-driven combos for free_cost
+    for (int i = 0; i < synergy_combo_count(); i++)
+    {
+        const SynergyComboDef *c = synergy_combo_by_index(i);
+        if (!c || !c->free_cost) continue;
+        if (cs->combo_prime_index == i)
+        {
+            if (strcmp(c->consume_card_type, "heal") == 0 && card_is_heal_card(card))
+                return 0;
+            if (strcmp(c->consume_card_type, "mage_fire_spell") == 0 && card_is_fire_spell(card))
+                return 0;
+        }
+    }
     return card->cost;
 }
 
-static void combo_prime_set(CombatState *cs, ComboPrime prime, const char *title, const char *subtitle)
+static void combo_prime_set(CombatState *cs, const SynergyComboDef *def)
 {
-    if (!cs || prime == COMBO_PRIME_NONE) return;
-    cs->combo_prime = prime;
-    cs->combo_prime_turns_remaining = relic_has(g_state.relics, g_state.relic_count, RELIC_SYNERGY_HOURGLASS) ? 2 : 1;
-    snprintf(cs->synergy_banner_title, sizeof(cs->synergy_banner_title), "%s", title);
-    snprintf(cs->synergy_banner_subtitle, sizeof(cs->synergy_banner_subtitle), "%s", subtitle);
+    if (!cs || !def) return;
+    int turns = def->combo_turns;
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_SYNERGY_HOURGLASS))
+        turns++;
+    if (turns < 0) turns = 0;
+    cs->combo_prime_index = (int)(def - synergy_combo_by_index(0));
+    cs->combo_prime_turns_remaining = turns;
+    snprintf(cs->synergy_banner_title, sizeof(cs->synergy_banner_title), "%s", def->title);
+    snprintf(cs->synergy_banner_subtitle, sizeof(cs->synergy_banner_subtitle), "%s", def->subtitle);
     cs->synergy_banner_timer = 1.35f;
     cs->synergy_flash_timer = 0.32f;
     cs->combo_scale = 1.0f;
     cs->combo_tween = tween_create(&cs->combo_scale, 1.35f, 0.12f, EASE_OUT_BACK);
     tween_chain(cs->combo_tween, &cs->combo_scale, 1.0f, 0.35f, EASE_OUT_ELASTIC);
-    combat_feed_add(cs, "%s primed", title);
+    combat_feed_add(cs, "%s primed", def->title);
     if (relic_has(g_state.relics, g_state.relic_count, RELIC_RESONANT_CHARM) &&
         cs->energy.current < cs->energy.max)
     {
@@ -1144,7 +1395,7 @@ static void combo_prime_set(CombatState *cs, ComboPrime prime, const char *title
 static void combo_prime_clear(CombatState *cs)
 {
     if (!cs) return;
-    cs->combo_prime = COMBO_PRIME_NONE;
+    cs->combo_prime_index = -1;
     cs->combo_prime_turns_remaining = 0;
 }
 
@@ -1152,24 +1403,15 @@ static void combo_check_chain(CombatState *cs, ClassType previous, ClassType cur
 {
     if (!cs || previous == CLASS_NONE || current == CLASS_NONE || previous == current) return;
 
-    if (previous == CLASS_GUARDIAN && current == CLASS_CLERIC)
-        combo_prime_set(cs, COMBO_PRIME_SHIELD_OF_FAITH, "SHIELD OF FAITH", "Next heal +50%");
-    else if (previous == CLASS_MAGE && current == CLASS_ROGUE)
-        combo_prime_set(cs, COMBO_PRIME_ARCANE_ASSAULT, "ARCANE ASSAULT", "Next attack applies Burning");
-    else if (previous == CLASS_SHAMAN && current == CLASS_RANGER)
-        combo_prime_set(cs, COMBO_PRIME_STORM_VOLLEY, "STORM VOLLEY", "Next AoE +50%");
-    else if (previous == CLASS_ROGUE && current == CLASS_CLERIC)
-        combo_prime_set(cs, COMBO_PRIME_SHADOW_DANCE, "SHADOW DANCE", "Next heal costs 0");
-    else if (previous == CLASS_SHAMAN && current == CLASS_MAGE)
-        combo_prime_set(cs, COMBO_PRIME_ELEMENTAL_FURY, "ELEMENTAL FURY", "Next Mage damage card costs 0");
-    else if (previous == CLASS_ROGUE && current == CLASS_MAGE)
-        combo_prime_set(cs, COMBO_PRIME_BACKDRAFT, "BACKDRAFT", "Next damage card +25%");
-    else if (previous == CLASS_PALADIN && current == CLASS_BARD)
-        combo_prime_set(cs, COMBO_PRIME_SACRED_CHORUS, "SACRED CHORUS", "Next group heal/shield +50%");
-    else if (previous == CLASS_BARD && current == CLASS_WARLOCK)
-        combo_prime_set(cs, COMBO_PRIME_DARK_REFRAIN, "DARK REFRAIN", "Next Warlock damage applies BLIGHT");
-    else if (previous == CLASS_WARLOCK && current == CLASS_PALADIN)
-        combo_prime_set(cs, COMBO_PRIME_ABSOLUTION, "ABSOLUTION", "Next Paladin card consumes BLIGHT to heal");
+    for (int i = 0; i < synergy_combo_count(); i++)
+    {
+        const SynergyComboDef *def = synergy_combo_by_index(i);
+        if (def && def->prev_class == previous && def->next_class == current)
+        {
+            combo_prime_set(cs, def);
+            return;
+        }
+    }
 }
 
 static void apply_relic_combat_start(CombatState *cs)
@@ -1335,50 +1577,85 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
         sh += 2;
 
     ClassType previous_class = cs->last_played_class;
-    ComboPrime spent_prime = cs->combo_prime;
+    bool arcane_assault_flag = false;
+    bool dark_refrain_flag = false;
+    bool absolution_flag = false;
 
-    if (spent_prime == COMBO_PRIME_SHIELD_OF_FAITH && card_is_heal_card(card))
+    // ── Combo consume: check data-driven combos ──
+    if (cs->combo_prime_index >= 0 && cs->combo_prime_index < synergy_combo_count())
     {
-        hl = (hl * 3 + 1) / 2;
-        combat_feed_add(cs, "Shield of Faith: heal +50%%");
-        combo_prime_clear(cs);
-    }
-    else if (spent_prime == COMBO_PRIME_SHADOW_DANCE && card_is_heal_card(card))
-    {
-        combat_feed_add(cs, "Shadow Dance: heal was free");
-        combo_prime_clear(cs);
-    }
-    else if (spent_prime == COMBO_PRIME_ELEMENTAL_FURY && card_is_fire_spell(card))
-    {
-        combat_feed_add(cs, "Elemental Fury: spell was free");
-        combo_prime_clear(cs);
-    }
-    else if (spent_prime == COMBO_PRIME_STORM_VOLLEY && card_is_aoe_card(card))
-    {
-        dmg = (dmg * 3 + 1) / 2;
-        combat_feed_add(cs, "Storm Volley: AoE +50%%");
-        combo_prime_clear(cs);
-    }
-    else if (spent_prime == COMBO_PRIME_BACKDRAFT && dmg > 0)
-    {
-        dmg = (dmg * 5 + 2) / 4;
-        combat_feed_add(cs, "Backdraft: damage +25%%");
-        combo_prime_clear(cs);
-    }
-    else if (spent_prime == COMBO_PRIME_SACRED_CHORUS && card->target == TARGET_ALL_ALLIES)
-    {
-        hl = (hl * 3 + 1) / 2;
-        sh = (sh * 3 + 1) / 2;
-        combat_feed_add(cs, "Sacred Chorus: group support +50%%");
-        combo_prime_clear(cs);
+        const SynergyComboDef *c = synergy_combo_by_index(cs->combo_prime_index);
+        if (c)
+        {
+            bool consumed = false;
+            if (strcmp(c->consume_card_type, "heal") == 0 && card_is_heal_card(card))
+                consumed = true;
+            else if (strcmp(c->consume_card_type, "attack") == 0 && card_is_attack_card(card))
+                consumed = true;
+            else if (strcmp(c->consume_card_type, "aoe") == 0 && card_is_aoe_card(card))
+                consumed = true;
+            else if (strcmp(c->consume_card_type, "damage") == 0 && dmg > 0)
+                consumed = true;
+            else if (strcmp(c->consume_card_type, "group_heal_or_shield") == 0 && card->target == TARGET_ALL_ALLIES)
+                consumed = true;
+            else if (strcmp(c->consume_card_type, "mage_fire_spell") == 0 && card_is_fire_spell(card))
+                consumed = true;
+            else if (strcmp(c->consume_card_type, "warlock_damage") == 0 && card->class == CLASS_WARLOCK && dmg > 0)
+                consumed = true;
+            else if (strcmp(c->consume_card_type, "paladin") == 0 && card->class == CLASS_PALADIN)
+                consumed = true;
+
+            if (consumed)
+            {
+                if (c->multiply_damage > 1.0f)
+                    dmg = (int)(dmg * c->multiply_damage);
+                if (c->multiply_heal > 1.0f)
+                    hl = (int)(hl * c->multiply_heal);
+                if (c->multiply_shield > 1.0f)
+                    sh = (int)(sh * c->multiply_shield);
+                if (c->apply_status)
+                {
+                    StatusType st = STATUS_NONE;
+                    if (strcmp(c->apply_status, "BURNING") == 0) st = STATUS_BURNING;
+                    else if (strcmp(c->apply_status, "BLIGHT") == 0) st = STATUS_BLIGHT;
+                    if (st != STATUS_NONE)
+                    {
+                        if (strcmp(c->consume_card_type, "attack") == 0)
+                            arcane_assault_flag = true;
+                        else if (strcmp(c->consume_card_type, "warlock_damage") == 0)
+                            dark_refrain_flag = true;
+                        else
+                            apply_status_to_enemy(cs, target_enemy, st, c->status_turns, c->status_value);
+                    }
+                }
+                if (c->special_effect && strcmp(c->special_effect, "consume_blight_heal_party") == 0)
+                {
+                    absolution_flag = true;
+                }
+                combat_feed_add(cs, "%s consumed", c->title);
+                combo_prime_clear(cs);
+            }
+        }
     }
 
     if (!cs->ambush_used && dmg > 0 && party_has_pair(cs, CLASS_ROGUE, CLASS_RANGER))
     {
-        dmg *= 2;
+        dmg = (int)(dmg * 1.5f);
         cs->ambush_used = true;
-        combat_feed_add(cs, "Ambush: first strike doubled");
+        combat_feed_add(cs, "Ambush: first strike +50%%");
     }
+
+    // ── Magical Might: Mage+Warlock first spell +3 damage ──
+    if (!cs->magical_might_used && dmg > 0 && party_has_pair(cs, CLASS_MAGE, CLASS_WARLOCK) &&
+        (card->class == CLASS_MAGE || card->class == CLASS_WARLOCK))
+    {
+        dmg += 3;
+        cs->magical_might_used = true;
+        combat_feed_add(cs, "Magical Might: +3 damage");
+    }
+
+    // ── Sneaky Steal: Rogue+Paladin 10% lifesteal on all damage ──
+    bool have_sneaky_steal = (dmg > 0 && party_has_pair(cs, CLASS_ROGUE, CLASS_PALADIN));
 
     if (card->class == CLASS_BARD &&
         !cs->bard_first_draw_used &&
@@ -1404,19 +1681,14 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
         }
     }
 
-    // ── Echo Bell: double effects of first card played (cost 1+) ──
-    float echo_mult = 1.0f;
-    if (!cs->echo_used && card->cost >= 1 && relic_has(g_state.relics, g_state.relic_count, RELIC_ECHO_BELL))
+    // ── Echo: resolve card again at 50% (from card keyword or Echo Bell relic) ──
+    bool echo_this_card = card->echo ||
+        (!cs->echo_used && card->cost >= 1 && relic_has(g_state.relics, g_state.relic_count, RELIC_ECHO_BELL));
+    if (echo_this_card)
     {
-        echo_mult = 2.0f;
         cs->echo_used = true;
-        combat_feed_add(cs, "Echo Bell: doubled");
+        combat_feed_add(cs, "%s echoed", card->name);
     }
-
-    // Apply multiplier with echo
-    dmg = (int)(dmg * echo_mult);
-    hl  = (int)(hl * echo_mult);
-    sh  = (int)(sh * echo_mult);
 
     int caster_for_debuff = -1;
     find_caster(cs, card->class, &caster_for_debuff);
@@ -1438,9 +1710,9 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
     bool blighted_target = target_enemy >= 0 && enemy_has_status(cs, target_enemy, STATUS_BLIGHT);
     bool consume_marked = false;
     bool consume_blight = false;
-    bool arcane_assault = spent_prime == COMBO_PRIME_ARCANE_ASSAULT && card_is_attack_card(card);
-    bool dark_refrain = spent_prime == COMBO_PRIME_DARK_REFRAIN && card->class == CLASS_WARLOCK && dmg > 0;
-    bool absolution = spent_prime == COMBO_PRIME_ABSOLUTION && card->class == CLASS_PALADIN;
+    bool arcane_assault = arcane_assault_flag;
+    bool dark_refrain = dark_refrain_flag;
+    bool absolution = absolution_flag;
     int extra_lowest_heal = 0;
     int extra_caster_heal = 0;
     int blight_consumed_count = 0;
@@ -1839,6 +2111,28 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
     }
     } // end if(!card->channel)
 
+    // ── Musical Mend: Cleric+Bard — first heal each turn draws 1 card ──
+    if (!cs->musical_mend_used && hl > 0 && party_has_pair(cs, CLASS_CLERIC, CLASS_BARD))
+    {
+        deck_draw(&cs->deck);
+        cs->musical_mend_used = true;
+        combat_feed_add(cs, "Musical Mend: drew 1");
+    }
+
+    // ── Sneaky Steal: Rogue+Paladin — all damage 10% lifesteal ──
+    if (have_sneaky_steal && dmg > 0)
+    {
+        int caster = -1;
+        find_caster(cs, card->class, &caster);
+        if (caster >= 0)
+        {
+            int steal = dmg / 10;
+            if (steal < 1) steal = 1;
+            apply_heal_to_ally(cs, caster, steal);
+            combat_feed_add(cs, "Sneaky Steal: healed %d", steal);
+        }
+    }
+
     if (card->channel)
     {
         cs->channel_card = card;
@@ -1864,6 +2158,54 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
         combo_check_chain(cs, previous_class, card->class);
         cs->last_played_class = card->class;
     }
+
+    // ── Echo: resolve again at 50% if flagged ──
+    if (echo_this_card && echo_this_card == true)
+    {
+        echo_this_card = false;
+        int half_dmg = card->damage / 2;
+        int half_hl = card->heal / 2;
+        int half_sh = card->shield / 2;
+        // Create a temporary card def with halved values
+        CardDef echo_card = *card;
+        echo_card.damage = half_dmg;
+        echo_card.heal = half_hl;
+        echo_card.shield = half_sh;
+        echo_card.echo = false; // prevent infinite loop
+        // Find a random valid target
+        int echo_target_enemy = -1;
+        int echo_target_ally = -1;
+        if (card->target == TARGET_ENEMY || card->target == TARGET_ALL_ENEMIES)
+        {
+            // Pick a random living enemy
+            int alive[MAX_ENEMIES], alive_count = 0;
+            for (int i = 0; i < cs->enemy_count; i++)
+                if (cs->enemies[i].def && cs->enemies[i].hp > 0)
+                    alive[alive_count++] = i;
+            if (alive_count > 0)
+                echo_target_enemy = alive[rand() % alive_count];
+        }
+        else if (card->target == TARGET_ALLY || card->target == TARGET_ALL_ALLIES || card->target == TARGET_SELF)
+        {
+            int alive[MAX_PARTY_SIZE], alive_count = 0;
+            for (int i = 0; i < cs->party.count; i++)
+                if (cs->party.members[i].alive)
+                    alive[alive_count++] = i;
+            if (alive_count > 0)
+                echo_target_ally = alive[rand() % alive_count];
+            if (card->target == TARGET_SELF && echo_target_ally >= 0)
+                echo_target_ally = 0;
+        }
+        if (echo_target_enemy >= 0 || echo_target_ally >= 0)
+        {
+            LOG_D(CAT_CARD, "Echo: resolving copy at 50%%");
+            combat_feed_add(cs, "Echo copy resolves");
+            resolve_card_on_target(cs, hand_idx, echo_target_enemy, echo_target_ally, 0);
+            // Restore original card def pointer for chain detection
+            cs->deck.cards[cs->deck.hand[hand_idx]].def = card;
+        }
+    }
+
     cs->resolving_card_class = CLASS_NONE;
 }
 
@@ -1922,14 +2264,15 @@ static void check_defeat(CombatState *cs)
 
 // ── Enemy AI ────────────────────────────────────────────────
 
-static void enemy_action(EnemyState *e, CombatState *cs)
+static void enemy_action(EnemyState *e, CombatState *cs, int target_enemy, int target_ally)
 {
+    e->cast_pending = false;
     if (!e->def) return;
-    int ab_idx = e->intent.ability_idx;
-    if (ab_idx < 0 || ab_idx >= e->def->ability_count) return;
+    int ci = e->intent.ability_idx;
+    if (ci < 0 || ci >= e->def->card_count) return;
 
-    const EnemyAbility *ab = &e->def->abilities[ab_idx];
-    int damage = (int)(ab->base_damage * cs->floor_scale * cs->enemy_damage_scale);
+    const EnemyCardDef *cd = &e->def->cards[ci];
+    int damage = (int)(cd->base_damage * cs->floor_scale * cs->enemy_damage_scale);
 
     // Snare Trap reduces damage
     int trap_idx = status_find(e->statuses, e->status_count, STATUS_TRAP);
@@ -1940,26 +2283,25 @@ static void enemy_action(EnemyState *e, CombatState *cs)
         LOG_I(CAT_CARD, "  Snare Trap reduces damage by %d", e->statuses[trap_idx].value);
     }
 
-    if (ab->intent == INTENT_HEAL)
+    if (cd->intent == INTENT_HEAL)
     {
-        int target = enemy_lowest_hp(cs);
-        if (target >= 0) apply_heal_to_enemy(cs, target, ab->heal_amount);
+        if (target_enemy >= 0) apply_heal_to_enemy(cs, target_enemy, cd->heal_amount);
         return;
     }
 
-    if (ab->intent == INTENT_SHIELD || ab->intent == INTENT_BUFF)
+    if (cd->intent == INTENT_SHIELD || cd->intent == INTENT_BUFF)
     {
-        apply_shield_to_enemy(cs, (int)(e - cs->enemies), ab->shield_amount);
+        apply_shield_to_enemy(cs, (int)(e - cs->enemies), cd->shield_amount);
         return;
     }
 
-    if (ab->intent == INTENT_AOE || ab->intent == INTENT_WIPE)
+    if (cd->intent == INTENT_AOE || cd->intent == INTENT_WIPE)
     {
         for (int i = 0; i < cs->party.count; i++)
         {
             apply_damage_to_ally(cs, i, damage, e->def->name);
-            if (ab->status != STATUS_NONE && ab->status_turns > 0)
-                apply_status_to_ally(cs, i, ab->status, ab->status_turns, ab->status_amount);
+            if (cd->status != STATUS_NONE && cd->status_turns > 0)
+                apply_status_to_ally(cs, i, cd->status, cd->status_turns, cd->status_amount);
         }
         if (relic_has(g_state.relics, g_state.relic_count, RELIC_THORNED_AMULET))
             apply_damage_to_enemy(cs, (int)(e - cs->enemies), 2);
@@ -1968,29 +2310,27 @@ static void enemy_action(EnemyState *e, CombatState *cs)
     }
 
     int repeats = 1;
-    if (strcmp(ab->name, "Dual Strike") == 0 || strcmp(ab->name, "Rapid Strikes") == 0)
+    if (strcmp(cd->name, "Dual Strike") == 0 || strcmp(cd->name, "Rapid Strikes") == 0)
         repeats = 2;
 
     for (int hit = 0; hit < repeats; hit++)
     {
-        int target;
-        if (cs->party.count > 1 && (rand() % 4) == 0)
-            target = party_random_alive(&cs->party);
-        else
+        int target = target_ally;
+        if (target < 0 || target >= cs->party.count || !cs->party.members[target].alive)
             target = party_highest_aggro(&cs->party);
         if (target < 0) break;
         apply_damage_to_ally(cs, target, damage, e->def->name);
-        if (hit == 0 && ab->status != STATUS_NONE && ab->status_turns > 0)
-            apply_status_to_ally(cs, target, ab->status, ab->status_turns, ab->status_amount);
+        if (hit == 0 && cd->status != STATUS_NONE && cd->status_turns > 0)
+            apply_status_to_ally(cs, target, cd->status, cd->status_turns, cd->status_amount);
     }
     if (relic_has(g_state.relics, g_state.relic_count, RELIC_THORNED_AMULET) && damage > 0)
         apply_damage_to_enemy(cs, (int)(e - cs->enemies), 2);
 
-    if (ab->shield_amount > 0 && e->hp > 0)
-        apply_shield_to_enemy(cs, (int)(e - cs->enemies), ab->shield_amount);
+    if (cd->shield_amount > 0 && e->hp > 0)
+        apply_shield_to_enemy(cs, (int)(e - cs->enemies), cd->shield_amount);
 
-    if (ab->heal_amount > 0 && e->hp > 0)
-        apply_heal_to_enemy(cs, (int)(e - cs->enemies), ab->heal_amount);
+    if (cd->heal_amount > 0 && e->hp > 0)
+        apply_heal_to_enemy(cs, (int)(e - cs->enemies), cd->heal_amount);
 
     check_defeat(cs);
 }
@@ -2004,68 +2344,21 @@ static int living_party_count(CombatState *cs)
     return count;
 }
 
-static int enemy_cast_time(CombatState *cs, EnemyState *e, int ability_idx)
+static int enemy_cast_time(CombatState *cs, EnemyState *e, int card_idx)
 {
-    int cast = e->def->abilities[ability_idx].cast_time;
+    if (card_idx < 0 || card_idx >= e->def->card_count) return 1;
+    int cast = e->def->cards[card_idx].cast_time;
     int asc = active_ascension();
     if (asc >= 4)
         cast--;
     if (g_state.encounter_is_boss && e->phase >= 1)
         cast--;
-    if (e->interrupted_recently && e->last_interrupted_ability == ability_idx)
+    if (e->interrupted_recently && e->last_interrupted_ability == card_idx)
         cast--;
     if (cast < 1) cast = 1;
     return cast;
 }
 
-static int choose_enemy_intent(CombatState *cs, int enemy_index)
-{
-    EnemyState *e = &cs->enemies[enemy_index];
-    if (!e->def || e->def->ability_count == 0) return -1;
-
-    if (e->interrupted_recently &&
-        e->last_interrupted_ability >= 0 &&
-        e->last_interrupted_ability < e->def->ability_count &&
-        (rand() % 100) < 50)
-    {
-        e->interrupted_recently = false;
-        return e->last_interrupted_ability;
-    }
-    e->interrupted_recently = false;
-
-    int alive_party = living_party_count(cs);
-    bool low_hp = e->hp * 100 <= e->max_hp * 40;
-    int best = -1;
-    int best_score = -9999;
-    int max_abilities = e->def->ability_count;
-    if (g_state.encounter_is_boss && active_ascension() < 7 && max_abilities > 3)
-        max_abilities = 3;
-
-    for (int i = 0; i < max_abilities; i++)
-    {
-        const EnemyAbility *ab = &e->def->abilities[i];
-        int score = (rand() % 8) + i;
-        if (alive_party > 1 && ab->intent == INTENT_AOE)
-            score += 24;
-        if (low_hp && (ab->intent == INTENT_HEAL || ab->intent == INTENT_SHIELD || ab->intent == INTENT_BUFF))
-            score += 28;
-        if (!low_hp && (ab->intent == INTENT_HEAL || ab->intent == INTENT_SHIELD))
-            score -= 10;
-        if (ab->status != STATUS_NONE && alive_party > 0)
-            score += 8;
-        if (ab->intent == INTENT_WIPE && e->phase <= 0)
-            score -= 12;
-        if (score > best_score)
-        {
-            best_score = score;
-            best = i;
-        }
-    }
-
-    if (best < 0)
-        best = e->current_ability % max_abilities;
-    return best;
-}
 
 // ── Turn progression ────────────────────────────────────────
 
@@ -2074,7 +2367,7 @@ static void advance_turn(CombatState *cs)
     cs->turn++;
     LOG_I(CAT_COMBAT, "=== Turn %d ===", cs->turn);
     cs->last_played_class = CLASS_NONE;
-    if (cs->combo_prime != COMBO_PRIME_NONE && cs->combo_prime_turns_remaining > 0)
+    if (cs->combo_prime_index >= 0 && cs->combo_prime_turns_remaining > 0)
     {
         cs->combo_prime_turns_remaining--;
         if (cs->combo_prime_turns_remaining <= 0)
@@ -2091,7 +2384,7 @@ static void advance_turn(CombatState *cs)
     cs->combo_last_cost = -1;
     cs->vengeful_active = false;
     cs->vengeful_ally = -1;
-    cs->mage_first_spell_used = false;
+    cs->mage_first_spell_used = false; cs->musical_mend_used = false; cs->magical_might_used = false;
 
     // ── Tick channel ────────────────────────────────────────
     if (cs->channel_card && cs->channel_remaining > 0)
@@ -2175,6 +2468,8 @@ static void advance_turn(CombatState *cs)
         if (ti >= 0)
         {
             int heal = cs->party.members[i].statuses[ti].value;
+            if (party_has_pair(cs, CLASS_CLERIC, CLASS_SHAMAN))
+                heal += 2;
             cs->party.members[i].hp += heal;
             if (cs->party.members[i].hp > cs->party.members[i].max_hp)
                 cs->party.members[i].hp = cs->party.members[i].max_hp;
@@ -2212,24 +2507,107 @@ static void advance_turn(CombatState *cs)
             combat_feed_add(cs, "%s enraged", e->def->name);
         }
 
-        if (e->intent.ability_idx >= 0)
+        if (e->intent.ability_idx >= 0 && e->intent.remaining_turns <= 0 && !e->cast_pending)
+        {
+            int ci = e->intent.ability_idx;
+            if (ci >= 0 && ci < e->def->card_count)
+            {
+                combat_spawn_enemy_card_throw(cs, e, &e->def->cards[ci], ei);
+                e->cast_pending = true;
+            }
+        }
+
+        if (e->intent.ability_idx >= 0 && e->intent.remaining_turns > 0)
         {
             e->intent.remaining_turns--;
             if (e->intent.remaining_turns <= 0)
             {
-                enemy_action(e, cs);
-                e->intent.ability_idx = -1;
+                int ci = e->intent.ability_idx;
+                if (ci >= 0 && ci < e->def->card_count)
+                {
+                    combat_spawn_enemy_card_throw(cs, e, &e->def->cards[ci], ei);
+                    e->cast_pending = true;
+                }
             }
         }
 
-        if (e->intent.ability_idx < 0)
+        // Enemy deck system: if no intent, refill energy, draw hand, pick best card
+        if (e->intent.ability_idx < 0 && e->def && e->def->card_count > 0)
         {
-            int idx = choose_enemy_intent(cs, ei);
-            if (idx >= 0)
+            // Refill energy
+            e->energy_current += e->energy_max;
+            if (e->energy_current > e->energy_max * 2)
+                e->energy_current = e->energy_max * 2;
+
+            // Draw cards up to hand size
+            int hand_size = e->def->hand_size;
+            while (e->hand_count < hand_size)
             {
-                e->intent.ability_idx = idx;
-                e->intent.remaining_turns = enemy_cast_time(cs, e, idx);
+                if (e->deck_count <= 0)
+                {
+                    // Reshuffle discard into deck
+                    for (int d = 0; d < e->discard_count; d++)
+                        e->deck[d] = e->discard[d];
+                    e->deck_count = e->discard_count;
+                    e->discard_count = 0;
+                    for (int s = e->deck_count - 1; s > 0; s--)
+                    {
+                        int j = rand() % (s + 1);
+                        int tmp = e->deck[s];
+                        e->deck[s] = e->deck[j];
+                        e->deck[j] = tmp;
+                    }
+                }
+                if (e->deck_count > 0)
+                {
+                    e->hand[e->hand_count++] = e->deck[--e->deck_count];
+                }
+                else break;
+            }
+
+            // Score each card in hand and play the best affordable one
+            int alive_party = living_party_count(cs);
+            bool low_hp = e->hp * 100 <= e->max_hp * 40;
+            int best_idx = -1;
+            int best_score = -9999;
+            for (int h = 0; h < e->hand_count; h++)
+            {
+                int ci = e->hand[h];
+                if (ci < 0 || ci >= e->def->card_count) continue;
+                const EnemyCardDef *cd = &e->def->cards[ci];
+                if (cd->cost > e->energy_current) continue;
+                int score = (rand() % 8) + cd->base_damage;
+                if (alive_party > 1 && cd->intent == INTENT_AOE)
+                    score += 24;
+                if (low_hp && (cd->intent == INTENT_HEAL || cd->intent == INTENT_SHIELD || cd->intent == INTENT_BUFF))
+                    score += 28;
+                if (!low_hp && (cd->intent == INTENT_HEAL || cd->intent == INTENT_SHIELD))
+                    score -= 10;
+                if (cd->status != STATUS_NONE && alive_party > 0)
+                    score += 8;
+                if (cd->intent == INTENT_WIPE && e->phase <= 0)
+                    score -= 12;
+                if (score > best_score)
+                {
+                    best_score = score;
+                    best_idx = h;
+                }
+            }
+
+            if (best_idx >= 0)
+            {
+                int ci = e->hand[best_idx];
+                e->intent.ability_idx = ci;
+                e->intent.remaining_turns = enemy_cast_time(cs, e, ci);
                 e->current_ability++;
+                e->energy_current -= e->def->cards[ci].cost;
+                // Add to discard pile
+                if (e->discard_count < ENEMY_DECK_SIZE)
+                    e->discard[e->discard_count++] = ci;
+                // Remove from hand
+                for (int h = best_idx; h < e->hand_count - 1; h++)
+                    e->hand[h] = e->hand[h + 1];
+                e->hand_count--;
             }
         }
     }
@@ -2378,7 +2756,7 @@ void combat_start(CombatState *cs, const Party *party, const EncounterDef *encou
     cs->combo_last_cost = -1;
     cs->combo_count = 0;
     cs->last_played_class = CLASS_NONE;
-    cs->combo_prime = COMBO_PRIME_NONE;
+    cs->combo_prime_index = -1;
     cs->combo_prime_turns_remaining = 0;
     cs->combo_scale = 1.0f;
     cs->combo_tween = -1;
@@ -2396,12 +2774,13 @@ void combat_start(CombatState *cs, const Party *party, const EncounterDef *encou
     cs->ambush_used = false;
     cs->vengeful_active = false;
     cs->guardian_taunt_shield_used = false;
-    cs->mage_first_spell_used = false;
+    cs->mage_first_spell_used = false; cs->musical_mend_used = false; cs->magical_might_used = false;
     cs->rogue_mark_refund_used = false;
     cs->shaman_extend_status_used = false;
     cs->ranger_marked_dmg_used = false;
     cs->warlock_blight_boost_used = false;
     cs->bard_first_draw_used = false;
+    cs->deadly_poison_used = false;
     cs->vengeful_ally = -1;
     for (int i = 0; i < 5; i++)
     {
@@ -2445,9 +2824,33 @@ void combat_start(CombatState *cs, const Party *party, const EncounterDef *encou
         cs->enemies[i].last_interrupted_ability = -1;
         cs->enemies[i].interrupt_cooldown = 0;
         cs->enemies[i].interrupted_recently = false;
+        cs->enemies[i].cast_pending = false;
         cs->enemies[i].phase = 0;
         cs->enemies[i].intent.ability_idx = -1;
         cs->enemies[i].intent.remaining_turns = 0;
+
+        // Build and shuffle the enemy's card deck
+        cs->enemies[i].energy_current = 0;
+        cs->enemies[i].energy_max = ed->energy_per_turn;
+        cs->enemies[i].deck_count = 0;
+        cs->enemies[i].deck_top = 0;
+        cs->enemies[i].hand_count = 0;
+        cs->enemies[i].discard_count = 0;
+        int deck_pos = 0;
+        for (int c = 0; c < ed->card_count; c++)
+        {
+            for (int copy = 0; copy < ed->cards[c].count && deck_pos < ENEMY_DECK_SIZE; copy++)
+                cs->enemies[i].deck[deck_pos++] = c;
+        }
+        cs->enemies[i].deck_count = deck_pos;
+        // Fisher-Yates shuffle
+        for (int s = deck_pos - 1; s > 0; s--)
+        {
+            int j = rand() % (s + 1);
+            int tmp = cs->enemies[i].deck[s];
+            cs->enemies[i].deck[s] = cs->enemies[i].deck[j];
+            cs->enemies[i].deck[j] = tmp;
+        }
     }
     calc_enemy_positions(cs->enemies, cs->enemy_count);
     LOG_T("  enemy positions calculated");
@@ -2611,8 +3014,6 @@ static void start_targeting(CombatState *cs, int hand_idx, TargetType tt)
             if (cs->phase == COMBAT_VICTORY) return;
             check_defeat(cs);
             if (cs->phase == COMBAT_DEFEAT) return;
-            if (cs->energy.current <= 0 || cs->deck.hand_count == 0)
-                combat_end_turn_internal(cs);
             break;
         }
         default:
@@ -2657,8 +3058,6 @@ static void handle_card_click(CombatState *cs, int hand_idx)
         if (cs->phase == COMBAT_VICTORY) return;
         check_defeat(cs);
         if (cs->phase == COMBAT_DEFEAT) return;
-        if (cs->energy.current <= 0 || cs->deck.hand_count == 0)
-            combat_end_turn_internal(cs);
     }
 }
 
@@ -2715,6 +3114,9 @@ void combat_update(CombatState *cs)
 
     if (cs->phase != COMBAT_PLAYER_TURN) { LOG_T("CU: not player turn, returning"); return; }
 
+    // Block player input while enemy cards are resolving
+    if (combat_any_pending(cs)) { return; }
+
     LOG_T("CU: getting mouse");
     Vector2 mouse = GetMousePosition();
     cs->hovered_card = -1;
@@ -2730,7 +3132,6 @@ void combat_update(CombatState *cs)
             cs->target_mode = TGT_NONE; cs->target_hand_idx = -1; cs->target_paid_cost = 0; cs->target_offset = 0;
             check_victory(cs); if (cs->phase == COMBAT_VICTORY) return;
             check_defeat(cs);  if (cs->phase == COMBAT_DEFEAT) return;
-            if (cs->energy.current <= 0 || cs->deck.hand_count == 0) combat_end_turn_internal(cs);
         }
         else if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
         {
@@ -2759,7 +3160,6 @@ void combat_update(CombatState *cs)
             cs->target_mode = TGT_NONE; cs->target_hand_idx = -1; cs->target_paid_cost = 0; cs->target_offset = 0;
             check_victory(cs); if (cs->phase == COMBAT_VICTORY) return;
             check_defeat(cs);  if (cs->phase == COMBAT_DEFEAT) return;
-            if (cs->energy.current <= 0 || cs->deck.hand_count == 0) combat_end_turn_internal(cs);
         }
         else if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
         {

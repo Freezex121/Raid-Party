@@ -196,7 +196,6 @@ static TextBoxResult draw_text_box_internal(Rectangle bounds, const char *text, 
 
     scroll_y = clamp_i(scroll_y, 0, result.content_height > result.visible_height ? result.content_height - result.visible_height : 0);
 
-    BeginScissorMode((int)bounds.x, (int)bounds.y, (int)bounds.width, (int)bounds.height);
     for (int i = 0; i < line_count; i++)
     {
         int y = (int)bounds.y + i * line_h - scroll_y;
@@ -211,7 +210,6 @@ static TextBoxResult draw_text_box_internal(Rectangle bounds, const char *text, 
 
         DrawText(lines[i].text, x, y, font_size, color);
     }
-    EndScissorMode();
 
     if (show_scrollbar && result.clipped)
     {

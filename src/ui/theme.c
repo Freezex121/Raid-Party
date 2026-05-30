@@ -565,9 +565,9 @@ Color theme_class_color(ClassType ct)
         case CLASS_ROGUE:    return (Color){ 0, 255, 0, 255 };
         case CLASS_SHAMAN:   return (Color){ 0, 0, 157, 255 };
         case CLASS_RANGER:   return (Color){ 0, 157, 0, 255 };
-        case CLASS_PALADIN:  return (Color){ 240, 210, 95, 255 };
-        case CLASS_WARLOCK:  return (Color){ 125, 70, 185, 255 };
-        case CLASS_BARD:     return (Color){ 235, 95, 155, 255 };
+        case CLASS_PALADIN:  return (Color){ 157, 157, 0, 255 };
+        case CLASS_WARLOCK:  return (Color){ 157, 0, 0, 255 };
+        case CLASS_BARD:     return (Color){ 204, 0, 204, 255 };
         default:             return (Color){ 130, 135, 160, 255 };
     }
 }

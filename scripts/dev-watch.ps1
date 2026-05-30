@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$BuildDir = "build",
-    [string]$Config = "Debug",
+    [string]$Config = "Release",
     [string]$Target = "RaidParty",
     [int]$PollMs = 350,
     [int]$DebounceMs = 500,
@@ -9,7 +9,7 @@ param(
     [switch]$NoLaunch
 )
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $BuildPath = Join-Path $Root $BuildDir
@@ -58,42 +58,33 @@ function Get-BuiltExePath {
             return (Resolve-Path $path).Path
         }
     }
-
-    throw "Could not find $Target.exe under '$BuildPath'."
+    return $null
 }
 
 function Stop-ProcessGracefully {
     param([System.Diagnostics.Process]$Process)
 
-    if ($null -eq $Process) {
-        return
-    }
+    if ($null -eq $Process) { return }
 
     try {
         $Process.Refresh()
-        if ($Process.HasExited) {
-            return
-        }
+        if ($Process.HasExited) { return }
 
         if ($Process.MainWindowHandle -ne 0) {
             [void]$Process.CloseMainWindow()
-            if ($Process.WaitForExit(1500)) {
-                return
-            }
+            if ($Process.WaitForExit(1500)) { return }
         }
 
         Stop-Process -Id $Process.Id -Force -ErrorAction SilentlyContinue
     } catch {
-        # The process may have already exited between checks.
+        # Process may have already exited
     }
 }
 
 function Stop-ProcessesUsingPath {
     param([string]$Path)
 
-    if ([string]::IsNullOrWhiteSpace($Path)) {
-        return
-    }
+    if ([string]::IsNullOrWhiteSpace($Path)) { return }
 
     $fullPath = [System.IO.Path]::GetFullPath($Path)
     $processName = [System.IO.Path]::GetFileNameWithoutExtension($fullPath)
@@ -118,16 +109,12 @@ function Invoke-CMakeBuild {
     if (-not (Test-Path (Join-Path $BuildPath "CMakeCache.txt"))) {
         Write-Host "Configuring CMake..."
         & cmake -S $Root -B $BuildPath
-        if ($LASTEXITCODE -ne 0) {
-            return $false
-        }
+        if ($LASTEXITCODE -ne 0) { return $false }
     }
 
-    # Delete old exe to force MSBuild to always relink (bypasses stale incremental builds)
+    # Delete old exe to force MSBuild to always relink
     foreach ($candidate in (Get-BuildExeCandidates)) {
-        if (Test-Path $candidate) {
-            Remove-Item -Path $candidate -Force
-        }
+        if (Test-Path $candidate) { Remove-Item -Path $candidate -Force }
     }
 
     Write-Host "Building $Target ($Config)..."
@@ -162,54 +149,54 @@ function Invoke-RebuildAndLaunch {
     }
 
     if (-not (Invoke-CMakeBuild)) {
-        Write-Host "Build failed. Fix the error, save again, and the watcher will retry." -ForegroundColor Red
+        Write-Host "Build failed. Check the errors above, fix the file, save again." -ForegroundColor Red
+        Write-Host "The watcher will retry on the next save." -ForegroundColor Cyan
         return
     }
 
     if ($NoLaunch) {
-        Write-Host "Build succeeded. Launch skipped because -NoLaunch was set." -ForegroundColor Green
+        Write-Host "Build succeeded." -ForegroundColor Green
         return
     }
 
     $sourceExe = Get-BuiltExePath
+    if (-not $sourceExe) {
+        Write-Host "Build succeeded but executable not found - skipping launch." -ForegroundColor Yellow
+        return
+    }
+
     $liveExe = Copy-BuildToLivePath $sourceExe
 
     Write-Host "Launching $liveExe" -ForegroundColor Green
     $script:GameProcess = Start-Process -FilePath $liveExe -WorkingDirectory $Root -PassThru
 }
 
-try {
-    Set-Location $Root
+# -- Main ----------------------------------------------------------
 
-    $lastStamp = Get-WatchStamp
-    Invoke-RebuildAndLaunch "Initial build"
-    $lastStamp = Get-WatchStamp
+Set-Location $Root
 
-    if ($RunOnce) {
-        return
-    }
+$lastStamp = Get-WatchStamp
+Invoke-RebuildAndLaunch "Initial build"
+$lastStamp = Get-WatchStamp
 
-    Write-Host ""
-    Write-Host "Watching src, assets, and CMakeLists.txt. Save to rebuild and relaunch."
-    Write-Host "Press Ctrl+C to stop."
+if ($RunOnce) { return }
 
-    while ($true) {
-        Start-Sleep -Milliseconds $PollMs
+Write-Host ""
+Write-Host "Watching src, assets, and CMakeLists.txt. Save to rebuild and relaunch."
+Write-Host "Press Ctrl+C to stop."
+
+while ($true) {
+    Start-Sleep -Milliseconds $PollMs
+    $currentStamp = Get-WatchStamp
+
+    if ($currentStamp -ne $lastStamp) {
+        Start-Sleep -Milliseconds $DebounceMs
         $currentStamp = Get-WatchStamp
 
         if ($currentStamp -ne $lastStamp) {
-            Start-Sleep -Milliseconds $DebounceMs
-            $currentStamp = Get-WatchStamp
-
-            if ($currentStamp -ne $lastStamp) {
-                $lastStamp = $currentStamp
-                Invoke-RebuildAndLaunch "Change detected"
-                $lastStamp = Get-WatchStamp
-            }
+            $lastStamp = $currentStamp
+            Invoke-RebuildAndLaunch "Change detected"
+            $lastStamp = Get-WatchStamp
         }
-    }
-} finally {
-    if (-not $RunOnce -and -not $NoLaunch) {
-        Stop-ProcessGracefully $script:GameProcess
     }
 }

@@ -88,6 +88,7 @@ void assets_update_audio(void);
 void assets_play_sfx(GameSfx sfx);
 void assets_play_music(GameMusic music);
 void assets_stop_music(void);
+Texture2D load_art_texture(const char *filename);
 void assets_set_music_volume(float volume);
 void assets_set_sfx_volume(float volume);
 

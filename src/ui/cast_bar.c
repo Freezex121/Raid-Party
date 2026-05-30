@@ -36,7 +36,7 @@ static const char *intent_icon(IntentType intent, bool is_wipe)
     }
 }
 
-void cast_bar_draw_ability_tooltip(const EnemyAbility *ability, Rectangle bounds)
+void cast_bar_draw_ability_tooltip(const EnemyCardDef *ability, Rectangle bounds)
 {
     if (!ability) return;
 
@@ -44,7 +44,7 @@ void cast_bar_draw_ability_tooltip(const EnemyAbility *ability, Rectangle bounds
     if (!CheckCollisionPointRec(mouse, bounds)) return;
 
     static TextScroll tooltip_scroll = { 0 };
-    static const EnemyAbility *last_ability = NULL;
+    static const EnemyCardDef *last_ability = NULL;
     if (last_ability != ability)
     {
         tooltip_scroll.offset_y = 0;
@@ -134,7 +134,7 @@ void cast_bar_draw_ex(const char *ability_name, int remaining_turns, int total_t
     }
 }
 
-void cast_bar_draw_ability(const EnemyAbility *ability, int remaining_turns, int total_turns, int bar_x, int bar_y)
+void cast_bar_draw_ability(const EnemyCardDef *ability, int remaining_turns, int total_turns, int bar_x, int bar_y)
 {
     if (!ability) return;
 

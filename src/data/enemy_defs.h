@@ -5,6 +5,9 @@
 #include "combat/status.h"
 
 #define MAX_ENEMIES 3
+#define MAX_ENEMY_CARDS 16
+#define MAX_ENEMY_HAND 5
+#define ENEMY_DECK_SIZE 16
 
 typedef enum {
     INTENT_NONE,
@@ -17,9 +20,19 @@ typedef enum {
     INTENT_SHIELD,
 } IntentType;
 
+typedef enum {
+    ENEMY_TARGET_TANK,
+    ENEMY_TARGET_RANDOM,
+    ENEMY_TARGET_ALL,
+    ENEMY_TARGET_SELF,
+    ENEMY_TARGET_LOWEST_HP,
+} EnemyTargetType;
+
 typedef struct {
     const char *name;
     IntentType intent;
+    EnemyTargetType target;
+    int cost;
     int base_damage;
     int cast_time;
     const char *description;
@@ -29,14 +42,17 @@ typedef struct {
     StatusType status;
     int status_amount;
     int status_turns;
-} EnemyAbility;
+    int count;  // copies in deck
+} EnemyCardDef;
 
 typedef struct {
     const char *id;
     const char *name;
     int hp, max_hp;
-    int ability_count;
-    EnemyAbility abilities[4];
+    int hand_size;
+    int energy_per_turn;
+    int card_count;
+    EnemyCardDef cards[MAX_ENEMY_CARDS];
 } EnemyDef;
 
 bool enemy_defs_load_json(const char *path);

@@ -16,7 +16,7 @@ static float shop_scroll_y = 0.0f;
 
 #define META_ITEM_COUNT 15
 #define META_ITEM_W 292.0f
-#define META_ITEM_H 70.0f
+#define META_ITEM_H 76.0f
 #define META_ITEM_GAP_X 12.0f
 #define META_ITEM_GAP_Y 8.0f
 
@@ -64,10 +64,11 @@ static bool item_hit(int index, Vector2 mouse)
 {
     Rectangle view = shop_viewport();
     Rectangle r = item_rect(index);
+    Rectangle buy = { r.x + 10.0f, r.y + r.height - (float)BTN_H - 4.0f, r.width - 20.0f, (float)BTN_H };
     return CheckCollisionPointRec(mouse, view) &&
-           r.y >= view.y &&
-           r.y + r.height <= view.y + view.height &&
-           CheckCollisionPointRec(mouse, r);
+           buy.y >= view.y &&
+           buy.y + buy.height <= view.y + view.height &&
+           CheckCollisionPointRec(mouse, buy);
 }
 
 static void init_if_needed(void)
@@ -273,37 +274,32 @@ static void draw_item(Rectangle r, const char *title, const char *body, const ch
 {
     Vector2 mouse = GetMousePosition();
     Rectangle view = shop_viewport();
-    if (r.y < view.y || r.y + r.height > view.y + view.height)
-        return;
 
-    bool hover = CheckCollisionPointRec(mouse, r) && CheckCollisionPointRec(mouse, view);
     Color bg = complete ? (Color){ 25, 44, 35, 238 } :
-               can_buy && hover ? (Color){ 38, 55, 78, 245 } :
                can_buy ? (Color){ 24, 33, 50, 238 } :
                (Color){ 20, 21, 30, 225 };
+
     Color title_col = can_buy || complete ? RAYWHITE : (Color){ 112, 116, 135, 230 };
     Color body_col = can_buy || complete ? (Color){ 175, 184, 210, 225 } : (Color){ 95, 98, 116, 205 };
 
-    draw_9slice(g_assets.btn_large, 8, 8, r, bg);
+    DrawRectangleRec(r, bg);
+
     draw_text_box((Rectangle){ r.x + 10.0f, r.y + 7.0f, r.width - 20.0f, 14.0f },
         title, 10, 0, title_col, TEXT_ALIGN_LEFT);
-    draw_text_box((Rectangle){ r.x + 10.0f, r.y + 23.0f, r.width - 20.0f, 24.0f },
+    draw_text_box((Rectangle){ r.x + 10.0f, r.y + 23.0f, r.width - 20.0f, 28.0f },
         body, 10, 0, body_col, TEXT_ALIGN_LEFT);
 
-    Rectangle buy = { r.x + 10.0f, r.y + r.height - 20.0f, r.width - 20.0f, 15.0f };
+    Rectangle buy = { r.x + 10.0f, r.y + r.height - (float)BTN_H - 4.0f, r.width - 20.0f, (float)BTN_H };
     Color buy_bg = complete ? (Color){ 42, 95, 58, 255 } :
                    can_buy ? (Color){ 46, 117, 182, 255 } :
                    (Color){ 38, 39, 50, 255 };
-    draw_9slice(g_assets.btn_standard, 6, 6, buy, buy_bg);
 
     char label[48];
     if (complete || cost <= 0)
         snprintf(label, sizeof(label), "%s", status);
     else
         snprintf(label, sizeof(label), "%s  %dR", status, cost);
-    Color label_col = can_buy || complete ? RAYWHITE : (Color){ 105, 108, 125, 220 };
-    draw_text_box((Rectangle){ buy.x + 4.0f, buy.y + (buy.height - 12.0f) * 0.5f, buy.width - 8.0f, 12.0f },
-        label, 10, 0, label_col, TEXT_ALIGN_CENTER);
+    draw_btn_standard(buy, buy_bg, can_buy ? (Color){ 80, 160, 230, 255 } : buy_bg, label);
 }
 
 static void draw_scrollbar(Rectangle view)
@@ -352,6 +348,9 @@ void meta_shop_screen_draw(void)
     Rectangle view = shop_viewport();
     DrawRectangleRec(view, (Color){ 7, 8, 14, 188 });
     DrawRectangleLinesEx(view, 1.0f, (Color){ 72, 86, 122, 150 });
+
+    BeginScissorMode((int)view.x + 1, (int)view.y + 1, (int)view.width - 1, (int)view.height - 1);
+
     draw_item(item_rect(0), "Party Slot IV", "Raise the draft cap to four heroes. You can still begin with fewer.", g_state.meta.slot4_unlocked ? "OWNED" : "BUY", META_SLOT4_COST, can_slot4, g_state.meta.slot4_unlocked);
     draw_item(item_rect(1), "Party Slot V", "Raise the draft cap to five heroes for full raid-party chaos.", g_state.meta.slot5_unlocked ? "OWNED" : (g_state.meta.slot4_unlocked ? "BUY" : "LOCKED"), META_SLOT5_COST, can_slot5, g_state.meta.slot5_unlocked);
 
@@ -374,6 +373,9 @@ void meta_shop_screen_draw(void)
     draw_item(item_rect(12), "Reinforced Armor", "All shields gain +1. Can stack 3 times.", g_state.meta.shield_bonus >= 3 ? "MAXED" : "BUY", 10, g_state.meta.shield_bonus < 3 && g_state.meta.renown >= 10, g_state.meta.shield_bonus >= 3);
     draw_item(item_rect(13), "Seasoned Adventurer", "+1 renown per boss defeated.", g_state.meta.seasoned_adventurer ? "OWNED" : "BUY", 15, !g_state.meta.seasoned_adventurer && g_state.meta.renown >= 15, g_state.meta.seasoned_adventurer);
     draw_item(item_rect(14), "Master Raider", "+2 renown per area cleared.", g_state.meta.master_raider ? "OWNED" : "BUY", 25, !g_state.meta.master_raider && g_state.meta.renown >= 25, g_state.meta.master_raider);
+
+    EndScissorMode();
+
     draw_scrollbar(view);
 
     if (shop_msg[0])

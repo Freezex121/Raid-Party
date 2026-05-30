@@ -9,6 +9,8 @@ typedef struct {
     const char *description;
     int floor_count;
     int difficulty_percent;
+    char **map_bg_files;
+    int map_bg_count;
 } AreaDef;
 
 bool area_defs_load_json(const char *path);

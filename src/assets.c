@@ -70,7 +70,7 @@ static Texture2D make_card_template_fallback(void)
     return tex;
 }
 
-static Texture2D load_art_texture(const char *filename)
+Texture2D load_art_texture(const char *filename)
 {
     const char *roots[] = {
         "assets/art",

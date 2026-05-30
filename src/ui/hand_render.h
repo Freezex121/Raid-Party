@@ -5,6 +5,6 @@
 #include "systems/energy.h"
 #include "combat/combat.h"
 
-void hand_render_draw(Deck *deck, Energy *energy, int hovered_card, ClassType channel_class, int target_idx, float target_offset, ComboPrime combo_prime);
+void hand_render_draw(Deck *deck, Energy *energy, int hovered_card, ClassType channel_class, int target_idx, float target_offset, int combo_prime_index);
 
 #endif

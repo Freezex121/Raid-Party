@@ -11,8 +11,8 @@
 #include "ui/relic_tray.h"
 #include "ui/ui.h"
 #include "data/area_defs.h"
-#include "data/enemy_defs.h"
 #include "data/encounter_defs.h"
+#include "data/synergy_defs.h"
 #include "systems/relic.h"
 #include "systems/telemetry.h"
 #include "util/log.h"
@@ -93,12 +93,19 @@ static void log_combat_result_metric(bool victory)
 static float preview_combo_mult(CombatState *cs, const CardDef *card)
 {
     if (!card) return 1.0f;
-    if (cs->combo_prime == COMBO_PRIME_STORM_VOLLEY && card->target == TARGET_ALL_ENEMIES)
-        return 1.5f;
-    if (cs->combo_prime == COMBO_PRIME_BACKDRAFT && card->damage > 0)
-        return 1.25f;
-    if (cs->combo_prime == COMBO_PRIME_SACRED_CHORUS && card->target == TARGET_ALL_ALLIES)
-        return 1.5f;
+    if (cs->combo_prime_index >= 0 && cs->combo_prime_index < synergy_combo_count())
+    {
+        const SynergyComboDef *c = synergy_combo_by_index(cs->combo_prime_index);
+        if (c)
+        {
+            if (strcmp(c->consume_card_type, "aoe") == 0 && card->target == TARGET_ALL_ENEMIES && c->multiply_damage > 1.0f)
+                return c->multiply_damage;
+            if (strcmp(c->consume_card_type, "damage") == 0 && card->damage > 0 && c->multiply_damage > 1.0f)
+                return c->multiply_damage;
+            if (strcmp(c->consume_card_type, "group_heal_or_shield") == 0 && card->target == TARGET_ALL_ALLIES)
+                return 1.5f;
+        }
+    }
     return 1.0f;
 }
 
@@ -376,45 +383,57 @@ static void draw_hand_synergy_glows(CombatState *cs)
 
 static void draw_pair_passives(CombatState *cs)
 {
-    const struct { ClassType a, b; const char *label; const char *desc; Color color; } passives[] = {
-        { CLASS_GUARDIAN, CLASS_MAGE, "MOLTEN", "Guardian + Mage: when Guardian gains Shield, a random enemy takes 2 damage.", { 245, 105, 70, 210 } },
-        { CLASS_ROGUE, CLASS_RANGER, "AMBUSH", "Rogue + Ranger: the first damaging card each combat deals double damage.", { 245, 220, 75, 210 } },
-        { CLASS_CLERIC, CLASS_ROGUE, "MEND", "Cleric + Rogue: Rogue aggro drops heal the Rogue for 8.", { 120, 245, 170, 210 } },
-        { CLASS_GUARDIAN, CLASS_SHAMAN, "BULWARK", "Guardian + Shaman: Healing Totem lasts 2 extra turns.", { 95, 185, 255, 210 } },
-        { CLASS_PALADIN, CLASS_WARLOCK, "ABSOLVE", "Paladin + Warlock: consuming BLIGHT heals the lowest HP ally.", { 230, 205, 95, 210 } },
-    };
+    Vector2 mouse = GetMousePosition();
+    int y = FRAME_Y + FRAME_H + 4;
+    int x = VIRT_W / 2 - 134;
     Rectangle hovered_rect = { 0 };
     const char *hovered_label = NULL;
     const char *hovered_desc = NULL;
     Color hovered_color = RAYWHITE;
-    Vector2 mouse = GetMousePosition();
-    int y = FRAME_Y + FRAME_H + 4;
-    int x = VIRT_W / 2 - 134;
-    int passive_count = (int)(sizeof(passives) / sizeof(passives[0]));
-    for (int i = 0; i < passive_count; i++)
+
+    for (int i = 0; i < synergy_pair_count(); i++)
     {
-        bool active = false;
-        for (int p = 0; p < cs->party.count; p++)
-            if (cs->party.members[p].alive && cs->party.members[p].class == passives[i].a)
-                active = true;
-        if (!active) continue;
-        active = false;
-        for (int p = 0; p < cs->party.count; p++)
-            if (cs->party.members[p].alive && cs->party.members[p].class == passives[i].b)
-                active = true;
-        if (!active) continue;
-        int w = MeasureText(passives[i].label, 10) + 10;
+        const SynergyPairDef *p = synergy_pair_by_index(i);
+        if (!p || !p->class_a || !p->class_b || !p->name || !p->desc) continue;
+
+        // Convert class name strings to ClassType
+        int class_a = -1, class_b = -1;
+        for (int ct = 0; ct < CLASS_COUNT; ct++)
+        {
+            const char *cn = class_name((ClassType)ct);
+            if (!cn) continue;
+            // Check against lowercase class IDs
+            const char *lower_ids[] = { "guardian", "cleric", "mage", "rogue", "shaman", "ranger", "paladin", "warlock", "bard" };
+            if (ct < 9)
+            {
+                if (strcmp(lower_ids[ct], p->class_a) == 0) class_a = ct;
+                if (strcmp(lower_ids[ct], p->class_b) == 0) class_b = ct;
+            }
+        }
+        if (class_a < 0 || class_b < 0) continue;
+
+        bool active_a = false, active_b = false;
+        for (int pm = 0; pm < cs->party.count; pm++)
+        {
+            if (!cs->party.members[pm].alive) continue;
+            if (cs->party.members[pm].class == (ClassType)class_a) active_a = true;
+            if (cs->party.members[pm].class == (ClassType)class_b) active_b = true;
+        }
+        if (!active_a || !active_b) continue;
+
+        int w = MeasureText(p->name, 10) + 10;
         Rectangle pill = { (float)x, (float)y, (float)w, 12.0f };
-        DrawRectangleRec(pill, (Color){ passives[i].color.r, passives[i].color.g, passives[i].color.b, 45 });
-        DrawRectangleLinesEx(pill, 1.0f, passives[i].color);
+        Color accent = { 230, 205, 95, 210 };
+        DrawRectangleRec(pill, (Color){ accent.r, accent.g, accent.b, 45 });
+        DrawRectangleLinesEx(pill, 1.0f, accent);
         draw_text_box((Rectangle){ pill.x + 5.0f, pill.y + 1.0f, pill.width - 10.0f, pill.height - 2.0f },
-            passives[i].label, 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
+            p->name, 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
         if (CheckCollisionPointRec(mouse, pill))
         {
             hovered_rect = pill;
-            hovered_label = passives[i].label;
-            hovered_desc = passives[i].desc;
-            hovered_color = passives[i].color;
+            hovered_label = p->name;
+            hovered_desc = p->desc;
+            hovered_color = accent;
         }
         x += w + 5;
     }
@@ -467,7 +486,7 @@ static void draw_combat_feedback(CombatState *cs)
     {
         EnemyState *e = &cs->enemies[i];
         if (!e->def || e->hp <= 0 || e->intent.ability_idx < 0) continue;
-        const EnemyAbility *ab = &e->def->abilities[e->intent.ability_idx];
+        const EnemyCardDef *ab = &e->def->cards[e->intent.ability_idx];
         if (ab->intent == INTENT_WIPE || ab->intent == INTENT_TANK_BUSTER || ab->is_wipe)
             if (e->intent.remaining_turns <= 1)
                 danger = true;
@@ -739,16 +758,16 @@ void run_screen_draw(void)
                 int ab_idx = cs->enemies[i].intent.ability_idx;
                 Rectangle bar = layout_enemy_cast_bar_rect((Vector2){ (float)cs->enemies[i].pos_x, (float)cs->enemies[i].pos_y }, cs->enemy_count, i);
                 cast_bar_draw_ability(
-                    &cs->enemies[i].def->abilities[ab_idx],
+                    &cs->enemies[i].def->cards[ab_idx],
                     cs->enemies[i].intent.remaining_turns,
-                    cs->enemies[i].def->abilities[ab_idx].cast_time,
+                    cs->enemies[i].def->cards[ab_idx].cast_time,
                     (int)bar.x, (int)bar.y
                 );
             }
         }
     }
 
-    if (cs->combo_prime != COMBO_PRIME_NONE)
+    if (cs->combo_prime_index >= 0)
     {
         char cb[64];
         snprintf(cb, sizeof(cb), "PRIMED: %s", cs->synergy_banner_title[0] ? cs->synergy_banner_title : "COMBO");
@@ -798,8 +817,9 @@ void run_screen_draw(void)
 
     draw_discard_pile(cs);
     draw_hand_synergy_glows(cs);
-    hand_render_draw(&cs->deck, &cs->energy, cs->hovered_card, cs->channel_class, cs->target_hand_idx, cs->target_offset, cs->combo_prime);
+    hand_render_draw(&cs->deck, &cs->energy, cs->hovered_card, cs->channel_class, cs->target_hand_idx, cs->target_offset, cs->combo_prime_index);
     combat_draw_card_throws(cs);
+    combat_draw_enemy_card_throws(cs);
     draw_combat_feedback(cs);
 
     int inspector_idx = targeting ? cs->target_hand_idx : cs->hovered_card;
@@ -836,7 +856,17 @@ void run_screen_draw(void)
     draw_btn_standard(deck_btn, (Color){ 50, 50, 80, 255 }, (Color){ 80, 80, 120, 255 }, "DECK");
 
     Rectangle end_turn_btn = layout_end_turn_button();
-    draw_btn_standard(end_turn_btn, (Color){ 50, 50, 80, 255 }, (Color){ 80, 80, 120, 255 }, "End Turn");
+    bool should_pulse = (cs->energy.current <= 0 || cs->deck.hand_count == 0);
+    if (should_pulse)
+    {
+        float pulse = 0.5f + 0.5f * sinf((float)GetTime() * 4.0f);
+        unsigned char a = (unsigned char)(160 + 95 * pulse);
+        draw_btn_standard(end_turn_btn, (Color){ 50, 50, 80, a }, (Color){ 80, 80, 120, a }, "End Turn");
+    }
+    else
+    {
+        draw_btn_standard(end_turn_btn, (Color){ 50, 50, 80, 255 }, (Color){ 80, 80, 120, 255 }, "End Turn");
+    }
 
     draw_pair_passives(cs);
     draw_target_preview(cs);
@@ -847,7 +877,7 @@ void run_screen_draw(void)
         if (!cs->enemies[i].def || cs->enemies[i].hp <= 0 || cs->enemies[i].intent.ability_idx < 0) continue;
         int ab_idx = cs->enemies[i].intent.ability_idx;
         Rectangle bar = layout_enemy_cast_bar_rect((Vector2){ (float)cs->enemies[i].pos_x, (float)cs->enemies[i].pos_y }, cs->enemy_count, i);
-        cast_bar_draw_ability_tooltip(&cs->enemies[i].def->abilities[ab_idx], bar);
+        cast_bar_draw_ability_tooltip(&cs->enemies[i].def->cards[ab_idx], bar);
     }
     for (int i = 0; i < cs->enemy_count; i++)
         enemy_render_draw_status_tooltip(&cs->enemies[i]);
@@ -855,7 +885,7 @@ void run_screen_draw(void)
     draw_combat_hud_tooltips(cs, turn_rect, energy_panel, deck_btn, end_turn_btn, inspector);
 
     // PRIMED combo hover tooltip
-    if (cs->combo_prime != COMBO_PRIME_NONE)
+    if (cs->combo_prime_index >= 0)
     {
         char cb[64];
         snprintf(cb, sizeof(cb), "PRIMED: %s", cs->synergy_banner_title[0] ? cs->synergy_banner_title : "COMBO");

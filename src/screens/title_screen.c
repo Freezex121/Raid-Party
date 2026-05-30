@@ -28,7 +28,7 @@ static int title_tween, subtitle_tween, btn_tween;
 
 static Rectangle area_panel_rect(void)
 {
-    return (Rectangle){ 126.0f, 86.0f, 388.0f, 134.0f };
+    return (Rectangle){ 126.0f, 81.0f, 388.0f, 134.0f };
 }
 
 static const char *ascension_effect_text(int level)
@@ -133,9 +133,9 @@ void title_screen_update(void)
             WHITE
         );
 
-        title_tween = tween_create(&title_y, 20.0f, 0.6f, EASE_OUT_BACK);
+        title_tween = tween_create(&title_y, 15.0f, 0.6f, EASE_OUT_BACK);
         subtitle_tween = tween_create(&subtitle_alpha, 1.0f, 0.5f, EASE_OUT_QUAD);
-        btn_tween = tween_create(&button_y, 284.0f, 0.6f, EASE_OUT_ELASTIC);
+        btn_tween = tween_create(&button_y, 279.0f, 0.6f, EASE_OUT_ELASTIC);
 
         initialized = true;
     }
@@ -251,7 +251,7 @@ void title_screen_draw(void)
             continue;
 
         int x = VIRT_W / 2 - (unlocked_class_count * 22) + unlocked_idx * 50;
-        int y = 260;
+        int y = 255;
         theme_draw_class_portrait((ClassType)i, x, y, 14, true);
         unlocked_idx++;
     }
@@ -259,7 +259,7 @@ void title_screen_draw(void)
     game_draw_text("RAID PARTY", VIRT_W/2 - game_measure_text("RAID PARTY", 40) / 2, snap_i(title_y), 40, RAYWHITE);
 
     Color subtitle_color = { 180, 180, 200, (unsigned char)(subtitle_alpha * 180) };
-    game_draw_text("A deck-building roguelite MMO", VIRT_W/2 - game_measure_text("A deck-building roguelite MMO", 24) / 2, snap_i(title_y + 38), 24, subtitle_color);
+    game_draw_text("A deck-building roguelite MMO", VIRT_W/2 - game_measure_text("A deck-building roguelite MMO", 24) / 2, snap_i(title_y + 33), 24, subtitle_color);
 
     Rectangle panel = area_panel_rect();
     const AreaDef *area = area_def(g_state.selected_area);
@@ -367,5 +367,6 @@ void title_screen_draw(void)
     }
 
     Color credit_color = { 100, 100, 120, 180 };
-    game_draw_text("devlog v0.1", VIRT_W - game_measure_text("devlog v0.1" - 15, 10) / 2, VIRT_H - 20, 10, credit_color);
+    const char *version = "v0.1";
+    game_draw_text(version, VIRT_W - game_measure_text(version, 10) / 2 - 25, VIRT_H - 30, 10, credit_color);
 }
