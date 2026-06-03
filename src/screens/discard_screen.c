@@ -249,18 +249,19 @@ void discard_screen_draw(void)
             if (g_state.discard_uids[j] == deck->cards[di].uid) { selected = true; break; }
 
         theme_draw_card_art_seeded(r, deck->cards[di].def, deck->cards[di].upgrade_level, (unsigned int)deck->cards[di].uid);
+        theme_draw_keyword_badge(r, &deck->cards[di]);
 
         if (selected)
             DrawRectangleRec(r, (Color){ 255, 80, 80, 50 });
     }
 
     Rectangle skip_btn = { 345.0f, (float)(VIRT_H - 36), (float)BTN_NARROW, (float)BTN_H };
-    draw_btn_standard(skip_btn, (Color){ 60, 60, 85, 255 }, (Color){ 100, 100, 130, 255 }, "Skip");
+    draw_btn_standard(skip_btn, (Color){ 60, 60, 85, 255 }, (Color){ 100, 100, 130, 255 }, "Skip", BTN_ID_DISCARD_SKIP);
 
     if (g_state.discard_selected >= g_state.discard_count)
     {
         Rectangle confirm_btn = { 215.0f, (float)(VIRT_H - 36), (float)BTN_MED, (float)BTN_H };
-        draw_btn_standard(confirm_btn, (Color){ 45, 120, 60, 255 }, (Color){ 70, 180, 90, 255 }, "Confirm");
+        draw_btn_standard(confirm_btn, (Color){ 45, 120, 60, 255 }, (Color){ 70, 180, 90, 255 }, "Confirm", BTN_ID_DISCARD_CONFIRM);
     }
 
     if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_DISCARD)

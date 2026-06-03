@@ -79,6 +79,7 @@ void map_screen_update(void)
 {
     if (g_state.map.floor != last_floor || g_state.map.node_count == 0)
     {
+        assets_play_music(MUSIC_MAP);
         const AreaDef *area = area_def(g_state.current_area);
         map_generate(&g_state.map, g_state.map.floor, area ? area->id : NULL);
         g_state.map.current_index = -1;
@@ -196,6 +197,7 @@ void map_screen_update(void)
             hovered_node = i;
             if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
             {
+                assets_play_sfx(SFX_MAP_SELECT);
                 LOG_I(CAT_INPUT, "Clicked map node %d type=%d", i, n->type);
                 n->completed = true;
                 if (n->type == NODE_START)
@@ -222,10 +224,10 @@ void map_screen_draw(void)
     // Deck button
     Vector2 mouse = GetMousePosition();
     Rectangle deck_btn = { 10.0f, 8.0f, (float)BTN_NARROW, (float)BTN_H };
-    draw_btn_standard(deck_btn, (Color){ 50, 50, 80, 255 }, (Color){ 80, 80, 120, 255 }, "DECK");
+    draw_btn_standard(deck_btn, (Color){ 50, 50, 80, 255 }, (Color){ 80, 80, 120, 255 }, "DECK", BTN_ID_MAP_DECK);
 
     Rectangle settings_btn = { 10.0f + BTN_NARROW + 6.0f, 8.0f, (float)BTN_NARROW, (float)BTN_H };
-    draw_btn_standard(settings_btn, (Color){ 50, 50, 80, 255 }, (Color){ 80, 80, 120, 255 }, "SET");
+    draw_btn_standard(settings_btn, (Color){ 50, 50, 80, 255 }, (Color){ 80, 80, 120, 255 }, "SET", BTN_ID_MAP_SET);
 
     char title[96];
     snprintf(title, sizeof(title), "%s", area ? area->name : "Area");
@@ -510,13 +512,6 @@ void map_screen_draw(void)
     EndScissorMode();
 
     relic_tray_draw(g_state.relics, g_state.relic_count, (Rectangle){ 482.0f, 10.0f, 146.0f, 42.0f });
-
-    Rectangle bounds = map_content_bounds(map);
-    if (bounds.height > VIRT_H - 52 || bounds.width > VIRT_W)
-    {
-        const char *hint = "Wheel scrolls map  |  Shift+wheel pans";
-        draw_text_box((Rectangle){ 110.0f, (float)(VIRT_H - 13), 420.0f, 12.0f }, hint, 10, 0, (Color){ 150, 155, 180, 185 }, TEXT_ALIGN_CENTER);
-    }
 
     if (hovered_node >= 0 && map->nodes[hovered_node].available && !map->nodes[hovered_node].completed)
     {

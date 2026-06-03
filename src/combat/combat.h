@@ -69,10 +69,12 @@ typedef struct {
 
 #define MAX_CARD_THROW_ANIMS 8
 #define MAX_ENEMY_CARD_THROWS 8
+#define SUDDEN_DEATH_START_TURN 15
 
 typedef struct {
     bool active;
     const CardDef *card;
+    CardInstance instance;
     int upgrade_level;
     unsigned int seed;
     float t;
@@ -149,12 +151,24 @@ typedef struct {
     float action_feed_timer[5];
     float floor_scale;
     float enemy_damage_scale;
+    float enemy_damage_buff_scale;
+    int enemy_damage_buff_turns;
+    float player_damage_mult;
+    int player_buff_turns;
+    int player_extra_draw;
+    int player_extra_draw_turns;
+    int player_status_amp;
+    int player_status_amp_turns;
     int turn_draw_count;
     int boon_energy_bonus;
     int boon_draw_bonus;
     int boon_turns_remaining;
     bool phoenix_used;
     bool echo_used;
+    bool meta_opening_damage_used;
+    bool meta_execute_used;
+    bool meta_emergency_barrier_used;
+    bool meta_last_stand_used;
     bool ambush_used;
     bool executioner_used;
     bool veil_pin_used;
@@ -179,6 +193,7 @@ typedef struct {
 void combat_start(CombatState *cs, const Party *party, const EncounterDef *encounter);
 void combat_update(CombatState *cs);
 void combat_end_turn(CombatState *cs);
+int combat_sudden_death_damage(int completed_turn);
 void combat_draw_card_throws(CombatState *cs);
 void combat_draw_enemy_card_throws(CombatState *cs);
 bool combat_any_pending(CombatState *cs);

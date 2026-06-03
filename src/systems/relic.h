@@ -2,9 +2,10 @@
 #define RELIC_H
 
 #include <stdbool.h>
+#include "systems/party.h"
 
 #define MAX_RUN_RELICS 48
-#define RELIC_REWARD_CHOICES 3
+#define RELIC_REWARD_CHOICES 4
 
 typedef enum {
     RELIC_NONE = -1,
@@ -59,6 +60,15 @@ typedef enum {
     RELIC_GOLDEN_IDOL,
     RELIC_HOARDERS_SCALES,
     RELIC_FATES_INTEREST,
+    RELIC_FURY_CHARM,
+    RELIC_WAR_DRUM,
+    RELIC_RAGING_HEART,
+    RELIC_SCROLL_INSIGHT,
+    RELIC_TOME_KNOWLEDGE,
+    RELIC_GRIM_SCYTHE,
+    RELIC_SOUL_REAPER,
+    RELIC_LEECHING_FANG,
+    RELIC_BLOOD_PACT,
     RELIC_COUNT
 } RelicId;
 
@@ -68,6 +78,8 @@ typedef struct {
     const char *icon;
     const char *description;
     int rarity;
+    ClassType requires_class;
+    ClassType requires_pair[2];
 } RelicDef;
 
 const char *relic_id_string(RelicId id);

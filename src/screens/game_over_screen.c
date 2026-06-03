@@ -64,7 +64,7 @@ void game_over_screen_update(void)
             g_state.run_best_combat_turns, area_defs_count(),
             &g_state.result_achievement_renown, g_state.result_achievement_names,
             sizeof(g_state.result_achievement_names));
-        g_state.result_gold_renown = g_state.gold / 50;
+        g_state.result_gold_renown = g_state.gold / meta_gold_conversion_divisor(&g_state.meta);
         if (g_state.result_gold_renown > 0)
         {
             g_state.meta.renown += g_state.result_gold_renown;
@@ -235,7 +235,7 @@ void game_over_screen_draw(void)
     {
         game_draw_tutorial_overlay_ex((Rectangle){ 210.0f, 128.0f, 220.0f, 150.0f },
             "Run Results",
-            "Renown is permanent progression currency. Gold can convert into renown here, then you can spend renown in the Meta Shop from the title screen.",
+            "Renown is permanent progression currency. Gold can convert into renown here, then you can spend renown in the Skill Tree from the title screen.",
             "Click to continue  |  Right-click/Esc: skip", 0, 0);
     }
 }

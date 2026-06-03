@@ -10,6 +10,7 @@
 #include "util/log.h"
 #include "util/text.h"
 #include "raylib.h"
+#include "assets.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -62,6 +63,8 @@ static const char *event_effect_name(EventEffectType effect)
         case EVENT_EFFECT_DUPLICATE_RANDOM_CARD_HURT_PARTY: return "duplicate_random_card_hurt_party";
         case EVENT_EFFECT_TRANSFORM_RANDOM_CARD: return "transform_random_card";
         case EVENT_EFFECT_GAIN_MAX_HP: return "gain_max_hp";
+        case EVENT_EFFECT_CURSE_FLEETING: return "curse_fleeting";
+        case EVENT_EFFECT_CURSE_EXHAUST: return "curse_exhaust";
     }
     return "unknown";
 }
@@ -250,6 +253,17 @@ static int random_deck_card_index(void)
     int count = 0;
     for (int i = 0; i < g_state.run_deck.card_count; i++)
         if (g_state.run_deck.cards[i].def && g_state.run_deck.cards[i].def->name)
+            candidates[count++] = i;
+    return count > 0 ? candidates[rand() % count] : -1;
+}
+
+static int random_deck_card_no_override(void)
+{
+    int candidates[MAX_DECK_SIZE];
+    int count = 0;
+    for (int i = 0; i < g_state.run_deck.card_count; i++)
+        if (g_state.run_deck.cards[i].def && g_state.run_deck.cards[i].def->name &&
+            !card_instance_has_any_override(&g_state.run_deck.cards[i]))
             candidates[count++] = i;
     return count > 0 ? candidates[rand() % count] : -1;
 }
@@ -484,6 +498,34 @@ static void apply_choice(int choice)
             finish_event("Every party member gained +%d max HP.", amount);
             break;
         }
+        case EVENT_EFFECT_CURSE_FLEETING:
+        {
+            int idx = random_deck_card_no_override();
+            if (idx >= 0)
+            {
+                g_state.run_deck.cards[idx].fleeting_override = 1;
+                const char *cname = g_state.run_deck.cards[idx].def ? g_state.run_deck.cards[idx].def->name : "a card";
+                game_gain_gold(choice_def->gold > 0 ? choice_def->gold : 10, "event_curse_fleeting");
+                finish_event("%s gained Fleeting, but the party found %d gold.", cname, choice_def->gold > 0 ? choice_def->gold : 10);
+            }
+            else
+                finish_event("All cards already carry an imprint. The gold scatters.");
+            break;
+        }
+        case EVENT_EFFECT_CURSE_EXHAUST:
+        {
+            int idx = random_deck_card_no_override();
+            if (idx >= 0)
+            {
+                g_state.run_deck.cards[idx].exhaust_override = 1;
+                const char *cname = g_state.run_deck.cards[idx].def ? g_state.run_deck.cards[idx].def->name : "a card";
+                game_gain_gold(choice_def->gold > 0 ? choice_def->gold : 15, "event_curse_exhaust");
+                finish_event("%s gained Exhaust, but the party found %d gold.", cname, choice_def->gold > 0 ? choice_def->gold : 15);
+            }
+            else
+                finish_event("All cards already carry an imprint. The gold scatters.");
+            break;
+        }
         case EVENT_EFFECT_NONE:
         default:
         {
@@ -499,6 +541,7 @@ static void init_event_if_needed(void)
     int floor = g_state.map.floor;
     if (node == active_node && floor == active_floor) return;
 
+    assets_play_music(MUSIC_EVENT);
     active_node = node;
     active_floor = floor;
     int event_count = event_defs_count();
@@ -612,7 +655,7 @@ void event_screen_draw(void)
     if (mode == EVENT_REMOVE_CARD)
     {
         draw_text_box((Rectangle){ 80.0f, 16.0f, 480.0f, 20.0f }, "TRAVEL LIGHT", 18, 0, RAYWHITE, TEXT_ALIGN_CENTER);
-        draw_text_box((Rectangle){ 80.0f, 34.0f, 480.0f, 14.0f }, "Pick a card to remove. Right-click cancels.", 10, 0, (Color){ 160, 160, 180, 180 }, TEXT_ALIGN_CENTER);
+        draw_text_box((Rectangle){ 80.0f, 34.0f, 480.0f, 14.0f }, "Pick a card to remove.", 10, 0, (Color){ 160, 160, 180, 180 }, TEXT_ALIGN_CENTER);
         deck_browser_draw(&event_browser, &g_state.run_deck, 0, (Color){ 255, 115, 115, 255 });
         if (hovered_deck >= 0 && g_state.run_deck.cards[hovered_deck].def)
             theme_draw_card_tooltip(layout_deck_inspector_panel(), g_state.run_deck.cards[hovered_deck].def, g_state.run_deck.cards[hovered_deck].upgrade_level);

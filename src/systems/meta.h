@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include "systems/achievements.h"
+#include "systems/relic.h"
 
 #define META_SLOT4_COST 20
 #define META_SLOT5_COST 40
@@ -11,6 +12,15 @@
 #define META_ASCENSION_MAX 10
 #define META_LEGACY_MAX_RANK 3
 #define META_CLASS_UNLOCK_COST 20
+#define META_SHIELD_CAP_MAX_RANK 6
+#define META_SHIELD_CAP_BASE_PERCENT 50
+#define META_SHIELD_CAP_PERCENT_PER_RANK 25
+#define META_RELIC_UNLOCK_ECHO_BELL (1 << 0)
+#define META_RELIC_UNLOCK_SPLIT_PRISM (1 << 1)
+#define META_RELIC_UNLOCK_BLOOD_AMBER (1 << 2)
+#define META_RELIC_UNLOCK_TITAN_HEART (1 << 3)
+#define META_RELIC_UNLOCK_FRUGAL_TOME (1 << 4)
+#define META_RELIC_UNLOCK_ALL (META_RELIC_UNLOCK_ECHO_BELL | META_RELIC_UNLOCK_SPLIT_PRISM | META_RELIC_UNLOCK_BLOOD_AMBER | META_RELIC_UNLOCK_TITAN_HEART | META_RELIC_UNLOCK_FRUGAL_TOME)
 
 typedef struct {
     int runs_completed;
@@ -18,6 +28,7 @@ typedef struct {
     int best_floor;
     int bosses_defeated_total;
     int renown;
+    bool meta_progress_unlocked;
     int highest_area_unlocked;
     int starting_gold_rank;
     int ascension_level;
@@ -41,6 +52,33 @@ typedef struct {
     int first_draw_bonus;
     bool seasoned_adventurer;
     bool master_raider;
+    int opening_damage_bonus;
+    int execute_draw_rank;
+    int weak_enemy_damage_bonus;
+    int elite_damage_bonus;
+    int boss_damage_bonus;
+    int warlock_damage_bonus;
+    int combat_start_shield;
+    int max_hp_bonus_rank;
+    int shield_cap_rank;
+    bool fortify_upgraded;
+    int paladin_shield_bonus;
+    bool emergency_barrier_unlocked;
+    bool last_stand_unlocked;
+    int starting_energy_bonus;
+    bool prep_upgraded;
+    bool rejuv_upgraded;
+    int heal_bonus;
+    int camp_bonus_rank;
+    int bard_draw_bonus;
+    int shop_discount_rank;
+    int reward_reroll_discount_rank;
+    int reward_choice_bonus;
+    int reward_upgrade_chance_rank;
+    int gold_conversion_rank;
+    int relic_choice_bonus;
+    int relic_unlock_flags;
+    bool formation_drills;
     int ascension_beaten;
     bool tutorial_seen_elite;
     bool tutorial_seen_boss;
@@ -68,6 +106,32 @@ int meta_starting_deck_bonuses(const MetaProgress *meta);
 int meta_dmg_bonus(const MetaProgress *meta);
 int meta_shield_bonus(const MetaProgress *meta);
 int meta_first_draw_bonus(const MetaProgress *meta);
+int meta_opening_damage_bonus(const MetaProgress *meta);
+int meta_execute_draw_rank(const MetaProgress *meta);
+int meta_weak_enemy_damage_bonus(const MetaProgress *meta);
+int meta_elite_damage_bonus(const MetaProgress *meta);
+int meta_boss_damage_bonus(const MetaProgress *meta);
+int meta_warlock_damage_bonus(const MetaProgress *meta);
+int meta_combat_start_shield(const MetaProgress *meta);
+int meta_max_hp_bonus(const MetaProgress *meta);
+int meta_shield_cap_percent(const MetaProgress *meta);
+int meta_paladin_shield_bonus(const MetaProgress *meta);
+bool meta_has_emergency_barrier(const MetaProgress *meta);
+bool meta_has_last_stand(const MetaProgress *meta);
+int meta_starting_energy_bonus(const MetaProgress *meta);
+int meta_heal_bonus(const MetaProgress *meta);
+int meta_camp_bonus_gold(const MetaProgress *meta);
+int meta_bard_draw_bonus(const MetaProgress *meta);
+int meta_shop_discount(const MetaProgress *meta);
+int meta_discounted_cost(const MetaProgress *meta, int base_cost);
+int meta_reward_reroll_cost(const MetaProgress *meta, int base_cost);
+int meta_reward_choice_bonus(const MetaProgress *meta);
+int meta_reward_upgrade_chance_percent(const MetaProgress *meta);
+int meta_gold_conversion_divisor(const MetaProgress *meta);
+int meta_relic_choice_bonus(const MetaProgress *meta);
+int meta_relic_unlock_flag(RelicId id);
+bool meta_relic_available(const MetaProgress *meta, RelicId id);
+void meta_unlock_relic(MetaProgress *meta, RelicId id);
 int meta_renown_bonus_per_boss(const MetaProgress *meta);
 int meta_renown_bonus_per_clear(const MetaProgress *meta);
 int meta_record_run(

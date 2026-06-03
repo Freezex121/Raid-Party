@@ -15,6 +15,8 @@ typedef enum {
     STATUS_MARKED,
     STATUS_CONDUCTIVE,
     STATUS_BLIGHT,
+    STATUS_THORNS,
+    STATUS_DEATH_MARK,
 } StatusType;
 
 typedef struct {

@@ -17,8 +17,10 @@
 #include "systems/telemetry.h"
 #include "util/log.h"
 #include "util/math_utils.h"
+#include "util/shake.h"
 #include "util/text.h"
 #include "constants.h"
+#include "assets.h"
 #include "raylib.h"
 #include <math.h>
 #include <stdio.h>
@@ -172,10 +174,22 @@ static void draw_combat_hud_tooltips(CombatState *cs, Rectangle turn_rect, Recta
     }
     else if (CheckCollisionPointRec(mouse, turn_rect))
     {
-        draw_hud_tooltip(turn_rect,
-            "Turn Counter",
-            "Current combat turn. Enemy cast bars tick down when turns advance, then ready abilities fire.",
-            (Color){ 155, 165, 210, 255 });
+        char body[192];
+        int sudden_death_damage = combat_sudden_death_damage(cs->turn);
+        if (sudden_death_damage > 0)
+        {
+            snprintf(body, sizeof(body),
+                "Sudden Death is active. Ending this turn deals %d damage to every party member and enemy.",
+                sudden_death_damage);
+            draw_hud_tooltip(turn_rect, "Sudden Death", body, (Color){ 255, 85, 85, 255 });
+        }
+        else
+        {
+            snprintf(body, sizeof(body),
+                "Current combat turn. Sudden Death begins after turn %d and damages everyone.",
+                SUDDEN_DEATH_START_TURN);
+            draw_hud_tooltip(turn_rect, "Turn Counter", body, (Color){ 155, 165, 210, 255 });
+        }
     }
     else if (CheckCollisionPointRec(mouse, discard))
     {
@@ -576,6 +590,7 @@ void run_screen_update(void)
     if (!combat_initialized)
     {
         combat_start(&g_state.combat, &g_state.run_party, g_state.encounter);
+        assets_play_combat_music(g_state.current_area, g_state.encounter_is_boss);
         combat_initialized = true;
         if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_MAP)
             g_state.tutorial_step = TUTORIAL_STEP_COMBAT_PARTY;
@@ -835,9 +850,21 @@ void run_screen_draw(void)
         draw_panel(inspector, "CARD", (Color){ 130, 145, 185, 220 });
     }
 
-    Rectangle turn_rect = { 12.0f, (float)(VIRT_H - 14), 76.0f, 12.0f };
+    bool sudden_death_warning = cs->turn >= SUDDEN_DEATH_START_TURN;
+    float turn_shake = 0.0f;
+    Color turn_color = (Color){ 100, 100, 130, 200 };
+    if (sudden_death_warning)
+    {
+        float pulse = 0.5f + 0.5f * sinf((float)GetTime() * 8.0f);
+        int sudden_death_turns = cs->turn - SUDDEN_DEATH_START_TURN + 1;
+        float shake_amplitude = shake_amplitude_for_value(sudden_death_turns, 1.0f, 0.35f, 4.0f);
+        turn_shake = shake_wave((float)GetTime(), 26.0f, shake_amplitude);
+        turn_color = (Color){ 255, (unsigned char)(60 + 45 * pulse), (unsigned char)(60 + 30 * pulse), 255 };
+    }
+    Rectangle turn_rect = { 12.0f + turn_shake, (float)(VIRT_H - 14), 76.0f, 12.0f };
     draw_text_box(turn_rect,
-        TextFormat("Turn %d", cs->turn), 10, 0, (Color){ 100, 100, 130, 200 }, TEXT_ALIGN_LEFT);
+        sudden_death_warning ? TextFormat("Turn %d !", cs->turn) : TextFormat("Turn %d", cs->turn),
+        10, 0, turn_color, TEXT_ALIGN_LEFT);
 
     Rectangle energy_panel = layout_energy_panel();
     draw_panel(energy_panel, "ENERGY", (Color){ 230, 205, 70, 220 });
@@ -853,7 +880,7 @@ void run_screen_draw(void)
     // Deck button
     Vector2 mouse = GetMousePosition();
     Rectangle deck_btn = { 550.0f, 214.0f, (float)BTN_NARROW, (float)BTN_H };
-    draw_btn_standard(deck_btn, (Color){ 50, 50, 80, 255 }, (Color){ 80, 80, 120, 255 }, "DECK");
+    draw_btn_standard(deck_btn, (Color){ 50, 50, 80, 255 }, (Color){ 80, 80, 120, 255 }, "DECK", BTN_ID_RUN_DECK);
 
     Rectangle end_turn_btn = layout_end_turn_button();
     bool should_pulse = (cs->energy.current <= 0 || cs->deck.hand_count == 0);
@@ -861,11 +888,11 @@ void run_screen_draw(void)
     {
         float pulse = 0.5f + 0.5f * sinf((float)GetTime() * 4.0f);
         unsigned char a = (unsigned char)(160 + 95 * pulse);
-        draw_btn_standard(end_turn_btn, (Color){ 50, 50, 80, a }, (Color){ 80, 80, 120, a }, "End Turn");
+        draw_btn_standard(end_turn_btn, (Color){ 50, 50, 80, a }, (Color){ 80, 80, 120, a }, "End Turn", BTN_ID_RUN_END_TURN);
     }
     else
     {
-        draw_btn_standard(end_turn_btn, (Color){ 50, 50, 80, 255 }, (Color){ 80, 80, 120, 255 }, "End Turn");
+        draw_btn_standard(end_turn_btn, (Color){ 50, 50, 80, 255 }, (Color){ 80, 80, 120, 255 }, "End Turn", BTN_ID_RUN_END_TURN);
     }
 
     draw_pair_passives(cs);
@@ -947,7 +974,7 @@ void run_screen_draw(void)
                     hl = (Rectangle){ 120.0f, 8.0f, 400.0f, 42.0f };
                 }
                 title = "Threat";
-                body = "Aggro is threat. Enemies usually prefer the living party member with the most aggro. Attacks, taunts, and some cards raise or lower it.";
+                body = "Aggro is threat. Enemies usually prefer the living party member with the most aggro. It caps at 200 and decays by 5% each turn.";
                 break;
             }
             case TUTORIAL_STEP_COMBAT_INTENT:

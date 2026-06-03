@@ -1701,7 +1701,14 @@
       "channel": false,
       "channel_turns": 0,
       "repeat_hits": 1,
-      "effects": [],
+      "effects": [
+        {
+          "type": "apply_status_target_enemy",
+          "status": "blight",
+          "amount": 2,
+          "turns": 3
+        }
+      ],
       "description": "Deal damage. vs CONDUCTIVE: apply BLIGHT for 3 turns."
     },
     {
@@ -1876,8 +1883,9 @@
       "channel": false,
       "channel_turns": 0,
       "repeat_hits": 1,
+      "self_hp_cost": 4,
       "effects": [],
-      "description": "Gain Shield."
+      "description": "Sacrifice Health for Shield."
     },
     {
       "id": "wlk_soul_rend",
@@ -2240,6 +2248,251 @@
       "repeat_hits": 1,
       "effects": [],
       "description": "One-use. When Guardian is healed this turn, deal 8 damage to all enemies."
+    },
+    {
+      "id": "wlk_life_tap",
+      "name": "Life Tap",
+      "type": "skill",
+      "class": "warlock",
+      "cost": 0,
+      "target": "enemy",
+      "damage": 10,
+      "heal": 0,
+      "heal2": 0,
+      "heal_self": false,
+      "shield": 0,
+      "burn_stacks": 0,
+      "taunt": false,
+      "taunt_turns": 0,
+      "interrupt": false,
+      "aggro_self": 0,
+      "exhaust": false,
+      "consume": false,
+      "channel": false,
+      "channel_turns": 0,
+      "repeat_hits": 1,
+      "self_hp_cost": 4,
+      "effects": [],
+      "description": "Deal 10 damage. Costs 4 HP."
+    },
+    {
+      "id": "grd_thorns_armor",
+      "name": "Spiked Armor",
+      "type": "skill",
+      "class": "guardian",
+      "cost": 1,
+      "target": "self",
+      "damage": 0,
+      "heal": 0,
+      "heal2": 0,
+      "heal_self": false,
+      "shield": 6,
+      "burn_stacks": 0,
+      "taunt": false,
+      "taunt_turns": 0,
+      "interrupt": false,
+      "aggro_self": 6,
+      "exhaust": false,
+      "consume": false,
+      "channel": false,
+      "channel_turns": 0,
+      "repeat_hits": 1,
+      "effects": [
+        {
+          "type": "apply_status_all_allies",
+          "status": "thorns",
+          "amount": 2,
+          "turns": 3
+        }
+      ],
+      "description": "Gain 6 Shield. All allies gain Thorns 2 for 3 turns."
+    },
+    {
+      "id": "util_battle_fury",
+      "name": "Battle Fury",
+      "type": "skill",
+      "class": "neutral",
+      "cost": 1,
+      "target": "self",
+      "damage": 0,
+      "heal": 0,
+      "heal2": 0,
+      "heal_self": false,
+      "shield": 0,
+      "burn_stacks": 0,
+      "taunt": false,
+      "taunt_turns": 0,
+      "interrupt": false,
+      "aggro_self": 0,
+      "exhaust": false,
+      "consume": false,
+      "channel": false,
+      "channel_turns": 0,
+      "repeat_hits": 1,
+      "effects": [
+        {
+          "type": "gain_buff",
+          "amount": 25,
+          "turns": 3
+        }
+      ],
+      "description": "Increase all damage by 25% for 3 turns."
+    },
+    {
+      "id": "mag_power_surge",
+      "name": "Power Surge",
+      "type": "attack",
+      "class": "mage",
+      "cost": 1,
+      "target": "enemy",
+      "damage": 8,
+      "heal": 0,
+      "heal2": 0,
+      "heal_self": false,
+      "shield": 0,
+      "burn_stacks": 0,
+      "taunt": false,
+      "taunt_turns": 0,
+      "interrupt": false,
+      "aggro_self": 4,
+      "exhaust": false,
+      "consume": false,
+      "channel": false,
+      "channel_turns": 0,
+      "repeat_hits": 1,
+      "effects": [
+        {
+          "type": "gain_buff",
+          "amount": 20,
+          "turns": 2
+        }
+      ],
+      "description": "Deal 8 damage. Gain 20% increased damage for 2 turns."
+    },
+    {
+      "id": "war_rampage",
+      "name": "Rampage",
+      "type": "attack",
+      "class": "neutral",
+      "cost": 2,
+      "target": "enemy",
+      "damage": 10,
+      "heal": 0,
+      "heal2": 0,
+      "heal_self": false,
+      "shield": 0,
+      "burn_stacks": 0,
+      "taunt": false,
+      "taunt_turns": 0,
+      "interrupt": false,
+      "aggro_self": 6,
+      "exhaust": false,
+      "consume": false,
+      "channel": false,
+      "channel_turns": 0,
+      "repeat_hits": 1,
+      "effects": [
+        {
+          "type": "gain_buff",
+          "amount": 15,
+          "turns": 4
+        }
+      ],
+      "description": "Deal 10 damage. Gain 15% increased damage for 4 turns."
+    },
+    {
+      "id": "brd_inspiration",
+      "name": "Inspiration",
+      "type": "skill",
+      "class": "bard",
+      "cost": 1,
+      "target": "self",
+      "damage": 0,
+      "heal": 0,
+      "heal2": 0,
+      "heal_self": false,
+      "shield": 0,
+      "burn_stacks": 0,
+      "taunt": false,
+      "taunt_turns": 0,
+      "interrupt": false,
+      "aggro_self": 0,
+      "exhaust": false,
+      "consume": false,
+      "channel": false,
+      "channel_turns": 0,
+      "repeat_hits": 1,
+      "effects": [
+        {
+          "type": "extra_draw",
+          "amount": 1,
+          "turns": 3
+        }
+      ],
+      "description": "Draw +1 card per turn for 3 turns."
+    },
+    {
+      "id": "wlk_death_mark",
+      "name": "Mark of Death",
+      "type": "skill",
+      "class": "warlock",
+      "cost": 1,
+      "target": "enemy",
+      "damage": 0,
+      "heal": 0,
+      "heal2": 0,
+      "heal_self": false,
+      "shield": 0,
+      "burn_stacks": 0,
+      "taunt": false,
+      "taunt_turns": 0,
+      "interrupt": false,
+      "aggro_self": 0,
+      "exhaust": false,
+      "consume": false,
+      "channel": false,
+      "channel_turns": 0,
+      "repeat_hits": 1,
+      "effects": [
+        {
+          "type": "apply_status_target_enemy",
+          "status": "death_mark",
+          "amount": 5,
+          "turns": 4
+        }
+      ],
+      "description": "Apply Death Mark 5 to an enemy. Each turn it deals damage equal to its stacks, then loses 2 stacks."
+    },
+    {
+      "id": "wlk_virulence",
+      "name": "Virulence",
+      "type": "skill",
+      "class": "warlock",
+      "cost": 1,
+      "target": "self",
+      "damage": 0,
+      "heal": 0,
+      "heal2": 0,
+      "heal_self": false,
+      "shield": 0,
+      "burn_stacks": 0,
+      "taunt": false,
+      "taunt_turns": 0,
+      "interrupt": false,
+      "aggro_self": 0,
+      "exhaust": false,
+      "consume": false,
+      "channel": false,
+      "channel_turns": 0,
+      "repeat_hits": 1,
+      "effects": [
+        {
+          "type": "gain_status_amp",
+          "amount": 30,
+          "turns": 3
+        }
+      ],
+      "description": "Status effects you apply are 30% stronger for 3 turns."
     }
   ]
 }

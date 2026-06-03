@@ -40,6 +40,8 @@ static EventEffectType parse_effect(const char *text)
     if (text && strcmp(text, "duplicate_random_card_hurt_party") == 0) return EVENT_EFFECT_DUPLICATE_RANDOM_CARD_HURT_PARTY;
     if (text && strcmp(text, "transform_random_card") == 0) return EVENT_EFFECT_TRANSFORM_RANDOM_CARD;
     if (text && strcmp(text, "gain_max_hp") == 0) return EVENT_EFFECT_GAIN_MAX_HP;
+    if (text && strcmp(text, "curse_fleeting") == 0) return EVENT_EFFECT_CURSE_FLEETING;
+    if (text && strcmp(text, "curse_exhaust") == 0) return EVENT_EFFECT_CURSE_EXHAUST;
     return EVENT_EFFECT_NONE;
 }
 

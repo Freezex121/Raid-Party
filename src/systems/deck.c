@@ -1,5 +1,6 @@
 #include "deck.h"
 #include "data/card_defs.h"
+#include "assets.h"
 #include "util/log.h"
 #include <stdlib.h>
 #include <string.h>
@@ -67,6 +68,62 @@ int card_clamp_upgrade_level(const CardDef *def, int upgrade_level)
     return upgrade_level;
 }
 
+bool card_instance_has_echo(const CardInstance *inst)
+{
+    if (!inst || !inst->def) return false;
+    return inst->echo_override >= 0 ? (inst->echo_override == 1) : inst->def->echo;
+}
+
+int card_instance_lifesteal(const CardInstance *inst)
+{
+    if (!inst || !inst->def) return 0;
+    if (inst->lifesteal_override >= 0)
+        return inst->lifesteal_override == 1 ? (inst->def->lifesteal > 0 ? inst->def->lifesteal : 1) : 0;
+    return inst->def->lifesteal;
+}
+
+bool card_instance_has_retain(const CardInstance *inst)
+{
+    if (!inst || !inst->def) return false;
+    return inst->retain_override >= 0 ? (inst->retain_override == 1) : inst->def->retain;
+}
+
+bool card_instance_has_fleeting(const CardInstance *inst)
+{
+    if (!inst || !inst->def) return false;
+    return inst->fleeting_override >= 0 ? (inst->fleeting_override == 1) : inst->def->fleeting;
+}
+
+bool card_instance_has_exhaust(const CardInstance *inst)
+{
+    if (!inst || !inst->def) return false;
+    return inst->exhaust_override >= 0 ? (inst->exhaust_override == 1) : inst->def->exhaust;
+}
+
+bool card_instance_has_taunt(const CardInstance *inst)
+{
+    if (!inst || !inst->def) return false;
+    return inst->taunt_override >= 0 ? (inst->taunt_override == 1) : inst->def->taunt;
+}
+
+bool card_instance_has_interrupt(const CardInstance *inst)
+{
+    if (!inst || !inst->def) return false;
+    return inst->interrupt_override >= 0 ? (inst->interrupt_override == 1) : inst->def->interrupt;
+}
+
+bool card_instance_has_any_override(const CardInstance *inst)
+{
+    if (!inst) return false;
+    return inst->echo_override >= 0 ||
+           inst->lifesteal_override >= 0 ||
+           inst->retain_override >= 0 ||
+           inst->fleeting_override >= 0 ||
+           inst->exhaust_override >= 0 ||
+           inst->taunt_override >= 0 ||
+           inst->interrupt_override >= 0;
+}
+
 void deck_init(Deck *deck)
 {
     memset(deck, 0, sizeof(Deck));
@@ -91,6 +148,13 @@ void deck_add_card_with_level(Deck *deck, const CardDef *def, int upgrade_level)
     deck->cards[idx].def = def;
     deck->cards[idx].uid = deck->next_uid++;
     deck->cards[idx].upgrade_level = upgrade_level;
+    deck->cards[idx].echo_override = -1;
+    deck->cards[idx].lifesteal_override = -1;
+    deck->cards[idx].retain_override = -1;
+    deck->cards[idx].fleeting_override = -1;
+    deck->cards[idx].exhaust_override = -1;
+    deck->cards[idx].taunt_override = -1;
+    deck->cards[idx].interrupt_override = -1;
     deck->draw[deck->draw_count++] = idx;
 }
 
@@ -189,6 +253,7 @@ void deck_exhaust_index(Deck *deck, int hand_idx)
 
 void deck_discard_hand(Deck *deck)
 {
+    assets_play_sfx(SFX_CARD_DISCARD);
     for (int i = 0; i < deck->hand_count; i++)
     {
         int card_idx = deck->hand[i];

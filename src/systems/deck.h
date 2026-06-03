@@ -30,6 +30,9 @@ typedef enum {
     CARD_EFFECT_APPLY_STATUS_ALL_ALLIES,
     CARD_EFFECT_RESET_CASTER_AGGRO,
     CARD_EFFECT_TRANSFER_AGGRO_TO_GUARDIAN,
+    CARD_EFFECT_GAIN_BUFF,
+    CARD_EFFECT_EXTRA_DRAW,
+    CARD_EFFECT_GAIN_STATUS_AMP,
 } CardEffectType;
 
 typedef struct {
@@ -61,6 +64,7 @@ typedef struct {
     int channel_turns;
     bool echo;
     int lifesteal;
+    int self_hp_cost;
     int splash;
     bool retain;
     bool fleeting;
@@ -75,6 +79,13 @@ typedef struct {
     const CardDef *def;
     int uid;
     int upgrade_level;
+    signed char echo_override;
+    signed char lifesteal_override;
+    signed char retain_override;
+    signed char fleeting_override;
+    signed char exhaust_override;
+    signed char taunt_override;
+    signed char interrupt_override;
 } CardInstance;
 
 int  card_upgrade_value(int base_value, int upgrade_level);
@@ -86,6 +97,14 @@ bool card_has_effect(const CardDef *def, CardEffectType type);
 bool card_upgrade_changes_values(const CardDef *def);
 bool card_upgrade_changes_values_at(const CardDef *def, int upgrade_level);
 int  card_clamp_upgrade_level(const CardDef *def, int upgrade_level);
+bool card_instance_has_echo(const CardInstance *inst);
+int  card_instance_lifesteal(const CardInstance *inst);
+bool card_instance_has_retain(const CardInstance *inst);
+bool card_instance_has_fleeting(const CardInstance *inst);
+bool card_instance_has_exhaust(const CardInstance *inst);
+bool card_instance_has_taunt(const CardInstance *inst);
+bool card_instance_has_interrupt(const CardInstance *inst);
+bool card_instance_has_any_override(const CardInstance *inst);
 
 typedef struct {
     CardInstance cards[MAX_DECK_SIZE];

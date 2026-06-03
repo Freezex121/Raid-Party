@@ -83,11 +83,14 @@ static void generate_relic_rewards(void)
 {
     if (g_state.relic_reward_count <= 0)
     {
+        int choices = 3 + meta_relic_choice_bonus(&g_state.meta);
+        if (choices > RELIC_REWARD_CHOICES)
+            choices = RELIC_REWARD_CHOICES;
         g_state.relic_reward_count = relic_generate_choices(
             g_state.relics,
             g_state.relic_count,
             g_state.relic_reward_choices,
-            RELIC_REWARD_CHOICES
+            choices
         );
     }
 

@@ -159,6 +159,8 @@ static const char *status_name(StatusType status)
         case STATUS_MARKED:     return "MARKED";
         case STATUS_CONDUCTIVE: return "CONDUCTIVE";
         case STATUS_BLIGHT:     return "BLIGHT";
+        case STATUS_THORNS:     return "THORNS";
+        case STATUS_DEATH_MARK: return "DEATH MARK";
         default:                return "STATUS";
     }
 }
@@ -856,6 +858,50 @@ void theme_draw_card_art_seeded(Rectangle bounds, const CardDef *card, int upgra
 
     if (layered)
         draw_layered_card_border(bounds, upgrade_level);
+}
+
+void theme_draw_keyword_icon(Rectangle bounds, KeywordIcon keyword)
+{
+    if (keyword < 0 || keyword >= KW_COUNT) return;
+
+    Rectangle dest = fit_card_art_rect(bounds);
+    float sx = dest.width / (float)CARD_ART_SOURCE_W;
+    float sy = dest.height / (float)CARD_ART_SOURCE_H;
+
+    float badge_x = dest.x + 58.0f * sx;
+    float badge_y = dest.y + 86.0f * sy;
+    float badge_w = 32.0f * sx;
+    float badge_h = 32.0f * sy;
+
+    Rectangle dst = { badge_x, badge_y, badge_w, badge_h };
+    Texture2D tex = g_assets.kw_icons[keyword];
+    if (tex.id != 0)
+    {
+        DrawTexturePro(tex,
+            (Rectangle){ 0, 0, (float)tex.width, (float)tex.height },
+            dst, (Vector2){ 0, 0 }, 0.0f, WHITE);
+    }
+    else
+    {
+        DrawRectangleRec(dst, RAYWHITE);
+    }
+}
+
+void theme_draw_keyword_badge(Rectangle bounds, const CardInstance *inst)
+{
+    if (!inst || !inst->def) return;
+
+    int kw = -1;
+    if (inst->echo_override == 1)           kw = KW_ECHO;
+    else if (inst->lifesteal_override == 1) kw = KW_LIFESTEAL;
+    else if (inst->retain_override == 1)    kw = KW_RETAIN;
+    else if (inst->interrupt_override == 1) kw = KW_INTERRUPT;
+    else if (inst->taunt_override == 1)     kw = KW_TAUNT;
+    else if (inst->fleeting_override == 1)  kw = KW_FLEETING;
+    else if (inst->exhaust_override == 1)   kw = KW_EXHAUST;
+
+    if (kw < 0 || kw >= KW_COUNT) return;
+    theme_draw_keyword_icon(bounds, (KeywordIcon)kw);
 }
 
 Rectangle theme_draw_card_tooltip_limited(Rectangle bounds, const CardDef *card, int upgrade_level, int explicit_max_bottom)

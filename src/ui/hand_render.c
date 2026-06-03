@@ -65,11 +65,13 @@ static int effective_cost(const CardDef *card, int combo_prime_index)
     return card->cost;
 }
 
-static void draw_hand_card(Rectangle r, const CardDef *card, int upgrade_level, unsigned int seed, bool show_highlight, bool low_energy, bool locked)
+static void draw_hand_card(Rectangle r, const CardInstance *inst, int upgrade_level, unsigned int seed, bool show_highlight, bool low_energy, bool locked)
 {
+    const CardDef *card = inst ? inst->def : NULL;
     if (!card) return;
 
     theme_draw_card_art_seeded(r, card, upgrade_level, seed);
+    theme_draw_keyword_badge(r, inst);
 
     if (locked)
     {
@@ -114,7 +116,7 @@ void hand_render_draw(Deck *deck, Energy *energy, int hovered_card, ClassType ch
     bool draw_locked[MAX_HAND_SIZE] = { 0 };
     int draw_upgrade_level[MAX_HAND_SIZE] = { 0 };
     unsigned int draw_seed[MAX_HAND_SIZE] = { 0 };
-    const CardDef *draw_cards[MAX_HAND_SIZE] = { 0 };
+    const CardInstance *draw_instances[MAX_HAND_SIZE] = { 0 };
 
     for (int i = 0; i < deck->hand_count; i++)
     {
@@ -164,24 +166,23 @@ void hand_render_draw(Deck *deck, Energy *energy, int hovered_card, ClassType ch
         draw_locked[i] = locked;
         draw_upgrade_level[i] = upgrade_level;
         draw_seed[i] = (unsigned int)uid;
-        draw_cards[i] = card;
+        draw_instances[i] = inst;
     }
 
     for (int i = 0; i < deck->hand_count; i++)
     {
         if (!draw_valid[i] || i == hovered_card || i == target_idx) continue;
-        draw_hand_card(draw_rects[i], draw_cards[i], draw_upgrade_level[i], draw_seed[i], false, draw_low_energy[i], draw_locked[i]);
+        draw_hand_card(draw_rects[i], draw_instances[i], draw_upgrade_level[i], draw_seed[i], false, draw_low_energy[i], draw_locked[i]);
     }
 
     if (target_idx >= 0 && target_idx < deck->hand_count && target_idx != hovered_card && draw_valid[target_idx])
     {
-        draw_hand_card(draw_rects[target_idx], draw_cards[target_idx], draw_upgrade_level[target_idx], draw_seed[target_idx], true, draw_low_energy[target_idx], draw_locked[target_idx]);
+        draw_hand_card(draw_rects[target_idx], draw_instances[target_idx], draw_upgrade_level[target_idx], draw_seed[target_idx], true, draw_low_energy[target_idx], draw_locked[target_idx]);
     }
 
     if (hovered_card >= 0 && hovered_card < deck->hand_count && draw_valid[hovered_card])
     {
-        draw_hand_card(draw_rects[hovered_card], draw_cards[hovered_card], draw_upgrade_level[hovered_card], draw_seed[hovered_card], false, draw_low_energy[hovered_card], draw_locked[hovered_card]);
+        draw_hand_card(draw_rects[hovered_card], draw_instances[hovered_card], draw_upgrade_level[hovered_card], draw_seed[hovered_card], false, draw_low_energy[hovered_card], draw_locked[hovered_card]);
     }
     LOG_T("HRD: end");
 }
-

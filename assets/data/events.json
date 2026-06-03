@@ -280,6 +280,24 @@
         { "label": "Ante Memory", "description": "Transform a random card.", "effect": "transform_random_card" },
         { "label": "Cheat", "description": "Gain a relic. Add Doubt.", "effect": "gain_relic_add_curse", "curse": "curse_doubt" }
       ]
+    },
+    {
+      "id": "wisp_of_fading",
+      "name": "Wisp of Fading",
+      "body": "A translucent spirit offers you a handful of shimmering coins. As you reach for them, you feel a card in your deck grow lighter, more transient.",
+      "choices": [
+        { "label": "Take the Gold", "description": "Gain 18g. A random card gains Fleeting.", "effect": "curse_fleeting", "gold": 18 },
+        { "label": "Refuse", "description": "Leave the treasure behind.", "effect": "none" }
+      ]
+    },
+    {
+      "id": "burning_pact",
+      "name": "Burning Pact",
+      "body": "A hooded figure offers a pact. Gold for a card's permanence — once used, it will crumble to ash.",
+      "choices": [
+        { "label": "Accept the Pact", "description": "Gain 25g. A random card gains Exhaust.", "effect": "curse_exhaust", "gold": 25 },
+        { "label": "Decline", "description": "Walk away from the deal.", "effect": "none" }
+      ]
     }
   ]
 }

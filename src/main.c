@@ -1,6 +1,7 @@
 #include "raylib.h"
 #include "game.h"
 #include "util/tween.h"
+#include "util/shake.h"
 #include "util/log.h"
 #include "ui/floating_text.h"
 #include "assets.h"
@@ -76,6 +77,7 @@ int main(void)
             LOG_I(CAT_SCREEN, "Screen transition: %d -> %d", prev, g_state.screen);
 
         tween_update(dt);
+        shake_update(dt);
         ft_update(dt);
         assets_update_audio();
 
@@ -113,6 +115,9 @@ int main(void)
         ClearBackground(BLACK);
         SetTextureFilter(target.texture, TEXTURE_FILTER_POINT);
         Rectangle dest = game_render_destination();
+        Vector2 screen_shake = shake_screen_offset();
+        dest.x += screen_shake.x * dest.width / (float)VIRT_W;
+        dest.y += screen_shake.y * dest.height / (float)VIRT_H;
         DrawTexturePro(
             target.texture,
             (Rectangle){ 0.0f, 0.0f, (float)VIRT_W, (float)-VIRT_H },

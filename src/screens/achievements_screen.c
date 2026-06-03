@@ -252,5 +252,5 @@ void achievements_screen_draw(void)
     }
 
     Rectangle back_btn = { (float)(VIRT_W / 2 - 40), (float)(VIRT_H - 29), (float)BTN_NARROW, 22.0f };
-    draw_btn_standard(back_btn, (Color){ 60, 60, 85, 255 }, (Color){ 100, 100, 130, 255 }, "BACK");
+    draw_btn_standard(back_btn, (Color){ 60, 60, 85, 255 }, (Color){ 100, 100, 130, 255 }, "BACK", BTN_ID_ACHIEVEMENTS_BACK);
 }

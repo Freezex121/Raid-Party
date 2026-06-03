@@ -21,8 +21,8 @@ This document keeps the long-term vision intact, but organizes it into priority 
 | Events | 28 | 28 polished | 45 | 65+ |
 | Relics | 51 | 51 polished | 80 | 110+ |
 | Classes | 9 | 9 | 9 | 9+ optional future class |
-| Texture PNGs | 23 mostly placeholder | key visible assets final | 80+ final | 150+ final |
-| Audio files | 0 | 10-15 minimum | 30+ | 60+ |
+| Texture PNGs | 48 mostly placeholder | key visible assets final | 80+ final | 150+ final |
+| Audio files | 0 (28 wired with no files) | 10-15 minimum | 30+ | 60+ |
 
 ## Priority Gate Summary
 
@@ -54,20 +54,20 @@ This document keeps the long-term vision intact, but organizes it into priority 
 
 ### Required Work
 
-- Run content validation after any data change.
-- Build Debug and Release after any systems change.
-- Keep `assets/data` and `Builds/Standalone/assets/data` in sync until the build pipeline copies data automatically.
-- Audit all screens for text spill, broken buttons, invisible disabled states, and unreadable tooltips.
-- Confirm settings work: fullscreen, integer scale 1x-4x, master/music/SFX volume.
-- Confirm gold, meta progression, ascension, leveling, relics, and map progression do not corrupt saves or run state.
+- [ ] Run content validation after any data change.
+- [x] Build Debug and Release after any systems change.
+- [ ] Keep `assets/data` and `Builds/Standalone/assets/data` in sync until the build pipeline copies data automatically.
+- [ ] Audit all screens for text spill, broken buttons, invisible disabled states, and unreadable tooltips.
+- [ ] Confirm settings work: fullscreen, integer scale 1x-4x, master/music/SFX volume.
+- [ ] Confirm gold, meta progression, ascension, leveling, relics, and map progression do not corrupt saves or run state.
 
 ### Definition Of Done
 
-- `python scripts/validate_content.py` passes.
-- `cmake --build build --config Debug --target RaidParty` passes.
-- `cmake --build build --config Release --target RaidParty` passes.
-- A full run can be played through all current areas without a blocker.
-- A new player can identify cards, targets, energy, enemy intent, rewards, and map choices.
+- [ ] `python scripts/validate_content.py` passes.
+- [x] `cmake --build build --config Debug --target RaidParty` passes.
+- [x] `cmake --build build --config Release --target RaidParty` passes.
+- [ ] A full run can be played through all current areas without a blocker.
+- [ ] A new player can identify cards, targets, energy, enemy intent, rewards, and map choices.
 
 ---
 
@@ -109,14 +109,14 @@ This document keeps the long-term vision intact, but organizes it into priority 
 
 Use temporary-but-pleasant audio if needed.
 
-| SFX | Count | Notes |
-|-----|-------|-------|
-| Button hover/click | 2 | Already referenced in code. |
-| Card hover/play/discard | 3 | Core tactile feedback. |
-| Damage/heal/shield | 3 | Basic combat readability. |
-| Victory/Defeat | 2 | Run feedback. |
-| Level up / Gold pickup | 2 | Reward feedback. |
-| **Minimum Total** | **12** | Enough for a demo candidate. |
+| SFX | Count | Code | Notes |
+|-----|-------|------|-------|
+| Button hover/click | 2 | [x] wired | Centralized in `ui.c` `draw_btn_*` / `button_update` |
+| Card hover/play/discard | 3 | [x] wired | All trigger points active in `combat.c`, `deck.c` |
+| Damage/heal/shield | 3 | [x] wired | All 6 apply functions in `combat.c`, includes combo-scaled heavy damage |
+| Victory/Defeat | 2 | [x] wired | `check_victory()` / `check_defeat()` in `combat.c` |
+| Level up / Gold pickup | 2 | [x] wired | `combat_award_card_xp()` + gold reward in `combat.c` |
+| **Minimum Total** | **12** | **12/12** | **No .wav files on disk yet** |
 
 ### Definition Of Done
 
@@ -166,13 +166,13 @@ Use temporary-but-pleasant audio if needed.
 
 ### Settings And Options
 
-| Feature | Priority | Implementation |
-|---------|----------|----------------|
-| Windowed/Fullscreen toggle | Required | raylib `ToggleFullscreen()` |
-| Resolution / scale options | Required | Integer scale of 640x360; no ratio distortion |
-| Volume sliders | Required | Master, SFX, Music |
-| Controller support | Later EA | raylib gamepad API, menu navigation, combat card selection |
-| Key rebinding | Optional | Low priority |
+| Feature | Priority | Implementation | Status |
+|---------|----------|---------------|--------|
+| Windowed/Fullscreen toggle | Required | raylib `ToggleFullscreen()` | [ ] needs verification |
+| Resolution / scale options | Required | Integer scale of 640x360; no ratio distortion | [ ] needs verification |
+| Volume sliders | Required | Master, SFX, Music | [x] wired (see `settings_screen.c`, `assets.c`) |
+| Controller support | Later EA | raylib gamepad API, menu navigation, combat card selection | [ ] not started |
+| Key rebinding | Optional | Low priority | [ ] not started |
 
 ### Definition Of Done
 
@@ -248,7 +248,7 @@ Collect feedback on:
 | Relics | 51 | 80 |
 | Classes | 9 | 9 |
 | Texture PNGs | 23 mostly placeholder | 80+ final |
-| Audio files | 0 | 30+ |
+| Audio files | 0 (28 wired) | 30+ |
 
 ### New Areas
 
@@ -357,16 +357,16 @@ The long-term EA target can reach 180 cards, but do not add all of these before 
 
 ### Required Checklist
 
-- Steam page live with screenshots and trailer.
-- Demo feedback reviewed and major issues addressed.
-- Known bugs documented.
-- Roadmap visible in-game or linked clearly from Steam.
-- Discord/community channel set up.
-- Save compatibility policy decided.
-- Crash/blocker test pass complete.
-- Controller support either implemented or clearly not promised yet.
-- Audio has enough coverage that the game does not feel silent.
-- Placeholder art is either replaced or visually coherent enough to look intentional.
+- [ ] Steam page live with screenshots and trailer.
+- [ ] Demo feedback reviewed and major issues addressed.
+- [ ] Known bugs documented.
+- [ ] Roadmap visible in-game or linked clearly from Steam.
+- [ ] Discord/community channel set up.
+- [ ] Save compatibility policy decided.
+- [ ] Crash/blocker test pass complete.
+- [ ] Controller support either implemented or clearly not promised yet.
+- [~] Audio has enough coverage that the game does not feel silent (28 SFX + 17 music slots wired, no audio files on disk).
+- [ ] Placeholder art is either replaced or visually coherent enough to look intentional.
 
 ### Steamworks For EA
 
@@ -403,33 +403,33 @@ This phase is separated because art/audio can be worked on in parallel. It shoul
 
 ### Audio Target
 
-**Minimum viable audio: 20 SFX + 16 music files**
+**Minimum viable audio: 20 SFX + 18 music slots** (all code-wired, zero audio files on disk)
 
-| SFX | Count | Notes |
-|-----|-------|-------|
-| Button hover/click | 2 | Already referenced in code |
-| Card hover/play/discard | 3 | Already referenced |
-| Damage/heal/shield | 3 | Generic hits and heals |
-| Enemy attack/cast | 2 | Different from player damage |
-| Burn tick / Bleed tick | 2 | Status effect ticks |
-| Victory/Defeat | 2 | Run end jingles |
-| Level up / Gold pickup | 2 | Reward feedback |
-| Taunt / Interrupt | 2 | Class-specific feedback |
-| Boss warning | 2 | Already referenced |
-| **Total** | **20** | |
+| SFX | Count | Code | Notes |
+|-----|-------|------|-------|
+| Button hover/click | 2 | [x] wired | Centralized in `ui.c` |
+| Card hover/play/discard | 3 | [x] wired | Combat + deck |
+| Damage/heal/shield | 3 | [x] wired | All apply functions, heavy dmg variant |
+| Enemy attack/cast | 2 | [x] wired | Card throw spawn + intent pick |
+| Burn tick / Bleed tick | 2 | [x] wired | Turn tick loops |
+| Victory/Defeat | 2 | [x] wired | Combat resolution |
+| Level up / Gold pickup | 2 | [x] wired | XP reward + gold award |
+| Taunt / Interrupt | 2 | [x] wired | Taunt block + interrupt block |
+| Boss warning | 2 | [x] wired | `advance_turn()` intent pick |
+| **Total** | **20** | **20/20** | **No .wav files on disk yet** |
 
-| Music | Count | Notes |
-|-------|-------|-------|
-| Title theme | 1 | Already referenced as `title.ogg` |
-| Combat generic | 1 | Already referenced as `combat.ogg` |
-| Boss theme | 1 | Already referenced as `boss.ogg` |
-| Greenwood Breach | 2 | Per-area ambient combat |
-| Venom Mire | 2 | Swamp/dark theme |
-| Cinder Spire | 2 | Volcanic intense theme |
-| New area 1 theme | 2 | |
-| New area 2 theme | 2 | |
-| Shop / Rest / Event | 3 | Calm interlude tracks |
-| **Total** | **16** | |
+| Music | Count | Code | Notes |
+|-------|-------|------|-------|
+| Title theme | 1 | [x] wired | Title screen entry |
+| Combat generic | 1 | [x] wired | Fallback if area-specific missing |
+| Boss generic | 1 | [x] wired | Fallback if area-specific missing |
+| Greenwood Breach | 2 | [x] wired | Combat + boss, per-area |
+| Venom Mire | 2 | [x] wired | Combat + boss, per-area |
+| Cinder Spire | 2 | [x] wired | Combat + boss, per-area |
+| Catacombs / Citadel | 4 | [x] wired | Combat + boss for both planned areas |
+| Shop / Rest / Event | 3 | [x] wired | Screen entry triggers |
+| Victory / Defeat stings | 2 | [x] wired | Combat resolution triggers |
+| **Total** | **18** | **18/18** | **17 enum slots + 1 generic fallback. No .ogg files on disk.** |
 
 ### Complete Sprite List
 
@@ -621,7 +621,7 @@ These updates stay in the roadmap, but they should not block EA launch.
 | Events | 65+ |
 | Relics | 110+ |
 | Texture PNGs | 150+ final |
-| Audio files | 60+ |
+| Audio files | 60+ (28 wired in code, 0 on disk) |
 
 ### v1.0 Additions
 
@@ -681,8 +681,9 @@ These updates stay in the roadmap, but they should not block EA launch.
 
 ## Immediate Next Steps
 
-1. Finish P0 stability pass and keep current systems build-clean.
-2. Pick the first 10-minute experience and tune it by hand.
-3. Finalize the minimum art/audio needed for screenshots.
-4. Build the Steam page asset checklist.
-5. Prepare a demo candidate before adding large new card batches.
+1. [x] Finish P0 stability pass and keep current systems build-clean.
+2. [ ] Pick the first 10-minute experience and tune it by hand.
+3. [ ] Create `assets/audio/sfx/` and `assets/audio/music/` directories and add sound files.
+4. [ ] Finalize the minimum art/audio needed for screenshots.
+5. [ ] Build the Steam page asset checklist.
+6. [ ] Prepare a demo candidate before adding large new card batches.

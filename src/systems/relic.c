@@ -1,6 +1,7 @@
 #include "relic.h"
 #include "util/json.h"
 #include "util/log.h"
+#include "game.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -60,6 +61,15 @@ static const char *relic_ids[RELIC_COUNT] = {
     [RELIC_GOLDEN_IDOL] = "golden_idol",
     [RELIC_HOARDERS_SCALES] = "hoarders_scales",
     [RELIC_FATES_INTEREST] = "fates_interest",
+    [RELIC_FURY_CHARM] = "fury_charm",
+    [RELIC_WAR_DRUM] = "war_drum",
+    [RELIC_RAGING_HEART] = "raging_heart",
+    [RELIC_SCROLL_INSIGHT] = "scroll_insight",
+    [RELIC_TOME_KNOWLEDGE] = "tome_knowledge",
+    [RELIC_GRIM_SCYTHE] = "grim_scythe",
+    [RELIC_SOUL_REAPER] = "soul_reaper",
+    [RELIC_LEECHING_FANG] = "leeching_fang",
+    [RELIC_BLOOD_PACT] = "blood_pact",
 };
 
 static char *copy_text(const char *text)
@@ -86,10 +96,65 @@ static RelicId relic_id_from_text(const char *id)
     return RELIC_NONE;
 }
 
+static ClassType class_from_string(const char *text)
+{
+    if (!text) return CLASS_NONE;
+    if (strcmp(text, "guardian") == 0) return CLASS_GUARDIAN;
+    if (strcmp(text, "cleric") == 0) return CLASS_CLERIC;
+    if (strcmp(text, "mage") == 0) return CLASS_MAGE;
+    if (strcmp(text, "rogue") == 0) return CLASS_ROGUE;
+    if (strcmp(text, "shaman") == 0) return CLASS_SHAMAN;
+    if (strcmp(text, "ranger") == 0) return CLASS_RANGER;
+    if (strcmp(text, "paladin") == 0) return CLASS_PALADIN;
+    if (strcmp(text, "warlock") == 0) return CLASS_WARLOCK;
+    if (strcmp(text, "bard") == 0) return CLASS_BARD;
+    return CLASS_NONE;
+}
+
 const char *relic_id_string(RelicId id)
 {
     if (id < 0 || id >= RELIC_COUNT) return NULL;
     return relic_ids[id];
+}
+
+static bool relic_meets_party_requirements(RelicId id)
+{
+    // Class requirement
+    ClassType req = relic_defs[id].requires_class;
+    if (req != CLASS_NONE)
+    {
+        bool ok = false;
+        for (int p = 0; p < g_state.run_party.count; p++)
+            if (g_state.run_party.members[p].alive && g_state.run_party.members[p].class == req)
+                { ok = true; break; }
+        if (!ok) return false;
+    }
+
+    // Pair requirement (both classes needed)
+    ClassType a = relic_defs[id].requires_pair[0];
+    ClassType b = relic_defs[id].requires_pair[1];
+    if (a != CLASS_NONE && b != CLASS_NONE)
+    {
+        bool has_a = false, has_b = false;
+        for (int p = 0; p < g_state.run_party.count; p++)
+        {
+            if (!g_state.run_party.members[p].alive) continue;
+            if (g_state.run_party.members[p].class == a) has_a = true;
+            if (g_state.run_party.members[p].class == b) has_b = true;
+        }
+        if (!has_a || !has_b) return false;
+    }
+
+    return true;
+}
+
+static bool relic_can_appear_in_rewards(RelicId id, const RelicId *owned, int count, int max_rarity)
+{
+    return relic_loaded[id] &&
+        relic_defs[id].rarity <= max_rarity &&
+        !relic_has(owned, count, id) &&
+        meta_relic_available(&g_state.meta, id) &&
+        relic_meets_party_requirements(id);
 }
 
 bool relic_defs_load_json(const char *path)
@@ -134,6 +199,21 @@ bool relic_defs_load_json(const char *path)
         relic_defs[id].description = copy_text(json_string(field(item, "description"), ""));
         relic_defs[id].rarity = json_int(field(item, "rarity"), 1);
         if (relic_defs[id].rarity < 1) relic_defs[id].rarity = 1;
+
+        // Parse class requirement
+        const char *req = json_string(field(item, "requires"), NULL);
+        relic_defs[id].requires_class = class_from_string(req);
+
+        // Parse pair requirement
+        relic_defs[id].requires_pair[0] = CLASS_NONE;
+        relic_defs[id].requires_pair[1] = CLASS_NONE;
+        const JsonValue *pair = field(item, "requires_pair");
+        if (pair && pair->type == JSON_ARRAY && json_array_count(pair) >= 2)
+        {
+            relic_defs[id].requires_pair[0] = class_from_string(json_string(json_array_get(pair, 0), NULL));
+            relic_defs[id].requires_pair[1] = class_from_string(json_string(json_array_get(pair, 1), NULL));
+        }
+
         if (!relic_loaded[id])
         {
             relic_loaded[id] = true;
@@ -188,7 +268,7 @@ RelicId relic_random_unowned_by_rarity(const RelicId *owned, int count, int max_
     for (int i = 0; i < RELIC_COUNT; i++)
     {
         RelicId id = (RelicId)i;
-        if (relic_loaded[id] && relic_defs[id].rarity <= max_rarity && !relic_has(owned, count, id))
+        if (relic_can_appear_in_rewards(id, owned, count, max_rarity))
             pool[pool_count++] = id;
     }
 
@@ -210,7 +290,7 @@ int relic_generate_choices_by_rarity(const RelicId *owned, int count, RelicId *o
     for (int i = 0; i < RELIC_COUNT; i++)
     {
         RelicId id = (RelicId)i;
-        if (relic_loaded[id] && relic_defs[id].rarity <= max_rarity && !relic_has(owned, count, id))
+        if (relic_can_appear_in_rewards(id, owned, count, max_rarity))
             pool[pool_count++] = id;
     }
 

@@ -23,6 +23,12 @@
 #define HP_BOOST_COST 15
 #define BOON_COST 20
 #define FATE_INTEREST_BOON_COST 30
+#define ENCHANT_ECHO_COST 75
+#define ENCHANT_LIFESTEAL_COST 45
+#define ENCHANT_RETAIN_COST 36
+#define ENCHANT_INTERRUPT_COST 45
+#define ENCHANT_TAUNT_COST 30
+#define ENCHANT_REMOVE_CURSE_COST 20
 
 typedef enum {
     SHOP_MAIN,
@@ -30,15 +36,20 @@ typedef enum {
     SHOP_UPGRADE_2,
     SHOP_REMOVE,
     SHOP_HP_BOOST,
+    SHOP_ENCHANT,
 } ShopMode;
 
 static ShopMode mode = SHOP_MAIN;
 static int hovered_deck = -1;
+static int enchant_selected = -1;
+static int enchant_option = -1;
 static DeckBrowser shop_browser;
 static char msg[128] = "";
 static bool lucky_coin_given = false;
 static int active_shop_key = -99999;
 static const CardDef *shop_card = NULL;
+static Button enchant_back_btn;
+static bool enchant_back_btn_ready = false;
 
 static void log_shop_metric(const char *action, int cost, int gold_before, bool success, const char *card_id)
 {
@@ -86,6 +97,11 @@ static Rectangle shop_browser_bounds(void)
     return layout_deck_browser_viewport();
 }
 
+static int shop_cost(int base_cost)
+{
+    return meta_discounted_cost(&g_state.meta, base_cost);
+}
+
 static int valid_card_count(const Deck *deck)
 {
     int count = 0;
@@ -94,6 +110,102 @@ static int valid_card_count(const Deck *deck)
         if (deck->cards[i].def)
             count++;
     return count;
+}
+
+static int enchant_keyword_cost(int keyword)
+{
+    switch (keyword)
+    {
+        case 0: return ENCHANT_ECHO_COST;
+        case 1: return ENCHANT_LIFESTEAL_COST;
+        case 2: return ENCHANT_RETAIN_COST;
+        case 3: return ENCHANT_INTERRUPT_COST;
+        case 4: return ENCHANT_TAUNT_COST;
+        default: return 0;
+    }
+}
+
+typedef enum {
+    ENCHANT_OPTION_ECHO,
+    ENCHANT_OPTION_LIFESTEAL,
+    ENCHANT_OPTION_RETAIN,
+    ENCHANT_OPTION_INTERRUPT,
+    ENCHANT_OPTION_TAUNT,
+    ENCHANT_OPTION_REMOVE_CURSE,
+    ENCHANT_OPTION_COUNT
+} EnchantOption;
+
+static const char *enchant_option_name(int option)
+{
+    switch ((EnchantOption)option)
+    {
+        case ENCHANT_OPTION_ECHO:         return "ECHO";
+        case ENCHANT_OPTION_LIFESTEAL:    return "LIFESTEAL";
+        case ENCHANT_OPTION_RETAIN:       return "RETAIN";
+        case ENCHANT_OPTION_INTERRUPT:    return "INTERRUPT";
+        case ENCHANT_OPTION_TAUNT:        return "TAUNT";
+        case ENCHANT_OPTION_REMOVE_CURSE: return "REMOVE CURSE";
+        default:                          return "";
+    }
+}
+
+static int enchant_option_cost(int option)
+{
+    if (option == ENCHANT_OPTION_REMOVE_CURSE)
+        return shop_cost(ENCHANT_REMOVE_CURSE_COST);
+    return shop_cost(enchant_keyword_cost(option));
+}
+
+static bool card_can_add_enchantment(const CardInstance *inst, int keyword)
+{
+    if (!inst || !inst->def || card_instance_has_any_override(inst)) return false;
+
+    switch (keyword)
+    {
+        case 0: return !card_instance_has_echo(inst) &&
+            (inst->def->damage > 0 || inst->def->heal > 0 || inst->def->shield > 0);
+        case 1: return card_instance_lifesteal(inst) <= 0 &&
+            inst->def->damage > 0 && inst->def->class != CLASS_NONE;
+        case 2: return !card_instance_has_retain(inst);
+        case 3: return !card_instance_has_interrupt(inst) && inst->def->target == TARGET_ENEMY;
+        case 4: return !card_instance_has_taunt(inst) && inst->def->class != CLASS_NONE;
+        default: return false;
+    }
+}
+
+static bool card_has_removable_curse(const CardInstance *inst)
+{
+    return inst && inst->def &&
+        (inst->fleeting_override == 1 || inst->exhaust_override == 1);
+}
+
+static bool card_can_apply_enchant_option(const CardInstance *inst, int option)
+{
+    if (option == ENCHANT_OPTION_REMOVE_CURSE)
+        return card_has_removable_curse(inst);
+    return option >= 0 && option < ENCHANT_OPTION_REMOVE_CURSE &&
+        card_can_add_enchantment(inst, option);
+}
+
+static int deck_min_enchant_cost(void)
+{
+    int minimum = 0;
+    for (int i = 0; i < g_state.run_deck.card_count; i++)
+    {
+        CardInstance *inst = &g_state.run_deck.cards[i];
+        if (card_has_removable_curse(inst) &&
+            (minimum == 0 || enchant_option_cost(ENCHANT_OPTION_REMOVE_CURSE) < minimum))
+            minimum = enchant_option_cost(ENCHANT_OPTION_REMOVE_CURSE);
+
+        for (int keyword = 0; keyword <= 4; keyword++)
+        {
+            int cost = enchant_option_cost(keyword);
+            if (card_can_add_enchantment(inst, keyword) &&
+                (minimum == 0 || cost < minimum))
+                minimum = cost;
+        }
+    }
+    return minimum;
 }
 
 static const CardDef *random_party_card(void)
@@ -122,8 +234,12 @@ static void reset_shop_for_visit(void)
     int key = g_state.map.floor * 1000 + g_state.map.current_index;
     if (key == active_shop_key) return;
     active_shop_key = key;
+    assets_play_music(MUSIC_SHOP);
     mode = SHOP_MAIN;
     hovered_deck = -1;
+    enchant_selected = -1;
+    enchant_option = -1;
+    enchant_back_btn_ready = false;
     deck_browser_reset(&shop_browser);
     msg[0] = '\0';
     lucky_coin_given = false;
@@ -140,12 +256,15 @@ static void complete_shop(void)
     active_shop_key = -99999;
     lucky_coin_given = false;
     mode = SHOP_MAIN;
+    enchant_selected = -1;
+    enchant_option = -1;
+    enchant_back_btn_ready = false;
     game_change_screen(SCREEN_MAP);
 }
 
 static int shop_boon_cost(void)
 {
-    return relic_has(g_state.relics, g_state.relic_count, RELIC_FATES_INTEREST) ? FATE_INTEREST_BOON_COST : BOON_COST;
+    return shop_cost(relic_has(g_state.relics, g_state.relic_count, RELIC_FATES_INTEREST) ? FATE_INTEREST_BOON_COST : BOON_COST);
 }
 
 static int shop_boon_turns(void)
@@ -167,11 +286,13 @@ static void buy_boon(bool energy)
     if (energy)
     {
         g_state.next_combat_energy_bonus += 1;
+        assets_play_sfx(SFX_SHOP_PURCHASE);
         snprintf(msg, sizeof(msg), "Next combat: +1 energy.");
     }
     else
     {
         g_state.next_combat_draw_bonus += 2;
+        assets_play_sfx(SFX_SHOP_PURCHASE);
         snprintf(msg, sizeof(msg), "Next combat: +2 draw.");
     }
 
@@ -206,6 +327,34 @@ static Rectangle leave_button(void)
     return (Rectangle){ 520.0f, 286.0f, (float)BTN_NARROW, (float)BTN_H };
 }
 
+static Rectangle enchant_option_rect(int option)
+{
+    return (Rectangle){ 448.0f, 90.0f + option * 27.0f, 172.0f, 22.0f };
+}
+
+static Rectangle enchant_apply_button(void)
+{
+    return (Rectangle){ 448.0f, 264.0f, 172.0f, (float)BTN_H };
+}
+
+static Rectangle enchant_back_button(void)
+{
+    return (Rectangle){ 448.0f, 294.0f, 172.0f, (float)BTN_H };
+}
+
+static void ensure_enchant_back_button(void)
+{
+    if (enchant_back_btn_ready)
+        return;
+    enchant_back_btn = button_create(
+        enchant_back_button(),
+        "BACK",
+        (Color){ 72, 74, 94, 255 },
+        (Color){ 104, 108, 136, 255 },
+        WHITE);
+    enchant_back_btn_ready = true;
+}
+
 static bool clicked(Rectangle r)
 {
     return IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && CheckCollisionPointRec(GetMousePosition(), r);
@@ -235,6 +384,13 @@ void shop_screen_update(void)
         bool can_upg2 = deck_browser_has_upgradeable_at(&g_state.run_deck, 2);
         bool can_remove = valid_card_count(&g_state.run_deck) > 3;
         bool deck_space = g_state.run_deck.card_count < MAX_DECK_SIZE;
+        int min_enchant_cost = deck_min_enchant_cost();
+        int card_sale_cost = shop_cost(CARD_SALE_COST);
+        int card_reroll_cost = shop_cost(CARD_REROLL_COST);
+        int upgrade_cost = shop_cost(UPGRADE_COST);
+        int super_upgrade_cost = shop_cost(SUPER_UPGRADE_COST);
+        int remove_cost = shop_cost(REMOVE_COST);
+        int hp_boost_cost = shop_cost(HP_BOOST_COST);
 
         if (clicked(sale_buy_button()))
         {
@@ -242,48 +398,49 @@ void shop_screen_update(void)
             if (!deck_space)
             {
                 snprintf(msg, sizeof(msg), "Deck is full.");
-                log_shop_metric("buy_card", CARD_SALE_COST, gold_before, false, shop_card && shop_card->id ? shop_card->id : "");
+                log_shop_metric("buy_card", card_sale_cost, gold_before, false, shop_card && shop_card->id ? shop_card->id : "");
             }
-            else if (!game_spend_gold(CARD_SALE_COST, "shop_buy_card"))
+            else if (!game_spend_gold(card_sale_cost, "shop_buy_card"))
             {
-                snprintf(msg, sizeof(msg), "Need %dg.", CARD_SALE_COST);
-                log_shop_metric("buy_card", CARD_SALE_COST, gold_before, false, shop_card && shop_card->id ? shop_card->id : "");
+                snprintf(msg, sizeof(msg), "Need %dg.", card_sale_cost);
+                log_shop_metric("buy_card", card_sale_cost, gold_before, false, shop_card && shop_card->id ? shop_card->id : "");
             }
             else
             {
                 deck_add_card(&g_state.run_deck, shop_card);
+                assets_play_sfx(SFX_SHOP_PURCHASE);
                 snprintf(msg, sizeof(msg), "Bought %s.", shop_card ? shop_card->name : "a card");
-                log_shop_metric("buy_card", CARD_SALE_COST, gold_before, true, shop_card && shop_card->id ? shop_card->id : "");
+                log_shop_metric("buy_card", card_sale_cost, gold_before, true, shop_card && shop_card->id ? shop_card->id : "");
                 shop_card = random_party_card();
             }
         }
         else if (clicked(sale_reroll_button()))
         {
             int gold_before = g_state.gold;
-            if (!game_spend_gold(CARD_REROLL_COST, "shop_reroll_card"))
+            if (!game_spend_gold(card_reroll_cost, "shop_reroll_card"))
             {
-                snprintf(msg, sizeof(msg), "Need %dg.", CARD_REROLL_COST);
-                log_shop_metric("reroll_card", CARD_REROLL_COST, gold_before, false, "");
+                snprintf(msg, sizeof(msg), "Need %dg.", card_reroll_cost);
+                log_shop_metric("reroll_card", card_reroll_cost, gold_before, false, "");
             }
             else
             {
                 shop_card = random_party_card();
                 snprintf(msg, sizeof(msg), "Shop card rerolled.");
-                log_shop_metric("reroll_card", CARD_REROLL_COST, gold_before, true, "");
+                log_shop_metric("reroll_card", card_reroll_cost, gold_before, true, "");
             }
         }
         else if (clicked(option_rect(0, 0)))
         {
             int gold_before = g_state.gold;
-            if (g_state.gold < UPGRADE_COST)
+            if (g_state.gold < upgrade_cost)
             {
-                snprintf(msg, sizeof(msg), "Need %dg.", UPGRADE_COST);
-                log_shop_metric("upgrade_card_select", UPGRADE_COST, gold_before, false, "");
+                snprintf(msg, sizeof(msg), "Need %dg.", upgrade_cost);
+                log_shop_metric("upgrade_card_select", upgrade_cost, gold_before, false, "");
             }
             else if (!can_upg1)
             {
                 snprintf(msg, sizeof(msg), "No base cards can improve.");
-                log_shop_metric("upgrade_card_select", UPGRADE_COST, gold_before, false, "");
+                log_shop_metric("upgrade_card_select", upgrade_cost, gold_before, false, "");
             }
             else
             {
@@ -295,15 +452,15 @@ void shop_screen_update(void)
         else if (clicked(option_rect(1, 0)))
         {
             int gold_before = g_state.gold;
-            if (g_state.gold < SUPER_UPGRADE_COST)
+            if (g_state.gold < super_upgrade_cost)
             {
-                snprintf(msg, sizeof(msg), "Need %dg.", SUPER_UPGRADE_COST);
-                log_shop_metric("max_upgrade_select", SUPER_UPGRADE_COST, gold_before, false, "");
+                snprintf(msg, sizeof(msg), "Need %dg.", super_upgrade_cost);
+                log_shop_metric("max_upgrade_select", super_upgrade_cost, gold_before, false, "");
             }
             else if (!can_upg2)
             {
                 snprintf(msg, sizeof(msg), "No upgraded cards can improve.");
-                log_shop_metric("max_upgrade_select", SUPER_UPGRADE_COST, gold_before, false, "");
+                log_shop_metric("max_upgrade_select", super_upgrade_cost, gold_before, false, "");
             }
             else
             {
@@ -315,15 +472,15 @@ void shop_screen_update(void)
         else if (clicked(option_rect(0, 1)))
         {
             int gold_before = g_state.gold;
-            if (g_state.gold < REMOVE_COST)
+            if (g_state.gold < remove_cost)
             {
-                snprintf(msg, sizeof(msg), "Need %dg.", REMOVE_COST);
-                log_shop_metric("remove_card_select", REMOVE_COST, gold_before, false, "");
+                snprintf(msg, sizeof(msg), "Need %dg.", remove_cost);
+                log_shop_metric("remove_card_select", remove_cost, gold_before, false, "");
             }
             else if (!can_remove)
             {
                 snprintf(msg, sizeof(msg), "Deck too small.");
-                log_shop_metric("remove_card_select", REMOVE_COST, gold_before, false, "");
+                log_shop_metric("remove_card_select", remove_cost, gold_before, false, "");
             }
             else
             {
@@ -335,10 +492,10 @@ void shop_screen_update(void)
         else if (clicked(option_rect(1, 1)))
         {
             int gold_before = g_state.gold;
-            if (g_state.gold < HP_BOOST_COST)
+            if (g_state.gold < hp_boost_cost)
             {
-                snprintf(msg, sizeof(msg), "Need %dg.", HP_BOOST_COST);
-                log_shop_metric("train_hp_select", HP_BOOST_COST, gold_before, false, "");
+                snprintf(msg, sizeof(msg), "Need %dg.", hp_boost_cost);
+                log_shop_metric("train_hp_select", hp_boost_cost, gold_before, false, "");
             }
             else
             {
@@ -353,6 +510,14 @@ void shop_screen_update(void)
         else if (clicked(option_rect(1, 2)))
         {
             buy_boon(false);
+        }
+        else if (min_enchant_cost > 0 && g_state.gold >= min_enchant_cost && clicked(option_rect(0, 3)))
+        {
+            mode = SHOP_ENCHANT;
+            enchant_selected = -1;
+            enchant_option = -1;
+            deck_browser_reset(&shop_browser);
+            msg[0] = '\0';
         }
         else if (clicked(leave_button()))
         {
@@ -371,44 +536,50 @@ void shop_screen_update(void)
             CardInstance *inst = &g_state.run_deck.cards[selected];
             if (mode == SHOP_UPGRADE_1)
             {
+                int cost = shop_cost(UPGRADE_COST);
                 int gold_before = g_state.gold;
-                if (game_spend_gold(UPGRADE_COST, "shop_upgrade"))
+                if (game_spend_gold(cost, "shop_upgrade"))
                 {
                     inst->upgrade_level = 1;
+                    assets_play_sfx(SFX_SHOP_PURCHASE);
                     snprintf(msg, sizeof(msg), "%s upgraded.", inst->def ? inst->def->name : "Card");
-                    log_shop_metric("upgrade_card", UPGRADE_COST, gold_before, true, inst->def && inst->def->id ? inst->def->id : "");
+                    log_shop_metric("upgrade_card", cost, gold_before, true, inst->def && inst->def->id ? inst->def->id : "");
                     mode = SHOP_MAIN;
                 }
                 else
-                    log_shop_metric("upgrade_card", UPGRADE_COST, gold_before, false, inst->def && inst->def->id ? inst->def->id : "");
+                    log_shop_metric("upgrade_card", cost, gold_before, false, inst->def && inst->def->id ? inst->def->id : "");
             }
             else if (mode == SHOP_UPGRADE_2)
             {
+                int cost = shop_cost(SUPER_UPGRADE_COST);
                 int gold_before = g_state.gold;
-                if (game_spend_gold(SUPER_UPGRADE_COST, "shop_super_upgrade"))
+                if (game_spend_gold(cost, "shop_super_upgrade"))
                 {
                     inst->upgrade_level = 2;
+                    assets_play_sfx(SFX_SHOP_PURCHASE);
                     snprintf(msg, sizeof(msg), "%s maxed.", inst->def ? inst->def->name : "Card");
-                    log_shop_metric("max_upgrade_card", SUPER_UPGRADE_COST, gold_before, true, inst->def && inst->def->id ? inst->def->id : "");
+                    log_shop_metric("max_upgrade_card", cost, gold_before, true, inst->def && inst->def->id ? inst->def->id : "");
                     mode = SHOP_MAIN;
                 }
                 else
-                    log_shop_metric("max_upgrade_card", SUPER_UPGRADE_COST, gold_before, false, inst->def && inst->def->id ? inst->def->id : "");
+                    log_shop_metric("max_upgrade_card", cost, gold_before, false, inst->def && inst->def->id ? inst->def->id : "");
             }
             else
             {
+                int cost = shop_cost(REMOVE_COST);
                 int gold_before = g_state.gold;
-                if (game_spend_gold(REMOVE_COST, "shop_remove"))
+                if (game_spend_gold(cost, "shop_remove"))
                 {
                     const CardDef *def = inst->def;
                     int uid = inst->uid;
                     deck_remove_card_by_uid(&g_state.run_deck, uid);
+                    assets_play_sfx(SFX_SHOP_PURCHASE);
                     snprintf(msg, sizeof(msg), "Removed %s.", def ? def->name : "a card");
-                    log_shop_metric("remove_card", REMOVE_COST, gold_before, true, def && def->id ? def->id : "");
+                    log_shop_metric("remove_card", cost, gold_before, true, def && def->id ? def->id : "");
                     mode = SHOP_MAIN;
                 }
                 else
-                    log_shop_metric("remove_card", REMOVE_COST, gold_before, false, inst->def && inst->def->id ? inst->def->id : "");
+                    log_shop_metric("remove_card", cost, gold_before, false, inst->def && inst->def->id ? inst->def->id : "");
             }
         }
 
@@ -426,24 +597,116 @@ void shop_screen_update(void)
             Rectangle r = { (float)(VIRT_W / 2 - BTN_FULL / 2), 86.0f + i * 38.0f, (float)BTN_FULL, 28.0f };
             if (!CheckCollisionPointRec(mouse, r) || !IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
                 continue;
+            int cost = shop_cost(HP_BOOST_COST);
             int gold_before = g_state.gold;
-            if (game_spend_gold(HP_BOOST_COST, "shop_hp_boost"))
+            if (game_spend_gold(cost, "shop_hp_boost"))
             {
                 PartyMember *pm = &g_state.run_party.members[i];
                 pm->max_hp += 5;
                 pm->hp += 5;
                 if (pm->hp > pm->max_hp) pm->hp = pm->max_hp;
                 pm->alive = true;
+                assets_play_sfx(SFX_SHOP_PURCHASE);
                 snprintf(msg, sizeof(msg), "%s gained +5 max HP.", pm->name);
-                log_shop_metric("train_hp", HP_BOOST_COST, gold_before, true, class_name(pm->class));
+                log_shop_metric("train_hp", cost, gold_before, true, class_name(pm->class));
                 mode = SHOP_MAIN;
             }
             else
-                log_shop_metric("train_hp", HP_BOOST_COST, gold_before, false, "");
+                log_shop_metric("train_hp", cost, gold_before, false, "");
             break;
         }
         if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))
             mode = SHOP_MAIN;
+    }
+    else if (mode == SHOP_ENCHANT)
+    {
+        ensure_enchant_back_button();
+        button_update(&enchant_back_btn);
+        if (enchant_back_btn.pressed_this_frame ||
+            IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) ||
+            IsKeyPressed(KEY_ESCAPE))
+        {
+            mode = SHOP_MAIN;
+            hovered_deck = -1;
+            enchant_selected = -1;
+            enchant_option = -1;
+            return;
+        }
+
+        int selected = deck_browser_update(&shop_browser, &g_state.run_deck, shop_browser_bounds(), -1);
+        hovered_deck = shop_browser.hovered_deck_index;
+        if (selected >= 0)
+        {
+            enchant_selected = selected;
+            enchant_option = -1;
+            msg[0] = '\0';
+        }
+
+        CardInstance *inst = enchant_selected >= 0 &&
+            enchant_selected < g_state.run_deck.card_count ?
+            &g_state.run_deck.cards[enchant_selected] : NULL;
+        if (inst && inst->def)
+        {
+            for (int i = 0; i < ENCHANT_OPTION_COUNT; i++)
+            {
+                if (!card_can_apply_enchant_option(inst, i))
+                    continue;
+                if (clicked(enchant_option_rect(i)))
+                {
+                    enchant_option = i;
+                    snprintf(msg, sizeof(msg), "%s selected.", enchant_option_name(i));
+                    return;
+                }
+            }
+        }
+
+        if (clicked(enchant_apply_button()))
+        {
+            if (!inst || !inst->def)
+            {
+                snprintf(msg, sizeof(msg), "Pick a card first.");
+                return;
+            }
+            if (!card_can_apply_enchant_option(inst, enchant_option))
+            {
+                snprintf(msg, sizeof(msg), "Pick an available enchantment.");
+                return;
+            }
+
+            int cost = enchant_option_cost(enchant_option);
+            int gold_before = g_state.gold;
+            const char *card_id = inst->def->id ? inst->def->id : "";
+            bool remove_curse = enchant_option == ENCHANT_OPTION_REMOVE_CURSE;
+            if (!game_spend_gold(cost, remove_curse ? "shop_enchant_remove_curse" : "shop_enchant"))
+            {
+                snprintf(msg, sizeof(msg), "Need %dg.", cost);
+                log_shop_metric(remove_curse ? "enchant_remove_curse" : "enchant_card", cost, gold_before, false, card_id);
+                return;
+            }
+
+            if (remove_curse)
+            {
+                inst->fleeting_override = -1;
+                inst->exhaust_override = -1;
+                snprintf(msg, sizeof(msg), "Curse removed from %s.", inst->def->name);
+            }
+            else
+            {
+                if (enchant_option == ENCHANT_OPTION_ECHO) inst->echo_override = 1;
+                else if (enchant_option == ENCHANT_OPTION_LIFESTEAL) inst->lifesteal_override = 1;
+                else if (enchant_option == ENCHANT_OPTION_RETAIN) inst->retain_override = 1;
+                else if (enchant_option == ENCHANT_OPTION_INTERRUPT) inst->interrupt_override = 1;
+                else if (enchant_option == ENCHANT_OPTION_TAUNT) inst->taunt_override = 1;
+                snprintf(msg, sizeof(msg), "%s gained %s.", inst->def->name, enchant_option_name(enchant_option));
+            }
+
+            assets_play_sfx(SFX_SHOP_PURCHASE);
+            log_shop_metric(remove_curse ? "enchant_remove_curse" : "enchant_card", cost, gold_before, true, card_id);
+            mode = SHOP_MAIN;
+            hovered_deck = -1;
+            enchant_selected = -1;
+            enchant_option = -1;
+        }
     }
 }
 
@@ -483,6 +746,30 @@ static void draw_shop_button(Rectangle r, const char *label, const char *body, b
             body, 10, 0, body_col, TEXT_ALIGN_CENTER);
 }
 
+static void draw_enchant_option_button(int option, const CardInstance *inst)
+{
+    Rectangle r = enchant_option_rect(option);
+    bool enabled = card_can_apply_enchant_option(inst, option);
+    bool selected = enabled && enchant_option == option;
+    bool hover = enabled && CheckCollisionPointRec(GetMousePosition(), r);
+    Color bg = !enabled ? (Color){ 24, 25, 34, 235 } :
+        selected ? (Color){ 92, 62, 138, 245 } :
+        hover ? (Color){ 70, 58, 108, 245 } :
+        (Color){ 42, 38, 62, 240 };
+    Color border = selected ? (Color){ 225, 185, 255, 255 } :
+        hover ? (Color){ 190, 160, 235, 235 } :
+        (Color){ 85, 76, 112, 205 };
+    Color text = enabled ? RAYWHITE : (Color){ 96, 98, 116, 205 };
+
+    DrawRectangleRec(r, bg);
+    DrawRectangleLinesEx(r, selected ? 2.0f : 1.0f, border);
+
+    char label[48];
+    snprintf(label, sizeof(label), "%s - %dg", enchant_option_name(option), enchant_option_cost(option));
+    draw_text_box((Rectangle){ r.x + 4.0f, r.y + 5.0f, r.width - 8.0f, 12.0f },
+        label, 10, 0, text, TEXT_ALIGN_CENTER);
+}
+
 static void draw_upgrade_preview(const CardDef *cd, int level, Rectangle tip)
 {
     int preview_y = (int)(tip.y + tip.height + 5.0f);
@@ -511,7 +798,15 @@ void shop_screen_draw(void)
 
         Rectangle sale_panel = { 24.0f, 58.0f, 168.0f, 220.0f };
         Rectangle service_panel = { 204.0f, 58.0f, 416.0f, 202.0f };
-        draw_shop_panel(sale_panel, "CARD FOR SALE - 25g", (Color){ 90, 160, 230, 230 });
+        int card_sale_cost = shop_cost(CARD_SALE_COST);
+        int card_reroll_cost = shop_cost(CARD_REROLL_COST);
+        int upgrade_cost = shop_cost(UPGRADE_COST);
+        int super_upgrade_cost = shop_cost(SUPER_UPGRADE_COST);
+        int remove_cost = shop_cost(REMOVE_COST);
+        int hp_boost_cost = shop_cost(HP_BOOST_COST);
+        char panel_label[48];
+        snprintf(panel_label, sizeof(panel_label), "CARD FOR SALE - %dg", card_sale_cost);
+        draw_shop_panel(sale_panel, panel_label, (Color){ 90, 160, 230, 230 });
         draw_shop_panel(service_panel, "SERVICES", (Color){ 220, 200, 90, 230 });
 
         Rectangle card_rect = sale_card_rect();
@@ -519,25 +814,37 @@ void shop_screen_draw(void)
             theme_draw_card_art_seeded(card_rect, shop_card, 0, theme_card_seed_from_id(shop_card->id, 91u));
 
         bool deck_space = g_state.run_deck.card_count < MAX_DECK_SIZE;
-        draw_shop_button(sale_buy_button(), "BUY CARD - 25g", "", g_state.gold >= CARD_SALE_COST && deck_space, (Color){ 80, 150, 220, 255 });
-        draw_shop_button(sale_reroll_button(), "NEW CARD - 5g", "", g_state.gold >= CARD_REROLL_COST, (Color){ 95, 190, 110, 255 });
+        char cost_label[48];
+        snprintf(cost_label, sizeof(cost_label), "BUY CARD - %dg", card_sale_cost);
+        draw_shop_button(sale_buy_button(), cost_label, "", g_state.gold >= card_sale_cost && deck_space, (Color){ 80, 150, 220, 255 });
+        snprintf(cost_label, sizeof(cost_label), "NEW CARD - %dg", card_reroll_cost);
+        draw_shop_button(sale_reroll_button(), cost_label, "", g_state.gold >= card_reroll_cost, (Color){ 95, 190, 110, 255 });
 
-        bool can_upg1 = g_state.gold >= UPGRADE_COST && deck_browser_has_upgradeable_at(&g_state.run_deck, 1);
-        bool can_upg2 = g_state.gold >= SUPER_UPGRADE_COST && deck_browser_has_upgradeable_at(&g_state.run_deck, 2);
-        bool can_remove = g_state.gold >= REMOVE_COST && valid_card_count(&g_state.run_deck) > 3;
+        bool can_upg1 = g_state.gold >= upgrade_cost && deck_browser_has_upgradeable_at(&g_state.run_deck, 1);
+        bool can_upg2 = g_state.gold >= super_upgrade_cost && deck_browser_has_upgradeable_at(&g_state.run_deck, 2);
+        bool can_remove = g_state.gold >= remove_cost && valid_card_count(&g_state.run_deck) > 3;
         int boon_cost = shop_boon_cost();
         bool can_boon = g_state.gold >= boon_cost;
+        int min_enchant_cost = deck_min_enchant_cost();
+        bool can_enchant = min_enchant_cost > 0 && g_state.gold >= min_enchant_cost;
 
-        draw_shop_button(option_rect(0, 0), "UPGRADE - 30g", "base card -> upgraded", can_upg1, (Color){ 80, 140, 220, 255 });
-        draw_shop_button(option_rect(1, 0), "MAX UPGRADE - 60g", "upgraded card -> max", can_upg2, (Color){ 205, 165, 70, 255 });
-        draw_shop_button(option_rect(0, 1), "REMOVE CARD - 20g", "thin your deck", can_remove, (Color){ 220, 100, 100, 255 });
-        draw_shop_button(option_rect(1, 1), "TRAIN HP - 15g", "+5 max HP to one PM", g_state.gold >= HP_BOOST_COST, (Color){ 90, 200, 120, 255 });
+        snprintf(cost_label, sizeof(cost_label), "UPGRADE - %dg", upgrade_cost);
+        draw_shop_button(option_rect(0, 0), cost_label, "base card -> upgraded", can_upg1, (Color){ 80, 140, 220, 255 });
+        snprintf(cost_label, sizeof(cost_label), "MAX UPGRADE - %dg", super_upgrade_cost);
+        draw_shop_button(option_rect(1, 0), cost_label, "upgraded card -> max", can_upg2, (Color){ 205, 165, 70, 255 });
+        snprintf(cost_label, sizeof(cost_label), "REMOVE CARD - %dg", remove_cost);
+        draw_shop_button(option_rect(0, 1), cost_label, "thin your deck", can_remove, (Color){ 220, 100, 100, 255 });
+        snprintf(cost_label, sizeof(cost_label), "TRAIN HP - %dg", hp_boost_cost);
+        draw_shop_button(option_rect(1, 1), cost_label, "+5 max HP to one PM", g_state.gold >= hp_boost_cost, (Color){ 90, 200, 120, 255 });
 
         char boon_label[32];
         snprintf(boon_label, sizeof(boon_label), "ENERGY BOON - %dg", boon_cost);
         draw_shop_button(option_rect(0, 2), boon_label, "+1 next combat", can_boon, (Color){ 230, 205, 70, 255 });
         snprintf(boon_label, sizeof(boon_label), "DRAW BOON - %dg", boon_cost);
         draw_shop_button(option_rect(1, 2), boon_label, "+2 next combat", can_boon, (Color){ 135, 190, 245, 255 });
+        char enchant_label[32];
+        snprintf(enchant_label, sizeof(enchant_label), "ENCHANT CARD - %dg+", min_enchant_cost > 0 ? min_enchant_cost : shop_cost(ENCHANT_TAUNT_COST));
+        draw_shop_button(option_rect(0, 3), enchant_label, "add/remove effects", can_enchant, (Color){ 175, 130, 230, 255 });
 
         if (g_state.next_combat_energy_bonus > 0 || g_state.next_combat_draw_bonus > 0)
         {
@@ -561,7 +868,7 @@ void shop_screen_draw(void)
             target_level == 1 ? "PICK A CARD TO UPGRADE" : "PICK A CARD TO MAX",
             18, 0, RAYWHITE, TEXT_ALIGN_CENTER);
         draw_text_box((Rectangle){ 80.0f, 34.0f, 480.0f, 14.0f },
-            "wheel scroll  |  right-click cancel", 10, 0, (Color){ 160, 160, 180, 180 }, TEXT_ALIGN_CENTER);
+            "Pick a card to continue.", 10, 0, (Color){ 160, 160, 180, 180 }, TEXT_ALIGN_CENTER);
         deck_browser_draw(&shop_browser, &g_state.run_deck, target_level, RAYWHITE);
         if (hovered_deck >= 0 && g_state.run_deck.cards[hovered_deck].def)
         {
@@ -573,15 +880,55 @@ void shop_screen_draw(void)
     else if (mode == SHOP_REMOVE)
     {
         draw_text_box((Rectangle){ 80.0f, 16.0f, 480.0f, 22.0f }, "PICK A CARD TO REMOVE", 18, 0, (Color){ 220, 120, 120, 255 }, TEXT_ALIGN_CENTER);
-        draw_text_box((Rectangle){ 80.0f, 34.0f, 480.0f, 14.0f }, "wheel scroll  |  right-click cancel", 10, 0, (Color){ 160, 160, 180, 180 }, TEXT_ALIGN_CENTER);
+        draw_text_box((Rectangle){ 80.0f, 34.0f, 480.0f, 14.0f }, "Pick a card to remove.", 10, 0, (Color){ 160, 160, 180, 180 }, TEXT_ALIGN_CENTER);
         deck_browser_draw(&shop_browser, &g_state.run_deck, 0, (Color){ 255, 100, 100, 255 });
         if (hovered_deck >= 0 && g_state.run_deck.cards[hovered_deck].def)
             theme_draw_card_tooltip(layout_deck_inspector_panel(), g_state.run_deck.cards[hovered_deck].def, g_state.run_deck.cards[hovered_deck].upgrade_level);
     }
+    else if (mode == SHOP_ENCHANT)
+    {
+        draw_text_box((Rectangle){ 80.0f, 16.0f, 480.0f, 22.0f },
+            "ENCHANT A CARD", 18, 0, (Color){ 190, 150, 245, 255 }, TEXT_ALIGN_CENTER);
+        draw_text_box((Rectangle){ 36.0f, 35.0f, 568.0f, 14.0f },
+            "Pick a deck card, choose an effect, then apply.",
+            10, 0, (Color){ 170, 180, 205, 210 }, TEXT_ALIGN_CENTER);
+
+        deck_browser_draw(&shop_browser, &g_state.run_deck, -1, (Color){ 180, 220, 255, 255 });
+
+        Rectangle enchant_panel = { 440.0f, 54.0f, 188.0f, 270.0f };
+        draw_shop_panel(enchant_panel, "ENCHANTMENTS", (Color){ 190, 150, 245, 230 });
+
+        CardInstance *inst = enchant_selected >= 0 &&
+            enchant_selected < g_state.run_deck.card_count ?
+            &g_state.run_deck.cards[enchant_selected] : NULL;
+        const char *selected_name = inst && inst->def ? inst->def->name : "Pick a card from your deck";
+        draw_text_box((Rectangle){ 448.0f, 73.0f, 172.0f, 12.0f },
+            selected_name, 10, 0, inst && inst->def ? RAYWHITE : (Color){ 135, 138, 158, 220 }, TEXT_ALIGN_CENTER);
+
+        for (int i = 0; i < ENCHANT_OPTION_COUNT; i++)
+            draw_enchant_option_button(i, inst);
+
+        char apply_label[32];
+        int apply_cost = enchant_option_cost(enchant_option);
+        bool can_apply = inst && inst->def &&
+            card_can_apply_enchant_option(inst, enchant_option) &&
+            g_state.gold >= apply_cost;
+        if (enchant_option >= 0)
+            snprintf(apply_label, sizeof(apply_label), "APPLY - %dg", apply_cost);
+        else
+            snprintf(apply_label, sizeof(apply_label), "APPLY");
+        draw_shop_button(enchant_apply_button(), apply_label, "", can_apply, (Color){ 90, 185, 120, 255 });
+        ensure_enchant_back_button();
+        button_draw_9slice(&enchant_back_btn);
+
+        if (msg[0])
+            draw_text_box((Rectangle){ 24.0f, 324.0f, 400.0f, 16.0f },
+                msg, 10, 0, (Color){ 230, 205, 115, 240 }, TEXT_ALIGN_LEFT);
+    }
     else if (mode == SHOP_HP_BOOST)
     {
         draw_text_box((Rectangle){ 80.0f, 36.0f, 480.0f, 22.0f }, "TRAIN A HERO", 18, 0, (Color){ 120, 230, 150, 255 }, TEXT_ALIGN_CENTER);
-        draw_text_box((Rectangle){ 80.0f, 58.0f, 480.0f, 14.0f }, "Pick one party member. Right-click cancels.", 10, 0, (Color){ 170, 180, 205, 210 }, TEXT_ALIGN_CENTER);
+        draw_text_box((Rectangle){ 80.0f, 58.0f, 480.0f, 14.0f }, "Pick one party member.", 10, 0, (Color){ 170, 180, 205, 210 }, TEXT_ALIGN_CENTER);
         Vector2 mouse = GetMousePosition();
         for (int i = 0; i < g_state.run_party.count; i++)
         {

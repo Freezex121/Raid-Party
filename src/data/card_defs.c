@@ -94,6 +94,8 @@ static StatusType parse_status(const char *text)
     if (text && strcmp(text, "marked") == 0) return STATUS_MARKED;
     if (text && strcmp(text, "conductive") == 0) return STATUS_CONDUCTIVE;
     if (text && strcmp(text, "blight") == 0) return STATUS_BLIGHT;
+    if (text && strcmp(text, "thorns") == 0) return STATUS_THORNS;
+    if (text && strcmp(text, "death_mark") == 0) return STATUS_DEATH_MARK;
     return STATUS_NONE;
 }
 
@@ -107,6 +109,9 @@ static CardEffectType parse_effect_type(const char *text)
     if (text && strcmp(text, "apply_status_all_allies") == 0) return CARD_EFFECT_APPLY_STATUS_ALL_ALLIES;
     if (text && strcmp(text, "reset_caster_aggro") == 0) return CARD_EFFECT_RESET_CASTER_AGGRO;
     if (text && strcmp(text, "transfer_aggro_to_guardian") == 0) return CARD_EFFECT_TRANSFER_AGGRO_TO_GUARDIAN;
+    if (text && strcmp(text, "gain_buff") == 0) return CARD_EFFECT_GAIN_BUFF;
+    if (text && strcmp(text, "extra_draw") == 0) return CARD_EFFECT_EXTRA_DRAW;
+    if (text && strcmp(text, "gain_status_amp") == 0) return CARD_EFFECT_GAIN_STATUS_AMP;
     return CARD_EFFECT_DRAW_CARDS;
 }
 
@@ -224,6 +229,7 @@ bool card_defs_load_json(const char *path)
         def.channel_turns = json_int(field(item, "channel_turns"), 0);
         def.echo = json_bool(field(item, "echo"), false);
         def.lifesteal = json_int(field(item, "lifesteal"), 0);
+        def.self_hp_cost = json_int(field(item, "self_hp_cost"), 0);
         def.splash = json_int(field(item, "splash"), 0);
         def.retain = json_bool(field(item, "retain"), false);
         def.fleeting = json_bool(field(item, "fleeting"), false);

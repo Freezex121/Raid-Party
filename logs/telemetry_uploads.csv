@@ -6,3 +6,7 @@ timestamp,event,detail
 1780091808,"upload_skipped","opt_out"
 1780118424,"upload_skipped","opt_out"
 1780119091,"upload_skipped","opt_out"
+1780197580,"upload_skipped","opt_out"
+1780416467,"buffer_full","card_play"
+1780425090,"buffer_full","card_play"
+1780434758,"upload_failed","network_or_endpoint_unavailable"

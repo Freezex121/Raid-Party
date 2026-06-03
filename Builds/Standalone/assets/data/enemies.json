@@ -93,6 +93,20 @@
           "heal_amount": 0,
           "shield_amount": 8,
           "count": 1
+        },
+        {
+          "name": "Rend",
+          "intent": "attack",
+          "target": "tank",
+          "cost": 1,
+          "base_damage": 5,
+          "cast_time": 2,
+          "description": "Hits twice for 5 damage each.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "repeats": 2,
+          "count": 1
         }
       ]
     },
@@ -163,6 +177,22 @@
           "heal_amount": 10,
           "shield_amount": 0,
           "count": 1
+        },
+        {
+          "name": "Spiked Bark",
+          "intent": "shield",
+          "target": "self",
+          "cost": 1,
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains 8 shield and Thorns for 3 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 8,
+          "status": "thorns",
+          "status_amount": 3,
+          "status_turns": 3,
+          "count": 1
         }
       ]
     },
@@ -223,6 +253,7 @@
           "is_wipe": false,
           "heal_amount": 0,
           "shield_amount": 16,
+          "enrage_allies": true,
           "count": 1
         }
       ]
@@ -564,6 +595,20 @@
           "heal_amount": 0,
           "shield_amount": 0,
           "count": 1
+        },
+        {
+          "name": "Fiery Burst",
+          "intent": "aoe",
+          "target": "all",
+          "cost": 0,
+          "base_damage": 14,
+          "cast_time": 2,
+          "description": "Deals 14 to all. Imp takes 6 self-damage.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "self_damage": 6,
+          "count": 1
         }
       ]
     },
@@ -806,6 +851,20 @@
           "is_wipe": false,
           "heal_amount": 0,
           "shield_amount": 20,
+          "count": 1
+        },
+        {
+          "name": "Deafening Roar",
+          "intent": "attack",
+          "target": "all",
+          "cost": 2,
+          "base_damage": 6,
+          "cast_time": 3,
+          "description": "Deals 6 damage to all and silences channeling.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "interrupts": true,
           "count": 1
         }
       ]
@@ -1148,6 +1207,20 @@
           "status": "bleed",
           "status_amount": 1,
           "status_turns": 2
+        },
+        {
+          "name": "Parasitic Drain",
+          "intent": "attack",
+          "target": "tank",
+          "cost": 1,
+          "base_damage": 8,
+          "cast_time": 2,
+          "description": "Deals 8 damage and heals self for 60% of damage dealt.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "lifesteal_pct": 60,
+          "count": 1
         }
       ]
     },
@@ -1201,6 +1274,19 @@
           "is_wipe": false,
           "heal_amount": 12,
           "shield_amount": 0,
+          "count": 1
+        },
+        {
+          "name": "Protective Cloud",
+          "intent": "aoe_shield",
+          "target": "self",
+          "cost": 1,
+          "base_damage": 0,
+          "cast_time": 3,
+          "description": "Shields all enemies for 6.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 6,
           "count": 1
         }
       ]
@@ -1466,6 +1552,20 @@
           "heal_amount": 8,
           "shield_amount": 0,
           "count": 1
+        },
+        {
+          "name": "Silence",
+          "intent": "attack",
+          "target": "tank",
+          "cost": 1,
+          "base_damage": 3,
+          "cast_time": 3,
+          "description": "Deals 3 damage and interrupts channeling.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "interrupts": true,
+          "count": 1
         }
       ]
     },
@@ -1660,6 +1760,21 @@
           "is_wipe": true,
           "heal_amount": 0,
           "shield_amount": 0,
+          "count": 1
+        },
+        {
+          "name": "Rage",
+          "intent": "buff_attack",
+          "target": "self",
+          "cost": 1,
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Increases all damage by 30% for 4 turns.",
+          "is_wipe": false,
+          "heal_amount": 0,
+          "shield_amount": 0,
+          "buff_damage": 30,
+          "buff_turns": 4,
           "count": 1
         }
       ]

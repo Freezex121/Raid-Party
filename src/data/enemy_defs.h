@@ -18,6 +18,8 @@ typedef enum {
     INTENT_BUFF,
     INTENT_HEAL,
     INTENT_SHIELD,
+    INTENT_BUFF_ATTACK,
+    INTENT_AOE_SHIELD,
 } IntentType;
 
 typedef enum {
@@ -43,6 +45,13 @@ typedef struct {
     int status_amount;
     int status_turns;
     int count;  // copies in deck
+    int repeats;  // hits per attack (default 1)
+    int lifesteal_pct;  // % of damage healed to self (default 0)
+    int self_damage;  // damage dealt to self as cost (default 0)
+    int buff_damage;  // % damage increase for future turns (default 0)
+    int buff_turns;  // duration of damage buff (default 0)
+    bool interrupts;  // if true, interrupts player channeling/combo
+    bool enrage_allies;  // if true, applies shield to other living enemies at half
 } EnemyCardDef;
 
 typedef struct {

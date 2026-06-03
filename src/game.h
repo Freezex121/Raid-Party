@@ -90,6 +90,7 @@ typedef struct {
     int reward_count;
     int reward_picks_remaining;
     bool reward_picked[MAX_REWARD_CARDS];
+    int reward_keyword[MAX_REWARD_CARDS];  // -1 = none, 0=echo, 1=lifesteal, 2=retain, 3=interrupt, 4=taunt
     int gold;
     int next_combat_energy_bonus;
     int next_combat_draw_bonus;

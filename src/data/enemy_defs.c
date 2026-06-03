@@ -33,6 +33,8 @@ static IntentType parse_intent(const char *text)
     if (text && strcmp(text, "buff") == 0) return INTENT_BUFF;
     if (text && strcmp(text, "heal") == 0) return INTENT_HEAL;
     if (text && strcmp(text, "shield") == 0) return INTENT_SHIELD;
+    if (text && strcmp(text, "buff_attack") == 0) return INTENT_BUFF_ATTACK;
+    if (text && strcmp(text, "aoe_shield") == 0) return INTENT_AOE_SHIELD;
     return INTENT_NONE;
 }
 
@@ -46,6 +48,8 @@ static StatusType parse_status(const char *text)
     if (text && strcmp(text, "marked") == 0) return STATUS_MARKED;
     if (text && strcmp(text, "conductive") == 0) return STATUS_CONDUCTIVE;
     if (text && strcmp(text, "blight") == 0) return STATUS_BLIGHT;
+    if (text && strcmp(text, "thorns") == 0) return STATUS_THORNS;
+    if (text && strcmp(text, "death_mark") == 0) return STATUS_DEATH_MARK;
     return STATUS_NONE;
 }
 
@@ -121,6 +125,14 @@ bool enemy_defs_load_json(const char *path)
             out->status_turns = json_int(field(card, "status_turns"), 0);
             out->count = json_int(field(card, "count"), 1);
             if (out->count < 1) out->count = 1;
+            out->repeats = json_int(field(card, "repeats"), 1);
+            if (out->repeats < 1) out->repeats = 1;
+            out->lifesteal_pct = json_int(field(card, "lifesteal_pct"), 0);
+            out->self_damage = json_int(field(card, "self_damage"), 0);
+            out->buff_damage = json_int(field(card, "buff_damage"), 0);
+            out->buff_turns = json_int(field(card, "buff_turns"), 0);
+            out->interrupts = json_bool(field(card, "interrupts"), false);
+            out->enrage_allies = json_bool(field(card, "enrage_allies"), false);
         }
 
         if (def.card_count <= 0)

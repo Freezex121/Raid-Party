@@ -8,6 +8,7 @@
 #include "util/math_utils.h"
 #include "constants.h"
 #include "raylib.h"
+#include "assets.h"
 #include <stdio.h>
 
 static Button start_btn;
@@ -54,6 +55,7 @@ void title_screen_update(void)
     static bool initialized = false;
     if (!initialized)
     {
+        assets_play_music(MUSIC_TITLE);
         start_btn = button_create(
             (Rectangle){ (float)(VIRT_W / 2 - BTN_WIDE / 2), button_y, BTN_WIDE, (float)BTN_H },
             "START AREA",
@@ -63,7 +65,7 @@ void title_screen_update(void)
         );
         shop_btn = button_create(
             (Rectangle){ (float)(VIRT_W / 2 - BTN_MED - 8), button_y + 28.0f, BTN_MED, (float)BTN_H },
-            "META SHOP",
+            "SKILL TREE",
             (Color){ 42, 48, 70, 255 },
             (Color){ 70, 78, 110, 255 },
             WHITE
@@ -342,8 +344,8 @@ void title_screen_draw(void)
     if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_META_SHOP)
     {
         game_draw_tutorial_overlay_ex(shop_btn.bounds,
-            "Meta Shop",
-            "Runs earn renown. Spend it here on permanent unlocks like party slots, classes, starting gold, and opening-run bonuses.",
+            "Skill Tree",
+            "Runs earn renown. Follow the tree to unlock permanent upgrades, larger parties, and new classes.",
             "Click to continue  |  Right-click/Esc: skip",
             0,
             0);

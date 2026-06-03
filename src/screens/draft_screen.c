@@ -82,6 +82,7 @@ static float card_alphas[CLASS_COUNT];
 static float card_tweens[CLASS_COUNT];
 static int card_tween_ids[CLASS_COUNT];
 static Button begin_btn;
+static Button back_btn;
 static float begin_btn_alpha = 0.0f;
 static float title_y = -60.0f;
 static bool initialized = false;
@@ -101,6 +102,11 @@ static Rectangle draft_card_rect_for(int index)
 static Rectangle draft_begin_rect(void)
 {
     return (Rectangle){ (float)(VIRT_W / 2 - BTN_WIDE / 2), 318.0f, (float)BTN_WIDE, (float)BTN_H };
+}
+
+static Rectangle draft_back_rect(void)
+{
+    return (Rectangle){ 12.0f, 318.0f, (float)BTN_NARROW, (float)BTN_H };
 }
 
 static void card_click_cb(int index)
@@ -152,6 +158,13 @@ void draft_screen_update(void)
             (Color){ 80, 160, 230, 255 },
             WHITE
         );
+        back_btn = button_create(
+            draft_back_rect(),
+            "BACK",
+            (Color){ 42, 48, 70, 255 },
+            (Color){ 70, 78, 110, 255 },
+            WHITE
+        );
 
         title_y = -18.0f;
         tween_create(&title_y, 24.0f, 0.5f, EASE_OUT_BACK);
@@ -168,6 +181,14 @@ void draft_screen_update(void)
     }
 
     Vector2 mouse = GetMousePosition();
+    button_update(&back_btn);
+    if (back_btn.pressed_this_frame)
+    {
+        initialized = false;
+        g_state.selected_count = 0;
+        game_change_screen(SCREEN_TITLE);
+        return;
+    }
 
     for (int i = 0; i < CLASS_COUNT; i++)
     {
@@ -233,6 +254,15 @@ void draft_screen_update(void)
             if (g_state.tutorial_active)
                 telemetry_log_tutorial("map_route", "shown", "map");
             party_create(&g_state.run_party, g_state.selected_classes, g_state.selected_count);
+            int max_hp_bonus = meta_max_hp_bonus(&g_state.meta);
+            if (max_hp_bonus > 0)
+            {
+                for (int i = 0; i < g_state.run_party.count; i++)
+                {
+                    g_state.run_party.members[i].max_hp += max_hp_bonus;
+                    g_state.run_party.members[i].hp += max_hp_bonus;
+                }
+            }
             g_state.run_party_active = true;
             deck_init_from_classes(&g_state.run_deck, g_state.selected_classes, g_state.selected_count);
             const CardDef *doubt = card_def_by_id("curse_doubt");
@@ -247,10 +277,10 @@ void draft_screen_update(void)
             const CardDef *energize = card_def_by_id("util_energ");
             const CardDef *fortify = card_def_by_id("util_for");
             const CardDef *rejuv = card_def_by_id("util_rejuv");
-            if (prep && g_state.meta.start_prep) deck_add_card(&g_state.run_deck, prep);
+            if (prep && g_state.meta.start_prep) deck_add_card_with_level(&g_state.run_deck, prep, g_state.meta.prep_upgraded ? 1 : 0);
             if (energize && g_state.meta.start_energize) deck_add_card(&g_state.run_deck, energize);
-            if (fortify && g_state.meta.start_fortify) deck_add_card(&g_state.run_deck, fortify);
-            if (rejuv && g_state.meta.start_rejuv) deck_add_card(&g_state.run_deck, rejuv);
+            if (fortify && g_state.meta.start_fortify) deck_add_card_with_level(&g_state.run_deck, fortify, g_state.meta.fortify_upgraded ? 1 : 0);
+            if (rejuv && g_state.meta.start_rejuv) deck_add_card_with_level(&g_state.run_deck, rejuv, g_state.meta.rejuv_upgraded ? 1 : 0);
 
             if (g_state.meta.starting_relic_rank == 1 || g_state.meta.starting_relic_rank == 2)
             {
@@ -260,11 +290,14 @@ void draft_screen_update(void)
             }
             else if (g_state.meta.starting_relic_rank >= 3)
             {
+                int relic_choices = 2 + meta_relic_choice_bonus(&g_state.meta);
+                if (relic_choices > RELIC_REWARD_CHOICES)
+                    relic_choices = RELIC_REWARD_CHOICES;
                 g_state.relic_reward_count = relic_generate_choices_by_rarity(
                     g_state.relics,
                     g_state.relic_count,
                     g_state.relic_reward_choices,
-                    2,
+                    relic_choices,
                     2);
                 g_state.relic_reward_pending = g_state.relic_reward_count > 0;
             }
@@ -393,7 +426,7 @@ void draft_screen_draw(void)
 
         Color tag_c = unlocked ? (Color){ 160, 160, 180, (unsigned char)(card_alphas[i] * 200) } : (Color){ 105, 108, 125, (unsigned char)(card_alphas[i] * 200) };
         draw_text_box((Rectangle){ (float)text_x, draw_rect.y + 43.0f, draw_rect.width - 58.0f, 24.0f },
-            unlocked ? class_info[i].tagline : "Locked in the Meta Shop.", 10, 0, tag_c, TEXT_ALIGN_LEFT);
+            unlocked ? class_info[i].tagline : "Locked in the Skill Tree.", 10, 0, tag_c, TEXT_ALIGN_LEFT);
 
         theme_draw_class_portrait((ClassType)i,
             snap_i(draw_rect.x + draw_rect.width - 28),
@@ -447,10 +480,9 @@ void draft_screen_draw(void)
         draw_text_box((Rectangle){ btn_rect.x + 6.0f, btn_rect.y + 5.0f, btn_rect.width - 12.0f, 12.0f },
             begin_btn.text, 10, 0, txt, TEXT_ALIGN_CENTER);
     }
+    button_draw_9slice(&back_btn);
 
     Color sep = { 60, 60, 80, 120 };
     DrawRectangle(0, 300, VIRT_W, 1, sep);
     Color hint = { 100, 100, 130, 120 };
 }
-
-

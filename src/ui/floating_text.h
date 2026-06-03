@@ -26,8 +26,4 @@ void ft_update(float dt);
 void ft_draw(void);
 void ft_clear_all(void);
 
-extern float g_shake_x, g_shake_y;
-extern float g_shake_intensity;
-extern float g_shake_timer;
-
 #endif

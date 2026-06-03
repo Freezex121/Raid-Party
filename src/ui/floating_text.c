@@ -1,6 +1,7 @@
 #include "floating_text.h"
 #include "constants.h"
 #include "util/math_utils.h"
+#include "util/shake.h"
 #include "util/text.h"
 #include <stdio.h>
 #include <string.h>
@@ -20,31 +21,6 @@ typedef struct {
 } VfxParticle;
 
 static VfxParticle vfx_pool[MAX_VFX];
-
-float g_shake_x = 0, g_shake_y = 0;
-float g_shake_intensity = 0;
-float g_shake_timer = 0;
-
-void shake_trigger(float intensity)
-{
-    g_shake_intensity = intensity;
-    g_shake_timer = 0.15f;
-}
-
-static void shake_update(float dt)
-{
-    if (g_shake_timer > 0)
-    {
-        g_shake_timer -= dt;
-        g_shake_x = ((float)(rand() % 200) / 100.0f - 1.0f) * g_shake_intensity;
-        g_shake_y = ((float)(rand() % 200) / 100.0f - 1.0f) * g_shake_intensity;
-        if (g_shake_timer <= 0)
-        {
-            g_shake_x = 0; g_shake_y = 0;
-            g_shake_intensity = 0;
-        }
-    }
-}
 
 static int find_slot(void)
 {
@@ -122,8 +98,6 @@ void vfx_spawn_burst(float x, float y, Color color, int count)
 
 void ft_update(float dt)
 {
-    shake_update(dt);
-
     for (int i = 0; i < MAX_FLOATING; i++)
     {
         if (!pool[i].active) continue;

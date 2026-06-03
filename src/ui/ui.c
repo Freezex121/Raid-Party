@@ -5,6 +5,8 @@
 #include "util/math_utils.h"
 #include <string.h>
 
+static bool g_btn_hovered[MAX_BTN_IDS];
+
 Button button_create(Rectangle bounds, const char *text, Color bg, Color hover, Color text_col)
 {
     Button btn;
@@ -53,8 +55,14 @@ void button_update(Button *btn)
     bool hovered = CheckCollisionPointRec(mouse, btn->bounds);
     btn->hover_t = hovered ? 1.0f : 0.0f;
 
-    if (hovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+    if (hovered && !btn->last_hovered)
+        assets_play_sfx(SFX_BUTTON_HOVER);
+
+    if (hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+    {
+        assets_play_sfx(SFX_BUTTON_CLICK);
         btn->pressed_this_frame = true;
+    }
 
     btn->last_hovered = hovered;
 }
@@ -126,11 +134,23 @@ void draw_9slice(Texture2D tex, int left, int right, Rectangle dest, Color tint)
         (Vector2){ 0, 0 }, 0.0f, tint);
 }
 
-void draw_btn_standard(Rectangle dest, Color normal, Color hover, const char *label)
+void draw_btn_standard(Rectangle dest, Color normal, Color hover, const char *label, int btn_id)
 {
     if (!label || !label[0]) return;
     Vector2 mouse = GetMousePosition();
     bool hovered = CheckCollisionPointRec(mouse, dest);
+    if (btn_id >= 0 && btn_id < MAX_BTN_IDS)
+    {
+        if (hovered && !g_btn_hovered[btn_id])
+        {
+            assets_play_sfx(SFX_BUTTON_HOVER);
+            g_btn_hovered[btn_id] = true;
+        }
+        if (!hovered && g_btn_hovered[btn_id])
+            g_btn_hovered[btn_id] = false;
+        if (hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+            assets_play_sfx(SFX_BUTTON_CLICK);
+    }
     Color tint = hovered ? hover : normal;
     Texture2D tex = g_assets.btn_standard;
     int left = 6, right = 6;
@@ -138,10 +158,22 @@ void draw_btn_standard(Rectangle dest, Color normal, Color hover, const char *la
     draw_button_label_centered(dest, label, RAYWHITE);
 }
 
-void draw_btn_large(Rectangle dest, Color normal, Color hover, const char *title, const char *subtitle)
+void draw_btn_large(Rectangle dest, Color normal, Color hover, const char *title, const char *subtitle, int btn_id)
 {
     Vector2 mouse = GetMousePosition();
     bool hovered = CheckCollisionPointRec(mouse, dest);
+    if (btn_id >= 0 && btn_id < MAX_BTN_IDS)
+    {
+        if (hovered && !g_btn_hovered[btn_id])
+        {
+            assets_play_sfx(SFX_BUTTON_HOVER);
+            g_btn_hovered[btn_id] = true;
+        }
+        if (!hovered && g_btn_hovered[btn_id])
+            g_btn_hovered[btn_id] = false;
+        if (hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+            assets_play_sfx(SFX_BUTTON_CLICK);
+    }
     Color tint = hovered ? hover : normal;
     Texture2D tex = g_assets.btn_large;
     int left = 8, right = 8;

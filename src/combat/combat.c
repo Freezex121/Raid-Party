@@ -11,13 +11,18 @@
 #include "ui/layout.h"
 #include "ui/theme.h"
 #include "util/tween.h"
+#include "util/shake.h"
 #include "util/log.h"
 #include "constants.h"
+#include "assets.h"
 #include "raylib.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+
+#define MAX_PARTY_AGGRO 200
+#define PARTY_AGGRO_DECAY_PERCENT_PER_TURN 5
 
 static int party_draw_count(int party_count)
 {
@@ -48,6 +53,60 @@ static int active_ascension(void)
     if (level < 0) level = 0;
     if (level > META_ASCENSION_MAX) level = META_ASCENSION_MAX;
     return level;
+}
+
+static int party_member_shield_cap(const PartyMember *pm)
+{
+    if (!pm || pm->max_hp <= 0) return 0;
+    int pct = meta_shield_cap_percent(&g_state.meta);
+    int cap = (pm->max_hp * pct + 99) / 100;
+    return cap < 1 ? 1 : cap;
+}
+
+static int add_party_member_shield_capped(PartyMember *pm, int amount)
+{
+    if (!pm || amount <= 0) return 0;
+    int before = pm->shield;
+    int cap = party_member_shield_cap(pm);
+    pm->shield += amount;
+    if (pm->shield > cap) pm->shield = cap;
+    if (pm->shield < 0) pm->shield = 0;
+    return pm->shield - before;
+}
+
+static void set_party_member_shield_capped(PartyMember *pm, int shield)
+{
+    if (!pm) return;
+    pm->shield = shield;
+    int cap = party_member_shield_cap(pm);
+    if (pm->shield > cap) pm->shield = cap;
+    if (pm->shield < 0) pm->shield = 0;
+}
+
+static int clamp_party_aggro(int aggro)
+{
+    if (aggro < 0) return 0;
+    if (aggro > MAX_PARTY_AGGRO) return MAX_PARTY_AGGRO;
+    return aggro;
+}
+
+static void set_party_member_aggro(PartyMember *pm, int aggro)
+{
+    if (!pm) return;
+    pm->aggro = clamp_party_aggro(aggro);
+}
+
+static void add_party_member_aggro(PartyMember *pm, int amount)
+{
+    if (!pm) return;
+    set_party_member_aggro(pm, pm->aggro + amount);
+}
+
+static int party_aggro_decay_amount(int aggro)
+{
+    if (aggro <= 0) return 0;
+    int decay = (aggro * PARTY_AGGRO_DECAY_PERCENT_PER_TURN + 99) / 100;
+    return decay < 1 ? 1 : decay;
 }
 
 static const char *target_type_name(TargetType target)
@@ -178,6 +237,7 @@ static void log_death_metric(CombatState *cs, const PartyMember *pm, const char 
 static void deal_cards(Deck *deck, int count)
 {
     if (count < 0) count = 0;
+    assets_play_sfx(SFX_CARD_DRAW);
     for (int i = 0; i < count; i++)
         if (deck_draw(deck) < 0) break;
 }
@@ -337,6 +397,7 @@ static void combat_award_card_xp(CombatState *cs, const CardDef *card, int paid_
         combat_feed_add(cs, "%s reached Level %d!", pm->name, pm->level);
         Vector2 p = party_feedback_pos(cs, idx);
         ft_spawn(p.x - 15.0f, p.y + 8.0f, "LV UP!", 10, (Color){ 105, 245, 140, 255 });
+        assets_play_sfx(SFX_LEVEL_UP);
     }
 }
 
@@ -352,6 +413,8 @@ static void combat_try_rogue_mark_refund(CombatState *cs)
     combat_feed_add(cs, "Clean Payday: +1 energy");
 }
 
+static void apply_damage_to_ally(CombatState *cs, int ally_idx, int damage, const char *source);
+
 static void apply_damage_to_enemy(CombatState *cs, int enemy_idx, int damage)
 {
     if (enemy_idx < 0 || enemy_idx >= cs->enemy_count) return;
@@ -360,6 +423,7 @@ static void apply_damage_to_enemy(CombatState *cs, int enemy_idx, int damage)
 
     int before_hp = e->hp;
     int dmg = damage;
+    assets_play_sfx(cs->combo_scale > 1.1f ? SFX_DAMAGE_HEAVY : SFX_DAMAGE);
     if (e->shield > 0)
     {
         int abs = e->shield >= dmg ? dmg : e->shield;
@@ -369,9 +433,26 @@ static void apply_damage_to_enemy(CombatState *cs, int enemy_idx, int damage)
     e->hp -= dmg;
     if (e->hp < 0) e->hp = 0;
 
+    // Thorns reflection: if enemy has Thorns and survived, reflect damage
+    if (e->hp > 0 && dmg > 0)
+    {
+        int ti = status_find(e->statuses, e->status_count, STATUS_THORNS);
+        if (ti >= 0)
+        {
+            int thorn_dmg = e->statuses[ti].value;
+            int target = party_random_alive(&cs->party);
+            if (target >= 0)
+            {
+                apply_damage_to_ally(cs, target, thorn_dmg, "Thorns");
+                combat_feed_add(cs, "Thorns hits %s for %d", cs->party.members[target].name, thorn_dmg);
+            }
+        }
+    }
+
     char buf[16];
     snprintf(buf, sizeof(buf), "-%d", damage);
-    ft_spawn_shake((float)(e->pos_x - 7), (float)(e->pos_y - 18), buf, 10, (Color){ 255, 80, 80, 255 });
+    ft_spawn((float)(e->pos_x - 7), (float)(e->pos_y - 18), buf, 10, (Color){ 255, 80, 80, 255 });
+    shake_trigger(shake_amplitude_for_value(before_hp - e->hp, 1.5f, 0.22f, 8.0f));
     vfx_spawn_burst((float)e->pos_x, (float)e->pos_y, (Color){ 255, 85, 65, 255 }, 6);
 
     LOG_I(CAT_CARD, "  enemy[%d] %s: %d damage (%d HP)", enemy_idx, e->def->name, damage, e->hp);
@@ -386,9 +467,18 @@ static void apply_damage_to_enemy(CombatState *cs, int enemy_idx, int damage)
             cs->energy.current++;
         combat_feed_add(cs, "Executioner's Seal: drew 1, +1 energy");
     }
+
+    int execute_draw = meta_execute_draw_rank(&g_state.meta);
+    if (before_hp > 0 && e->hp <= 0 && execute_draw > 0 && !cs->meta_execute_used)
+    {
+        cs->meta_execute_used = true;
+        deal_cards(&cs->deck, execute_draw);
+        combat_feed_add(cs, "Victory Momentum: drew %d", execute_draw);
+    }
 }
 
 static void apply_shield_to_ally(CombatState *cs, int ally_idx, int amount);
+static void apply_damage_to_ally(CombatState *cs, int ally_idx, int damage, const char *source);
 
 static void apply_heal_to_ally(CombatState *cs, int ally_idx, int amount)
 {
@@ -397,6 +487,7 @@ static void apply_heal_to_ally(CombatState *cs, int ally_idx, int amount)
     if (!pm->alive) return;
     int before = pm->hp;
     int overheal = before + amount - pm->max_hp;
+    assets_play_sfx(SFX_HEAL);
     pm->hp += amount;
     if (pm->hp > pm->max_hp) pm->hp = pm->max_hp;
 
@@ -442,15 +533,23 @@ static void apply_shield_to_ally(CombatState *cs, int ally_idx, int amount)
     if (!pm->alive) return;
     if (relic_has(g_state.relics, g_state.relic_count, RELIC_MIRROR_SHIELD))
         amount += 3;
-    pm->shield += amount;
+    if (amount <= 0) return;
+    int gained = add_party_member_shield_capped(pm, amount);
+    Vector2 p = party_feedback_pos(cs, ally_idx);
+    if (gained <= 0)
+    {
+        ft_spawn(p.x - 8.0f, p.y, "CAP", 10, (Color){ 150, 200, 255, 255 });
+        LOG_I(CAT_CARD, "  ally[%d] %s: shield capped at %d", ally_idx, pm->name, pm->shield);
+        return;
+    }
+    assets_play_sfx(SFX_SHIELD);
 
     char buf[16];
-    snprintf(buf, sizeof(buf), "+%d", amount);
-    Vector2 p = party_feedback_pos(cs, ally_idx);
+    snprintf(buf, sizeof(buf), "+%d", gained);
     ft_spawn(p.x, p.y, buf, 10, (Color){ 100, 200, 255, 255 });
     vfx_spawn_burst(p.x, p.y - 8.0f, (Color){ 115, 190, 255, 255 }, 4);
 
-    LOG_I(CAT_CARD, "  ally[%d] %s: +%d shield (%d)", ally_idx, pm->name, amount, pm->shield);
+    LOG_I(CAT_CARD, "  ally[%d] %s: +%d shield (%d/%d cap)", ally_idx, pm->name, gained, pm->shield, party_member_shield_cap(pm));
 
     if (pm->class == CLASS_GUARDIAN && party_has_pair(cs, CLASS_GUARDIAN, CLASS_MAGE))
     {
@@ -474,9 +573,12 @@ static void apply_shield_to_ally(CombatState *cs, int ally_idx, int amount)
         {
             if (cs->party.members[i].class == CLASS_PALADIN && cs->party.members[i].alive)
             {
-                int share = amount > 2 ? 2 : amount;
-                cs->party.members[i].shield += share;
-                combat_feed_add(cs, "Sheltered Bulwark: Paladin +%d shield", share);
+                int share = gained > 2 ? 2 : gained;
+                int paladin_gain = add_party_member_shield_capped(&cs->party.members[i], share);
+                if (paladin_gain > 0)
+                    combat_feed_add(cs, "Sheltered Bulwark: Paladin +%d shield", paladin_gain);
+                else
+                    combat_feed_add(cs, "Sheltered Bulwark: Paladin shield capped");
                 break;
             }
         }
@@ -494,13 +596,14 @@ static void revive_ally(CombatState *cs, int ally_idx)
     pm->hp = pm->max_hp / 2;
     if (pm->hp < 1) pm->hp = 1;
     pm->shield = 0;
-    pm->aggro = 5;
+    set_party_member_aggro(pm, 5);
     pm->status_count = 0;
 
     char buf[16];
     snprintf(buf, sizeof(buf), "+%d", pm->hp);
     Vector2 p = party_feedback_pos(cs, ally_idx);
     ft_spawn(p.x, p.y, buf, 10, (Color){ 120, 255, 160, 255 });
+    assets_play_sfx(SFX_PARTY_REVIVED);
 
     LOG_I(CAT_CARD, "  ally[%d] %s: revived at %d HP", ally_idx, pm->name, pm->hp);
 }
@@ -512,6 +615,7 @@ static void apply_damage_to_ally(CombatState *cs, int ally_idx, int damage, cons
     if (!pm->alive) return;
 
     int remaining = damage;
+    assets_play_sfx(cs->combo_scale > 1.1f ? SFX_DAMAGE_HEAVY : SFX_DAMAGE);
     if (pm->shield > 0)
     {
         int absorb = pm->shield >= remaining ? remaining : pm->shield;
@@ -523,11 +627,42 @@ static void apply_damage_to_ally(CombatState *cs, int ally_idx, int damage, cons
     pm->hp -= remaining;
     if (pm->hp < 0) pm->hp = 0;
 
+    // Thorns reflection: if ally has Thorns and survived, reflect to a random enemy
+    if (pm->hp > 0 && remaining > 0)
+    {
+        int ti = status_find(pm->statuses, pm->status_count, STATUS_THORNS);
+        if (ti >= 0)
+        {
+            int thorn_dmg = pm->statuses[ti].value;
+            int living_enemies = 0;
+            for (int i = 0; i < cs->enemy_count; i++)
+                if (cs->enemies[i].def && cs->enemies[i].hp > 0)
+                    living_enemies++;
+            if (living_enemies > 0)
+            {
+                int pick = rand() % living_enemies;
+                int ei = 0;
+                for (int i = 0; i < cs->enemy_count; i++)
+                {
+                    if (!cs->enemies[i].def || cs->enemies[i].hp <= 0) continue;
+                    if (ei == pick)
+                    {
+                        apply_damage_to_enemy(cs, i, thorn_dmg);
+                        combat_feed_add(cs, "Thorns hits %s for %d", cs->enemies[i].def->name, thorn_dmg);
+                        break;
+                    }
+                    ei++;
+                }
+            }
+        }
+    }
+
     Vector2 p = party_feedback_pos(cs, ally_idx);
 
     char buf[16];
     snprintf(buf, sizeof(buf), "-%d", before - pm->hp);
-    ft_spawn_shake(p.x, p.y, buf, 10, (Color){ 255, 90, 90, 255 });
+    ft_spawn(p.x, p.y, buf, 10, (Color){ 255, 90, 90, 255 });
+    shake_trigger(shake_amplitude_for_value(before - pm->hp, 1.5f, 0.22f, 8.0f));
     vfx_spawn_burst(p.x, p.y - 8.0f, (Color){ 255, 85, 75, 255 }, 5);
 
     LOG_I(CAT_COMBAT, "%s hits %s for %d (%d -> %d)", source, pm->name, before - pm->hp, before, pm->hp);
@@ -539,8 +674,20 @@ static void apply_damage_to_ally(CombatState *cs, int ally_idx, int damage, cons
         relic_has(g_state.relics, g_state.relic_count, RELIC_VEIL_PIN))
     {
         cs->veil_pin_used = true;
-        pm->shield += 6;
+        int gained = add_party_member_shield_capped(pm, 6);
         combat_feed_add(cs, "Veil Pin: %s gained 6 Shield", pm->name);
+        if (gained < 6) combat_feed_add(cs, "%s's Shield is capped", pm->name);
+    }
+
+    if (before > pm->hp &&
+        pm->hp > 0 &&
+        !cs->meta_emergency_barrier_used &&
+        meta_has_emergency_barrier(&g_state.meta))
+    {
+        cs->meta_emergency_barrier_used = true;
+        int gained = add_party_member_shield_capped(pm, 4);
+        combat_feed_add(cs, "Emergency Barrier: %s gained 4 Shield", pm->name);
+        if (gained < 4) combat_feed_add(cs, "%s's Shield is capped", pm->name);
     }
 
     if (pm->hp <= 0)
@@ -554,13 +701,25 @@ static void apply_damage_to_ally(CombatState *cs, int ally_idx, int damage, cons
             LOG_I(CAT_COMBAT, "%s saved by Phoenix Feather!", pm->name);
             combat_feed_add(cs, "Phoenix Feather saved %s", pm->name);
             ft_spawn(p.x - 18.0f, p.y + 7.0f, "REVIVED", 10, (Color){ 255, 150, 50, 255 });
+            assets_play_sfx(SFX_PARTY_REVIVED);
+        }
+        else if (!cs->meta_last_stand_used && meta_has_last_stand(&g_state.meta))
+        {
+            cs->meta_last_stand_used = true;
+            pm->hp = 1;
+            set_party_member_shield_capped(pm, 6);
+            LOG_I(CAT_COMBAT, "%s held on with Last Stand!", pm->name);
+            combat_feed_add(cs, "Last Stand saved %s", pm->name);
+            ft_spawn(p.x - 18.0f, p.y + 7.0f, "LAST STAND", 10, (Color){ 245, 220, 110, 255 });
+            assets_play_sfx(SFX_SHIELD);
         }
         else
         {
             pm->alive = false;
+            assets_play_sfx(SFX_PARTY_DOWNED);
             g_state.run_deaths++;
             log_death_metric(cs, pm, source);
-            pm->aggro = 0;
+            set_party_member_aggro(pm, 0);
             pm->shield = 0;
             LOG_I(CAT_COMBAT, "%s DOWNED! Removing %s cards.", pm->name, class_name(pm->class));
             combat_feed_add(cs, "%s is downed", pm->name);
@@ -582,6 +741,7 @@ static void apply_heal_to_enemy(CombatState *cs, int enemy_idx, int amount)
     if (!e->def || e->hp <= 0) return;
 
     int before = e->hp;
+    assets_play_sfx(SFX_HEAL);
     e->hp += amount;
     if (e->hp > e->max_hp) e->hp = e->max_hp;
 
@@ -599,6 +759,7 @@ static void apply_shield_to_enemy(CombatState *cs, int enemy_idx, int amount)
     EnemyState *e = &cs->enemies[enemy_idx];
     if (!e->def || e->hp <= 0) return;
 
+    assets_play_sfx(SFX_SHIELD);
     e->shield += amount;
     char buf[16];
     snprintf(buf, sizeof(buf), "+%d", amount);
@@ -654,6 +815,7 @@ static bool interrupt_enemy(CombatState *cs, int enemy_idx)
     }
 
     LOG_I(CAT_CARD, "  %s interrupted %s", e->def->name, ab->name);
+    assets_play_sfx(SFX_INTERRUPT);
     combat_feed_add(cs, "%s was interrupted", e->def->name);
     ft_spawn_shake((float)(e->pos_x - 21), (float)(e->pos_y - 26), "INTERRUPTED", 10, (Color){ 220, 120, 255, 255 });
     vfx_spawn_burst((float)e->pos_x, (float)(e->pos_y - 15), (Color){ 220, 120, 255, 255 }, 7);
@@ -670,7 +832,7 @@ static void add_aggro_to_caster(CombatState *cs, ClassType ct, int amount)
 {
     for (int i = 0; i < cs->party.count; i++)
         if (cs->party.members[i].class == ct && cs->party.members[i].alive)
-            cs->party.members[i].aggro += amount;
+            add_party_member_aggro(&cs->party.members[i], amount);
 }
 
 static void find_caster(CombatState *cs, ClassType ct, int *out_idx)
@@ -819,6 +981,7 @@ static void combat_spawn_enemy_card_throw(CombatState *cs, EnemyState *e, const 
 
     EnemyCardThrow *thr = &cs->enemy_card_throws[slot];
     thr->active = true;
+    assets_play_sfx(SFX_ENEMY_ATTACK);
     thr->enemy_index = enemy_idx;
     thr->card_idx = cd - e->def->cards;
     thr->ability_name = cd->name;
@@ -864,6 +1027,7 @@ void combat_draw_enemy_card_throws(CombatState *cs)
         fake_card.class = CLASS_NONE;
         fake_card.cost = 0;
         fake_card.description = "";
+        int keyword_icon = -1;
 
         // Set type and target based on intent
         switch (thr->intent)
@@ -898,10 +1062,16 @@ void combat_draw_enemy_card_throws(CombatState *cs)
                 fake_card.damage = ecd->base_damage;
                 fake_card.heal = ecd->heal_amount;
                 fake_card.shield = ecd->shield_amount;
+                if (ecd->lifesteal_pct > 0)
+                    keyword_icon = KW_LIFESTEAL;
+                else if (ecd->interrupts)
+                    keyword_icon = KW_INTERRUPT;
             }
         }
 
         theme_draw_card_art(r, &fake_card, 0);
+        if (keyword_icon >= 0)
+            theme_draw_keyword_icon(r, (KeywordIcon)keyword_icon);
     }
 }
 
@@ -944,6 +1114,7 @@ static void combat_spawn_card_throw(CombatState *cs, int hand_idx, const CardDef
     CardThrowAnim *anim = &cs->card_throws[slot];
     anim->active = true;
     anim->card = card;
+    anim->instance = cs->deck.cards[cs->deck.hand[hand_idx]];
     anim->upgrade_level = upgrade_level;
     anim->seed = (unsigned int)cs->deck.cards[cs->deck.hand[hand_idx]].uid;
     anim->t = 0.0f;
@@ -1025,6 +1196,7 @@ void combat_draw_card_throws(CombatState *cs)
             (float)anim->height
         };
         theme_draw_card_art_seeded(r, anim->card, anim->upgrade_level, anim->seed);
+        theme_draw_keyword_badge(r, &anim->instance);
     }
 }
 
@@ -1188,6 +1360,10 @@ static void apply_status_to_enemy(CombatState *cs, int enemy_idx, StatusType sta
         combat_feed_add(cs, "Deadly Poison: +%d immediate", dmg);
     }
 
+    // ── Status amplification buff ──
+    if (cs->player_status_amp > 0 && amount > 0)
+        amount = amount * (100 + cs->player_status_amp) / 100;
+
     status_apply(e->statuses, &e->status_count, status, turns, amount);
     LOG_I(CAT_CARD, "  enemy[%d]: +%s (%d for %d turns)", enemy_idx, status_label(status), amount, turns);
     combat_feed_add(cs, "%s: %s", e->def->name, status_label(status));
@@ -1209,6 +1385,10 @@ static void apply_status_to_ally(CombatState *cs, int ally_idx, StatusType statu
         cs->shaman_extend_status_used = true;
         combat_feed_add(cs, "Lingering Rite: +1 turn");
     }
+
+    // ── Status amplification buff ──
+    if (cs->player_status_amp > 0 && amount > 0)
+        amount = amount * (100 + cs->player_status_amp) / 100;
 
     status_apply(pm->statuses, &pm->status_count, status, turns, amount);
     LOG_I(CAT_CARD, "  ally[%d]: +%s (%d for %d turns)", ally_idx, status_label(status), amount, turns);
@@ -1267,7 +1447,7 @@ static void apply_card_effect(CombatState *cs, const CardDef *card, const CardEf
             find_caster(cs, card->class, &caster);
             if (caster >= 0)
             {
-                cs->party.members[caster].aggro = 0;
+                set_party_member_aggro(&cs->party.members[caster], 0);
                 ft_spawn(22.0f, 176.0f, "AGGRO RESET", 10, (Color){ 120, 220, 160, 255 });
                 LOG_I(CAT_CARD, "  %s: aggro reset", card->name);
                 combat_feed_add(cs, "%s reset aggro", cs->party.members[caster].name);
@@ -1287,15 +1467,15 @@ static void apply_card_effect(CombatState *cs, const CardDef *card, const CardEf
             int transfer = cs->party.members[target_ally].aggro;
             if (guardian >= 0 && guardian != target_ally)
             {
-                cs->party.members[guardian].aggro += transfer;
-                cs->party.members[target_ally].aggro = 0;
+                add_party_member_aggro(&cs->party.members[guardian], transfer);
+                set_party_member_aggro(&cs->party.members[target_ally], 0);
                 ft_spawn(22.0f, 176.0f, "AGGRO TRANSFER", 10, (Color){ 180, 180, 220, 255 });
                 LOG_I(CAT_CARD, "  %s: moved %d aggro to Guardian", card->name, transfer);
                 combat_feed_add(cs, "Aggro moved to Guardian");
             }
             else
             {
-                cs->party.members[target_ally].aggro = 0;
+                set_party_member_aggro(&cs->party.members[target_ally], 0);
                 LOG_I(CAT_CARD, "  %s: reduced ally aggro by %d", card->name, transfer);
                 combat_feed_add(cs, "Aggro cleared");
             }
@@ -1309,6 +1489,31 @@ static void apply_card_effect(CombatState *cs, const CardDef *card, const CardEf
                     apply_heal_to_ally(cs, caster, 8);
                 }
             }
+            break;
+        }
+        case CARD_EFFECT_GAIN_BUFF:
+        {
+            float mult = 1.0f + (float)effect->amount / 100.0f;
+            cs->player_damage_mult *= mult;
+            if (effect->turns > cs->player_buff_turns)
+                cs->player_buff_turns = effect->turns;
+            combat_feed_add(cs, "Damage buffed x%.2f for %d turns", mult, effect->turns);
+            break;
+        }
+        case CARD_EFFECT_EXTRA_DRAW:
+        {
+            cs->player_extra_draw += effect->amount;
+            if (effect->turns > cs->player_extra_draw_turns)
+                cs->player_extra_draw_turns = effect->turns;
+            combat_feed_add(cs, "Extra draw +%d for %d turns", effect->amount, effect->turns);
+            break;
+        }
+        case CARD_EFFECT_GAIN_STATUS_AMP:
+        {
+            cs->player_status_amp += effect->amount;
+            if (effect->turns > cs->player_status_amp_turns)
+                cs->player_status_amp_turns = effect->turns;
+            combat_feed_add(cs, "Status amp +%d%% for %d turns", effect->amount, effect->turns);
             break;
         }
     }
@@ -1380,6 +1585,7 @@ static void combo_prime_set(CombatState *cs, const SynergyComboDef *def)
     snprintf(cs->synergy_banner_subtitle, sizeof(cs->synergy_banner_subtitle), "%s", def->subtitle);
     cs->synergy_banner_timer = 1.35f;
     cs->synergy_flash_timer = 0.32f;
+    assets_play_sfx(SFX_SYNERGY_TRIGGER);
     cs->combo_scale = 1.0f;
     cs->combo_tween = tween_create(&cs->combo_scale, 1.35f, 0.12f, EASE_OUT_BACK);
     tween_chain(cs->combo_tween, &cs->combo_scale, 1.0f, 0.35f, EASE_OUT_ELASTIC);
@@ -1455,7 +1661,7 @@ static void apply_relic_combat_start(CombatState *cs)
     {
         for (int i = 0; i < cs->party.count; i++)
             if (cs->party.members[i].alive)
-                cs->party.members[i].shield += 4;
+                add_party_member_shield_capped(&cs->party.members[i], 4);
         combat_feed_add(cs, "Ward Stone: +4 Shield");
     }
 
@@ -1466,7 +1672,7 @@ static void apply_relic_combat_start(CombatState *cs)
         {
             for (int i = 0; i < cs->party.count; i++)
                 if (cs->party.members[i].alive)
-                    cs->party.members[i].shield += shield;
+                    add_party_member_shield_capped(&cs->party.members[i], shield);
             combat_feed_add(cs, "Prosperity Charm: +%d Shield", shield);
         }
     }
@@ -1492,7 +1698,7 @@ static void apply_relic_combat_start(CombatState *cs)
         int lowest = party_lowest_hp(&cs->party);
         if (lowest >= 0)
         {
-            cs->party.members[lowest].shield += 8;
+            add_party_member_shield_capped(&cs->party.members[lowest], 8);
             combat_feed_add(cs, "Warden Crest: +8 Shield");
         }
     }
@@ -1552,8 +1758,35 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
         if (hl > 0) hl += combat_class_perk_count(cs, card->class, PERK_CARD_HEAL_1);
         if (sh > 0) sh += combat_class_perk_count(cs, card->class, PERK_CARD_SHIELD_1);
     }
+    if (dmg > 0 && card->class == CLASS_WARLOCK)
+        dmg += meta_warlock_damage_bonus(&g_state.meta);
+    if (sh > 0 && card->class == CLASS_PALADIN)
+        sh += meta_paladin_shield_bonus(&g_state.meta);
+    if (hl > 0)
+        hl += meta_heal_bonus(&g_state.meta);
+    if (dmg > 0 && !cs->meta_opening_damage_used)
+    {
+        int opening = meta_opening_damage_bonus(&g_state.meta);
+        if (opening > 0)
+        {
+            dmg += opening;
+            cs->meta_opening_damage_used = true;
+            combat_feed_add(cs, "Opening Strike: +%d damage", opening);
+        }
+    }
+    if (dmg > 0 && (g_state.encounter_is_elite || g_state.encounter_is_boss))
+        dmg += meta_elite_damage_bonus(&g_state.meta);
+    if (dmg > 0 && g_state.encounter_is_boss)
+        dmg += meta_boss_damage_bonus(&g_state.meta);
+    if (dmg > 0 && target_enemy >= 0 && target_enemy < cs->enemy_count)
+    {
+        EnemyState *target = &cs->enemies[target_enemy];
+        if (target->def && target->hp > 0 && target->hp * 2 <= target->max_hp)
+            dmg += meta_weak_enemy_damage_bonus(&g_state.meta);
+    }
 
     LOG_I(CAT_CARD, "Playing %s (enemy=%d, ally=%d) upgrade_level=%d channel=%d", card->name, target_enemy, target_ally, upgrade_level, card->channel);
+    assets_play_sfx(SFX_CARD_PLAY);
     combat_spawn_card_throw(cs, hand_idx, card, upgrade_level, target_enemy, target_ally);
     combat_flash_played_card(cs, card, target_enemy, target_ally);
     combat_feed_add(cs, "Played %s", card->name);
@@ -1657,13 +1890,18 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
     // ── Sneaky Steal: Rogue+Paladin 10% lifesteal on all damage ──
     bool have_sneaky_steal = (dmg > 0 && party_has_pair(cs, CLASS_ROGUE, CLASS_PALADIN));
 
+    int bard_draw = 0;
+    if (combat_class_has_perk(cs, CLASS_BARD, PERK_BARD_FIRST_DRAW))
+        bard_draw = 1;
+    if (meta_bard_draw_bonus(&g_state.meta) > bard_draw)
+        bard_draw = meta_bard_draw_bonus(&g_state.meta);
     if (card->class == CLASS_BARD &&
         !cs->bard_first_draw_used &&
-        combat_class_has_perk(cs, CLASS_BARD, PERK_BARD_FIRST_DRAW))
+        bard_draw > 0)
     {
         cs->bard_first_draw_used = true;
-        deck_draw(&cs->deck);
-        combat_feed_add(cs, "Encore: drew 1");
+        deal_cards(&cs->deck, bard_draw);
+        combat_feed_add(cs, "Encore: drew %d", bard_draw);
     }
 
     // ── Blood Amber: lose 1 HP, gain 1 energy per card played ──
@@ -1682,12 +1920,19 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
     }
 
     // ── Echo: resolve card again at 50% (from card keyword or Echo Bell relic) ──
-    bool echo_this_card = card->echo ||
+    bool echo_this_card = card_instance_has_echo(inst) ||
         (!cs->echo_used && card->cost >= 1 && relic_has(g_state.relics, g_state.relic_count, RELIC_ECHO_BELL));
     if (echo_this_card)
     {
         cs->echo_used = true;
         combat_feed_add(cs, "%s echoed", card->name);
+    }
+
+    // ── Player damage buff multiplier ──
+    if (cs->player_damage_mult > 1.0f && dmg > 0)
+    {
+        dmg = (int)(dmg * cs->player_damage_mult);
+        if (dmg < 1) dmg = 1;
     }
 
     int caster_for_debuff = -1;
@@ -1970,7 +2215,7 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
             combat_feed_add(cs, "Dark Refrain: BLIGHT applied");
         }
 
-    if (card->interrupt && target_enemy >= 0)
+    if (card_instance_has_interrupt(inst) && target_enemy >= 0)
         interrupt_enemy(cs, target_enemy);
 
     if (card->target == TARGET_ALL_ALLIES)
@@ -2008,7 +2253,7 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
         }
     }
 
-    if (card->taunt)
+    if (card_instance_has_taunt(inst))
     {
         int caster = -1;
         find_caster(cs, card->class, &caster);
@@ -2018,8 +2263,9 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
             for (int i = 0; i < cs->party.count; i++)
                 if (cs->party.members[i].alive && cs->party.members[i].aggro > highest)
                     highest = cs->party.members[i].aggro;
-            cs->party.members[caster].aggro = highest + 30;
+            set_party_member_aggro(&cs->party.members[caster], highest + 30);
             LOG_I(CAT_CARD, "Taunt: caster aggro set to %d", cs->party.members[caster].aggro);
+            assets_play_sfx(SFX_TAUNT);
             if (!cs->guardian_taunt_shield_used &&
                 combat_class_has_perk(cs, CLASS_GUARDIAN, PERK_GUARDIAN_TAUNT_SHIELD))
             {
@@ -2133,6 +2379,31 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
         }
     }
 
+    // ── Card lifesteal: heal caster by flat amount when damage is dealt ──
+    int lifesteal_val = card_instance_lifesteal(inst);
+    if (lifesteal_val > 0 && dmg > 0)
+    {
+        int caster = -1;
+        find_caster(cs, card->class, &caster);
+        if (caster >= 0)
+        {
+            apply_heal_to_ally(cs, caster, lifesteal_val);
+            combat_feed_add(cs, "%s leeched %d HP", card->name, lifesteal_val);
+        }
+    }
+
+    // ── Self-HP cost: caster takes damage as a cost ──
+    if (card->self_hp_cost > 0)
+    {
+        int caster = -1;
+        find_caster(cs, card->class, &caster);
+        if (caster >= 0)
+        {
+            apply_damage_to_ally(cs, caster, card->self_hp_cost, card->name);
+            combat_feed_add(cs, "%s cost %d HP", card->name, card->self_hp_cost);
+        }
+    }
+
     if (card->channel)
     {
         cs->channel_card = card;
@@ -2148,7 +2419,9 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
         deck_remove_card_by_uid(&g_state.run_deck, played_uid);
         combat_feed_add(cs, "%s consumed", card->name);
     }
-    else if (card->exhaust)
+    else if (card_instance_has_fleeting(inst))
+        deck_exhaust_index(&cs->deck, hand_idx);
+    else if (card_instance_has_exhaust(inst) || card->exhaust)
         deck_exhaust_index(&cs->deck, hand_idx);
     else
         deck_discard_index(&cs->deck, hand_idx);
@@ -2160,24 +2433,17 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
     }
 
     // ── Echo: resolve again at 50% if flagged ──
-    if (echo_this_card && echo_this_card == true)
+    if (echo_this_card)
     {
-        echo_this_card = false;
-        int half_dmg = card->damage / 2;
-        int half_hl = card->heal / 2;
-        int half_sh = card->shield / 2;
-        // Create a temporary card def with halved values
-        CardDef echo_card = *card;
-        echo_card.damage = half_dmg;
-        echo_card.heal = half_hl;
-        echo_card.shield = half_sh;
-        echo_card.echo = false; // prevent infinite loop
-        // Find a random valid target
+        int half_dmg = card_damage(card, upgrade_level) / 2;
+        int half_hl = card_heal(card, upgrade_level) / 2;
+        int half_sh = card_shield(card, upgrade_level) / 2;
         int echo_target_enemy = -1;
         int echo_target_ally = -1;
+        bool resolved = false;
+
         if (card->target == TARGET_ENEMY || card->target == TARGET_ALL_ENEMIES)
         {
-            // Pick a random living enemy
             int alive[MAX_ENEMIES], alive_count = 0;
             for (int i = 0; i < cs->enemy_count; i++)
                 if (cs->enemies[i].def && cs->enemies[i].hp > 0)
@@ -2185,7 +2451,7 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
             if (alive_count > 0)
                 echo_target_enemy = alive[rand() % alive_count];
         }
-        else if (card->target == TARGET_ALLY || card->target == TARGET_ALL_ALLIES || card->target == TARGET_SELF)
+        else if (card->target == TARGET_ALLY || card->target == TARGET_ALL_ALLIES)
         {
             int alive[MAX_PARTY_SIZE], alive_count = 0;
             for (int i = 0; i < cs->party.count; i++)
@@ -2193,16 +2459,56 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
                     alive[alive_count++] = i;
             if (alive_count > 0)
                 echo_target_ally = alive[rand() % alive_count];
-            if (card->target == TARGET_SELF && echo_target_ally >= 0)
-                echo_target_ally = 0;
         }
-        if (echo_target_enemy >= 0 || echo_target_ally >= 0)
+
+        if (half_dmg > 0)
+        {
+            if (card->target == TARGET_ALL_ENEMIES)
+            {
+                for (int i = 0; i < cs->enemy_count; i++)
+                    if (cs->enemies[i].def && cs->enemies[i].hp > 0)
+                        apply_damage_to_enemy(cs, i, half_dmg);
+                resolved = true;
+            }
+            else if (echo_target_enemy >= 0)
+            {
+                apply_damage_to_enemy(cs, echo_target_enemy, half_dmg);
+                resolved = true;
+            }
+        }
+
+        if (card->target == TARGET_ALL_ALLIES)
+        {
+            for (int i = 0; i < cs->party.count; i++)
+                if (cs->party.members[i].alive)
+                {
+                    if (half_hl > 0) apply_heal_to_ally(cs, i, half_hl);
+                    if (half_sh > 0) apply_shield_to_ally(cs, i, half_sh);
+                    resolved = resolved || half_hl > 0 || half_sh > 0;
+                }
+        }
+        else if (card->target == TARGET_ALLY && echo_target_ally >= 0)
+        {
+            if (half_hl > 0) apply_heal_to_ally(cs, echo_target_ally, half_hl);
+            if (half_sh > 0) apply_shield_to_ally(cs, echo_target_ally, half_sh);
+            resolved = resolved || half_hl > 0 || half_sh > 0;
+        }
+        else
+        {
+            int caster = -1;
+            find_caster(cs, card->class, &caster);
+            if (caster >= 0)
+            {
+                if (half_hl > 0) apply_heal_to_ally(cs, caster, half_hl);
+                if (half_sh > 0) apply_shield_to_ally(cs, caster, half_sh);
+                resolved = resolved || half_hl > 0 || half_sh > 0;
+            }
+        }
+
+        if (resolved)
         {
             LOG_D(CAT_CARD, "Echo: resolving copy at 50%%");
             combat_feed_add(cs, "Echo copy resolves");
-            resolve_card_on_target(cs, hand_idx, echo_target_enemy, echo_target_ally, 0);
-            // Restore original card def pointer for chain detection
-            cs->deck.cards[cs->deck.hand[hand_idx]].def = card;
         }
     }
 
@@ -2216,6 +2522,8 @@ static void check_victory(CombatState *cs)
     for (int i = 0; i < cs->enemy_count; i++)
         if (cs->enemies[i].def && cs->enemies[i].hp > 0) return;
     cs->phase = COMBAT_VICTORY;
+    assets_play_sfx(SFX_VICTORY);
+    assets_stop_music();
     strcpy(cs->result_message, "VICTORY! Click to continue.");
     combat_feed_add(cs, "Victory");
     if (g_state.run_best_combat_turns <= 0 || cs->turn < g_state.run_best_combat_turns)
@@ -2235,6 +2543,7 @@ static void check_victory(CombatState *cs)
         if (relic_has(g_state.relics, g_state.relic_count, RELIC_RABBIT_FOOT) && (rand() % 10) == 0)
             gold_gain *= 2;
         cs->gold_reward = gold_gain;
+        assets_play_sfx(SFX_GOLD_PICKUP);
         ft_spawn_gold(gold_gain);
         cs->gold_spawned = true;
     }
@@ -2257,6 +2566,8 @@ static void check_defeat(CombatState *cs)
     for (int i = 0; i < cs->party.count; i++)
         if (cs->party.members[i].alive) return;
     cs->phase = COMBAT_DEFEAT;
+    assets_play_sfx(SFX_DEFEAT);
+    assets_stop_music();
     strcpy(cs->result_message, "Party wiped. Click to continue.");
     combat_feed_add(cs, "Party wiped");
     LOG_I(CAT_COMBAT, "=== DEFEAT ===");
@@ -2272,7 +2583,7 @@ static void enemy_action(EnemyState *e, CombatState *cs, int target_enemy, int t
     if (ci < 0 || ci >= e->def->card_count) return;
 
     const EnemyCardDef *cd = &e->def->cards[ci];
-    int damage = (int)(cd->base_damage * cs->floor_scale * cs->enemy_damage_scale);
+    int damage = (int)(cd->base_damage * cs->floor_scale * cs->enemy_damage_scale * cs->enemy_damage_buff_scale);
 
     // Snare Trap reduces damage
     int trap_idx = status_find(e->statuses, e->status_count, STATUS_TRAP);
@@ -2292,16 +2603,56 @@ static void enemy_action(EnemyState *e, CombatState *cs, int target_enemy, int t
     if (cd->intent == INTENT_SHIELD || cd->intent == INTENT_BUFF)
     {
         apply_shield_to_enemy(cs, (int)(e - cs->enemies), cd->shield_amount);
+        if (cd->status != STATUS_NONE && cd->status_turns > 0)
+            status_apply(e->statuses, &e->status_count, cd->status, cd->status_turns, cd->status_amount);
+        if (cd->enrage_allies)
+        {
+            for (int i = 0; i < cs->enemy_count; i++)
+                if (i != (int)(e - cs->enemies) && cs->enemies[i].def && cs->enemies[i].hp > 0)
+                    apply_shield_to_enemy(cs, i, cd->shield_amount);
+        }
+        return;
+    }
+
+    // ── BUFF ATTACK: increase enemy damage output ──
+    if (cd->intent == INTENT_BUFF_ATTACK)
+    {
+        float mult = 1.0f + (float)cd->buff_damage / 100.0f;
+        cs->enemy_damage_buff_scale *= mult;
+        if (cd->buff_turns > cs->enemy_damage_buff_turns)
+            cs->enemy_damage_buff_turns = cd->buff_turns;
+        combat_feed_add(cs, "%s buffed damage x%.2f", e->def->name, mult);
+        return;
+    }
+
+    // ── AOE SHIELD: shields all living enemies ──
+    if (cd->intent == INTENT_AOE_SHIELD)
+    {
+        for (int i = 0; i < cs->enemy_count; i++)
+            if (cs->enemies[i].def && cs->enemies[i].hp > 0)
+                apply_shield_to_enemy(cs, i, cd->shield_amount);
+        check_defeat(cs);
         return;
     }
 
     if (cd->intent == INTENT_AOE || cd->intent == INTENT_WIPE)
     {
+        int total_damage = 0;
         for (int i = 0; i < cs->party.count; i++)
         {
             apply_damage_to_ally(cs, i, damage, e->def->name);
             if (cd->status != STATUS_NONE && cd->status_turns > 0)
                 apply_status_to_ally(cs, i, cd->status, cd->status_turns, cd->status_amount);
+            total_damage += damage;
+        }
+        if (cd->lifesteal_pct > 0)
+        {
+            int lifesteal = total_damage * cd->lifesteal_pct / 100;
+            if (lifesteal > 0 && e->hp > 0)
+            {
+                apply_heal_to_enemy(cs, (int)(e - cs->enemies), lifesteal);
+                combat_feed_add(cs, "%s leeched %d HP", e->def->name, lifesteal);
+            }
         }
         if (relic_has(g_state.relics, g_state.relic_count, RELIC_THORNED_AMULET))
             apply_damage_to_enemy(cs, (int)(e - cs->enemies), 2);
@@ -2309,9 +2660,8 @@ static void enemy_action(EnemyState *e, CombatState *cs, int target_enemy, int t
         return;
     }
 
-    int repeats = 1;
-    if (strcmp(cd->name, "Dual Strike") == 0 || strcmp(cd->name, "Rapid Strikes") == 0)
-        repeats = 2;
+    int repeats = cd->repeats;
+    if (repeats < 1) repeats = 1;
 
     for (int hit = 0; hit < repeats; hit++)
     {
@@ -2323,6 +2673,15 @@ static void enemy_action(EnemyState *e, CombatState *cs, int target_enemy, int t
         if (hit == 0 && cd->status != STATUS_NONE && cd->status_turns > 0)
             apply_status_to_ally(cs, target, cd->status, cd->status_turns, cd->status_amount);
     }
+    if (cd->lifesteal_pct > 0 && damage > 0 && e->hp > 0)
+    {
+        int lifesteal = damage * repeats * cd->lifesteal_pct / 100;
+        if (lifesteal > 0)
+        {
+            apply_heal_to_enemy(cs, (int)(e - cs->enemies), lifesteal);
+            combat_feed_add(cs, "%s leeched %d HP", e->def->name, lifesteal);
+        }
+    }
     if (relic_has(g_state.relics, g_state.relic_count, RELIC_THORNED_AMULET) && damage > 0)
         apply_damage_to_enemy(cs, (int)(e - cs->enemies), 2);
 
@@ -2331,6 +2690,38 @@ static void enemy_action(EnemyState *e, CombatState *cs, int target_enemy, int t
 
     if (cd->heal_amount > 0 && e->hp > 0)
         apply_heal_to_enemy(cs, (int)(e - cs->enemies), cd->heal_amount);
+
+    // ── Self-damage (sacrifice HP for power) ──
+    if (cd->self_damage > 0 && e->hp > 0)
+    {
+        int sd = (int)(cd->self_damage * cs->floor_scale);
+        e->hp -= sd;
+        if (e->hp < 0) e->hp = 0;
+        combat_feed_add(cs, "%s sacrificed %d HP", e->def->name, sd);
+    }
+
+    // ── Interrupt player channeling/combo ──
+    if (cd->interrupts)
+    {
+        if (cs->channel_card)
+        {
+            combat_feed_add(cs, "%s was silenced!", cs->channel_card->name);
+            cs->channel_card = NULL;
+            cs->channel_remaining = 0;
+        }
+        combo_prime_clear(cs);
+        cs->combo_class = CLASS_NONE;
+        cs->combo_count = 0;
+    }
+
+    // ── Enrage allies (apply shield to other enemies) ──
+    if (cd->enrage_allies && cd->shield_amount > 0)
+    {
+        int half = cd->shield_amount > 1 ? cd->shield_amount / 2 : 1;
+        for (int i = 0; i < cs->enemy_count; i++)
+            if (i != (int)(e - cs->enemies) && cs->enemies[i].def && cs->enemies[i].hp > 0)
+                apply_shield_to_enemy(cs, i, half);
+    }
 
     check_defeat(cs);
 }
@@ -2362,10 +2753,43 @@ static int enemy_cast_time(CombatState *cs, EnemyState *e, int card_idx)
 
 // ── Turn progression ────────────────────────────────────────
 
+int combat_sudden_death_damage(int completed_turn)
+{
+    if (completed_turn < SUDDEN_DEATH_START_TURN) return 0;
+    return 1 + completed_turn - SUDDEN_DEATH_START_TURN;
+}
+
+static bool apply_sudden_death(CombatState *cs, int completed_turn)
+{
+    int damage = combat_sudden_death_damage(completed_turn);
+    if (damage <= 0) return false;
+
+    combat_feed_add(cs, "Sudden Death: everyone takes %d", damage);
+    ft_spawn((float)(VIRT_W / 2 - 40), 74.0f, "SUDDEN DEATH", 10, (Color){ 255, 70, 70, 255 });
+    shake_trigger(shake_amplitude_for_value(damage, 2.0f, 0.35f, 8.0f));
+
+    for (int i = 0; i < cs->party.count; i++)
+        if (cs->party.members[i].alive)
+            apply_damage_to_ally(cs, i, damage, "Sudden Death");
+
+    for (int i = 0; i < cs->enemy_count; i++)
+        if (cs->enemies[i].def && cs->enemies[i].hp > 0)
+            apply_damage_to_enemy(cs, i, damage);
+
+    check_defeat(cs);
+    if (cs->phase == COMBAT_DEFEAT) return true;
+    check_victory(cs);
+    return cs->phase == COMBAT_VICTORY;
+}
+
 static void advance_turn(CombatState *cs)
 {
     cs->turn++;
     LOG_I(CAT_COMBAT, "=== Turn %d ===", cs->turn);
+    if (apply_sudden_death(cs, cs->turn - 1))
+        return;
+    if (cs->turn == SUDDEN_DEATH_START_TURN)
+        combat_feed_add(cs, "Sudden Death begins after this turn");
     cs->last_played_class = CLASS_NONE;
     if (cs->combo_prime_index >= 0 && cs->combo_prime_turns_remaining > 0)
     {
@@ -2423,6 +2847,7 @@ static void advance_turn(CombatState *cs)
         if (bi >= 0)
         {
             int burn_dmg = cs->enemies[ei].statuses[bi].value;
+            assets_play_sfx(SFX_BURN_TICK);
             cs->enemies[ei].hp -= burn_dmg;
             if (cs->enemies[ei].hp < 0) cs->enemies[ei].hp = 0;
             char bbuf[16];
@@ -2441,6 +2866,7 @@ static void advance_turn(CombatState *cs)
         if (bi >= 0)
         {
             int bleed_dmg = cs->party.members[i].statuses[bi].value;
+            assets_play_sfx(SFX_BLEED_TICK);
             apply_damage_to_ally(cs, i, bleed_dmg, "Bleed");
         }
     }
@@ -2477,6 +2903,29 @@ static void advance_turn(CombatState *cs)
         }
     }
 
+    // ── Death Mark tick on enemies (damages for stacks, ticks down by 2) ──
+    for (int ei = 0; ei < cs->enemy_count; ei++)
+    {
+        if (!cs->enemies[ei].def || cs->enemies[ei].hp <= 0) continue;
+        int di = status_find(cs->enemies[ei].statuses, cs->enemies[ei].status_count, STATUS_DEATH_MARK);
+        if (di >= 0)
+        {
+            int stacks = cs->enemies[ei].statuses[di].value;
+            if (stacks > 0)
+            {
+                apply_damage_to_enemy(cs, ei, stacks);
+                LOG_I(CAT_CARD, "  enemy[%d] Death Mark: %d damage", ei, stacks);
+            }
+            cs->enemies[ei].statuses[di].value -= 2;
+            if (cs->enemies[ei].statuses[di].value <= 0)
+            {
+                for (int j = di; j < cs->enemies[ei].status_count - 1; j++)
+                    cs->enemies[ei].statuses[j] = cs->enemies[ei].statuses[j + 1];
+                cs->enemies[ei].status_count--;
+            }
+        }
+    }
+
     // Tick all statuses down and remove expired
     for (int ei = 0; ei < cs->enemy_count; ei++)
         status_tick(cs->enemies[ei].statuses, &cs->enemies[ei].status_count);
@@ -2486,8 +2935,8 @@ static void advance_turn(CombatState *cs)
     for (int i = 0; i < cs->party.count; i++)
         if (cs->party.members[i].alive)
         {
-            cs->party.members[i].aggro -= 5;
-            if (cs->party.members[i].aggro < 0) cs->party.members[i].aggro = 0;
+            int decay = party_aggro_decay_amount(cs->party.members[i].aggro);
+            add_party_member_aggro(&cs->party.members[i], -decay);
         }
 
     for (int ei = 0; ei < cs->enemy_count; ei++)
@@ -2599,6 +3048,7 @@ static void advance_turn(CombatState *cs)
                 int ci = e->hand[best_idx];
                 e->intent.ability_idx = ci;
                 e->intent.remaining_turns = enemy_cast_time(cs, e, ci);
+                assets_play_sfx(g_state.encounter_is_boss ? SFX_BOSS_CAST_WARNING : SFX_ENEMY_CAST_WARNING);
                 e->current_ability++;
                 e->energy_current -= e->def->cards[ci].cost;
                 // Add to discard pile
@@ -2609,6 +3059,50 @@ static void advance_turn(CombatState *cs)
                     e->hand[h] = e->hand[h + 1];
                 e->hand_count--;
             }
+        }
+    }
+
+    // Damage buff decay per turn
+    if (cs->enemy_damage_buff_turns > 0)
+    {
+        cs->enemy_damage_buff_turns--;
+        if (cs->enemy_damage_buff_turns <= 0)
+        {
+            cs->enemy_damage_buff_scale = 1.0f;
+            combat_feed_add(cs, "Enemy damage buff faded");
+        }
+    }
+
+    // Player damage buff decay per turn
+    if (cs->player_buff_turns > 0)
+    {
+        cs->player_buff_turns--;
+        if (cs->player_buff_turns <= 0)
+        {
+            cs->player_damage_mult = 1.0f;
+            combat_feed_add(cs, "Damage buff faded");
+        }
+    }
+
+    // Extra draw decay per turn
+    if (cs->player_extra_draw_turns > 0)
+    {
+        cs->player_extra_draw_turns--;
+        if (cs->player_extra_draw_turns <= 0)
+        {
+            cs->player_extra_draw = 0;
+            combat_feed_add(cs, "Extra draw faded");
+        }
+    }
+
+    // Status amp decay per turn
+    if (cs->player_status_amp_turns > 0)
+    {
+        cs->player_status_amp_turns--;
+        if (cs->player_status_amp_turns <= 0)
+        {
+            cs->player_status_amp = 0;
+            combat_feed_add(cs, "Status amp faded");
         }
     }
 
@@ -2639,10 +3133,19 @@ static void advance_turn(CombatState *cs)
         if (cs->energy.current > cs->energy.max) cs->energy.current = cs->energy.max;
         combat_feed_add(cs, "Shop boon: +%d energy", cs->boon_energy_bonus);
     }
-    deck_discard_hand(&cs->deck);
+    // Discard hand, but keep retain cards
+    {
+        assets_play_sfx(SFX_CARD_DISCARD);
+        for (int i = cs->deck.hand_count - 1; i >= 0; i--)
+        {
+            CardInstance *ci = &cs->deck.cards[cs->deck.hand[i]];
+            if (!ci->def || !card_instance_has_retain(ci))
+                deck_discard_index(&cs->deck, i);
+        }
+    }
     if (boon_active && cs->boon_draw_bonus > 0)
         combat_feed_add(cs, "Shop boon: +%d draw", cs->boon_draw_bonus);
-    deal_cards(&cs->deck, cs->turn_draw_count + (boon_active ? cs->boon_draw_bonus : 0));
+    deal_cards(&cs->deck, cs->turn_draw_count + (boon_active ? cs->boon_draw_bonus : 0) + cs->player_extra_draw);
     if (boon_active)
         cs->boon_turns_remaining--;
 
@@ -2658,7 +3161,7 @@ static void combat_end_turn_internal(CombatState *cs)
     {
         for (int i = 0; i < cs->party.count; i++)
             if (cs->party.members[i].alive)
-                cs->party.members[i].shield += 4;
+                add_party_member_shield_capped(&cs->party.members[i], 4);
         combat_feed_add(cs, "Steadfast Banner: +4 Shield");
     }
 
@@ -2722,6 +3225,7 @@ void combat_start(CombatState *cs, const Party *party, const EncounterDef *encou
 
     int start_energy = party_start_energy(cs->party.count);
     if (asc >= 2) start_energy--;
+    start_energy += meta_starting_energy_bonus(&g_state.meta);
     if (start_energy < 0) start_energy = 0;
     int regen = party_regen(cs->party.count);
     LOG_T("  calling energy_init(%d, %d, %d)", start_energy, MAX_ENERGY, regen);
@@ -2740,11 +3244,23 @@ void combat_start(CombatState *cs, const Party *party, const EncounterDef *encou
     if (asc >= 3)
         cs->floor_scale *= 1.15f;
     cs->enemy_damage_scale = 1.0f;
+    cs->enemy_damage_buff_scale = 1.0f;
+    cs->enemy_damage_buff_turns = 0;
+    cs->player_damage_mult = 1.0f;
+    cs->player_buff_turns = 0;
+    cs->player_extra_draw = 0;
+    cs->player_extra_draw_turns = 0;
+    cs->player_status_amp = 0;
+    cs->player_status_amp_turns = 0;
     if (asc >= 1) cs->enemy_damage_scale += 0.10f;
     if (asc >= 6) cs->enemy_damage_scale += 0.15f;
     if (asc >= 10) cs->enemy_damage_scale += 0.25f;
     cs->phoenix_used = false;
     cs->echo_used = false;
+    cs->meta_opening_damage_used = false;
+    cs->meta_execute_used = false;
+    cs->meta_emergency_barrier_used = false;
+    cs->meta_last_stand_used = false;
     cs->mana_gem_bonus = relic_has(g_state.relics, g_state.relic_count, RELIC_MANA_GEM) ? 1 : 0;
     cs->channel_card = NULL;
     cs->channel_remaining = 0;
@@ -2790,6 +3306,15 @@ void combat_start(CombatState *cs, const Party *party, const EncounterDef *encou
 
     apply_relic_combat_start(cs);
 
+    int meta_start_shield = meta_combat_start_shield(&g_state.meta);
+    if (meta_start_shield > 0)
+    {
+        for (int i = 0; i < cs->party.count; i++)
+            if (cs->party.members[i].alive)
+                add_party_member_shield_capped(&cs->party.members[i], meta_start_shield);
+        combat_feed_add(cs, "Skill Tree: +%d starting Shield", meta_start_shield);
+    }
+
     for (int i = 0; i < cs->party.count; i++)
     {
         PartyMember *pm = &cs->party.members[i];
@@ -2797,7 +3322,7 @@ void combat_start(CombatState *cs, const Party *party, const EncounterDef *encou
         int shield_perks = party_member_perk_count(pm, PERK_STARTING_SHIELD_1);
         if (shield_perks > 0)
         {
-            pm->shield += shield_perks;
+            add_party_member_shield_capped(pm, shield_perks);
             combat_feed_add(cs, "%s: +%d starting Shield", pm->name, shield_perks);
         }
     }
@@ -3033,11 +3558,16 @@ static void handle_card_click(CombatState *cs, int hand_idx)
     if (cs->channel_card && cs->channel_class == card->class)
     {
         LOG_D(CAT_CARD, "  Cannot play %s — %s is channeling", card->name, class_name(card->class));
+        assets_play_sfx(SFX_ERROR);
         return;
     }
 
     int effective_cost = combat_effective_card_cost(cs, card);
-    if (cs->energy.current < effective_cost) return;
+    if (cs->energy.current < effective_cost)
+    {
+        assets_play_sfx(SFX_ERROR);
+        return;
+    }
 
     energy_spend(&cs->energy, effective_cost);
     cs->target_paid_cost = effective_cost;
@@ -3119,6 +3649,7 @@ void combat_update(CombatState *cs)
 
     LOG_T("CU: getting mouse");
     Vector2 mouse = GetMousePosition();
+    int prev_hovered_card = cs->hovered_card;
     cs->hovered_card = -1;
 
     // ── Targeting mode ──────────────────────────────────────
@@ -3152,6 +3683,7 @@ void combat_update(CombatState *cs)
             const CardDef *card = cs->deck.cards[cs->deck.hand[cs->target_hand_idx]].def;
             if (!card_can_target_ally(card, &cs->party.members[cs->hovered_ally]))
             {
+                assets_play_sfx(SFX_ERROR);
                 ft_spawn(244.0f, 222.0f, "INVALID TARGET", 10, (Color){ 230, 90, 90, 255 });
                 return;
             }
@@ -3181,6 +3713,8 @@ void combat_update(CombatState *cs)
         if (CheckCollisionPointRec(mouse, r))
         {
             cs->hovered_card = i;
+            if (cs->hovered_card != prev_hovered_card)
+                assets_play_sfx(SFX_CARD_HOVER);
             if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
                 handle_card_click(cs, i);
             break;

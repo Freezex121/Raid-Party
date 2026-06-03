@@ -9,3 +9,8 @@ timestamp,run_id,area,floor,choice,card_id,party_missing_hp,has_upgradeable_card
 1780091632,"9","0","2","upgrade","rng_barrage","0","1"
 1780092328,"10","0","1","upgrade_select","","15","1"
 1780092334,"10","0","1","upgrade","rng_rain","15","1"
+1780196242,"12","1","2","upgrade_select","","109","1"
+1780196250,"12","1","2","upgrade","util_rejuv","109","1"
+1780423994,"13","2","2","heal","","100","1"
+1780507358,"1","0","1","upgrade_select","","5","1"
+1780507365,"1","0","1","upgrade","mag_meteor","5","1"

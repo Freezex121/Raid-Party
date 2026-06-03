@@ -9,6 +9,7 @@
 #include "util/math_utils.h"
 #include "util/text.h"
 #include "raylib.h"
+#include "assets.h"
 #include "ui/ui.h"
 #include <stdio.h>
 
@@ -25,6 +26,7 @@ static char rest_msg[96] = "";
 static bool rest_healed = false;
 static bool rest_upgraded = false;
 static bool rest_frugal_shown = false;
+static bool rest_music_triggered = false;
 
 static int party_missing_hp(void)
 {
@@ -98,6 +100,12 @@ static void do_heal(void)
         g_state.run_party.members[i].aggro = 0;
         g_state.run_party.members[i].status_count = 0;
     }
+    int camp_gold = meta_camp_bonus_gold(&g_state.meta);
+    if (camp_gold > 0)
+    {
+        game_gain_gold(camp_gold, "camp_bonus");
+        snprintf(rest_msg, sizeof(rest_msg), "Camp supplies: +%dg.", camp_gold);
+    }
     LOG_I(CAT_SCREEN, "Rest: party fully healed");
 }
 
@@ -107,6 +115,7 @@ static void rest_leave(void)
     rest_healed = false;
     rest_upgraded = false;
     rest_frugal_shown = false;
+    rest_music_triggered = false;
     g_state.map.nodes[g_state.map.current_index].completed = true;
     g_state.map.current_index = -1;
     map_unlock_next(&g_state.map);
@@ -115,6 +124,12 @@ static void rest_leave(void)
 
 void rest_screen_update(void)
 {
+    if (!rest_music_triggered)
+    {
+        assets_play_music(MUSIC_REST);
+        rest_music_triggered = true;
+    }
+
     if (!g_state.tutorial_active)
         game_start_tutorial_once(&g_state.meta.tutorial_seen_rest, TUTORIAL_STEP_REST);
     if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_REST)
@@ -225,8 +240,8 @@ void rest_screen_draw(void)
         Rectangle heal_btn = rest_heal_button();
         Rectangle upg_btn  = rest_upgrade_button();
 
-        draw_btn_large(heal_btn, (Color){ 40, 120, 60, 255 }, (Color){ 60, 180, 80, 255 }, "HEAL PARTY", "Fully restore HP");
-        draw_btn_large(upg_btn, (Color){ 50, 80, 140, 255 }, (Color){ 80, 140, 220, 255 }, "UPGRADE A CARD", "Boost one card's power");
+        draw_btn_large(heal_btn, (Color){ 40, 120, 60, 255 }, (Color){ 60, 180, 80, 255 }, "HEAL PARTY", "Fully restore HP", BTN_ID_REST_HEAL);
+        draw_btn_large(upg_btn, (Color){ 50, 80, 140, 255 }, (Color){ 80, 140, 220, 255 }, "UPGRADE A CARD", "Boost one card's power", BTN_ID_REST_UPGRADE);
 
         if (rest_msg[0])
             draw_text_box((Rectangle){ 96.0f, 228.0f, 448.0f, 26.0f }, rest_msg, 10, 0, (Color){ 200, 150, 100, 220 }, TEXT_ALIGN_CENTER);
@@ -235,7 +250,7 @@ void rest_screen_draw(void)
     {
         draw_text_box((Rectangle){ 80.0f, 16.0f, 480.0f, 22.0f }, "PICK A CARD TO UPGRADE", 18, 0, RAYWHITE, TEXT_ALIGN_CENTER);
         char hint[80];
-        snprintf(hint, sizeof(hint), "%d cards  |  wheel scroll  |  right-click cancel", g_state.run_deck.card_count);
+        snprintf(hint, sizeof(hint), "%d cards", g_state.run_deck.card_count);
         draw_text_box((Rectangle){ 80.0f, 34.0f, 480.0f, 14.0f }, hint, 10, 0, (Color){ 160, 160, 180, 180 }, TEXT_ALIGN_CENTER);
 
         deck_browser_draw(&rest_browser, &g_state.run_deck, 1, RAYWHITE);
@@ -271,7 +286,9 @@ void rest_screen_draw(void)
     else if (mode == REST_HEAL_DONE)
     {
         draw_text_box((Rectangle){ 80.0f, 164.0f, 480.0f, 22.0f }, "PARTY RESTED", 18, 0, (Color){ 100, 220, 120, 255 }, TEXT_ALIGN_CENTER);
-        draw_text_box((Rectangle){ 80.0f, 190.0f, 480.0f, 14.0f }, "Click to continue.", 10, 0, (Color){ 160, 160, 180, 200 }, TEXT_ALIGN_CENTER);
+        if (rest_msg[0])
+            draw_text_box((Rectangle){ 80.0f, 188.0f, 480.0f, 14.0f }, rest_msg, 10, 0, (Color){ 230, 205, 115, 230 }, TEXT_ALIGN_CENTER);
+        draw_text_box((Rectangle){ 80.0f, 204.0f, 480.0f, 14.0f }, "Click to continue.", 10, 0, (Color){ 160, 160, 180, 200 }, TEXT_ALIGN_CENTER);
     }
 
     if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_REST)
