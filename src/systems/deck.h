@@ -68,10 +68,14 @@ typedef struct {
     int splash;
     bool retain;
     bool fleeting;
+    bool reward_only;
+    bool is_utility;
     TargetType target;
     int repeat_hits;
     const CardEffect *effects;
     int effect_count;
+    const char *unlock_key;
+    const char *unlock_event;
     const char *description;
 } CardDef;
 
@@ -125,6 +129,7 @@ void deck_init_from_classes(Deck *deck, int *class_indices, int count);
 void deck_add_card(Deck *deck, const CardDef *def);
 void deck_add_card_upgraded(Deck *deck, const CardDef *def, bool upgraded);
 void deck_add_card_with_level(Deck *deck, const CardDef *def, int upgrade_level);
+int  deck_add_card_copy(Deck *deck, const CardInstance *source);
 void deck_prepare_for_combat(Deck *deck);
 void deck_shuffle(Deck *deck);
 int  deck_draw(Deck *deck);

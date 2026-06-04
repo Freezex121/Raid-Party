@@ -69,6 +69,9 @@ typedef enum {
     RELIC_SOUL_REAPER,
     RELIC_LEECHING_FANG,
     RELIC_BLOOD_PACT,
+    RELIC_DUELIST_SIGIL,
+    RELIC_FELLOWSHIP_STANDARD,
+    RELIC_CHRONICLE_QUILL,
     RELIC_COUNT
 } RelicId;
 
@@ -77,6 +80,8 @@ typedef struct {
     const char *name;
     const char *icon;
     const char *description;
+    const char *unlock_key;
+    const char *unlock_event;
     int rarity;
     ClassType requires_class;
     ClassType requires_pair[2];

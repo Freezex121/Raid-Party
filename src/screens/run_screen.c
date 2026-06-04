@@ -294,7 +294,7 @@ static void draw_target_preview(CombatState *cs)
     }
 }
 
-static void draw_panel(Rectangle panel, const char *title, Color accent)
+static void draw_run_panel(Rectangle panel, const char *title, Color accent)
 {
     DrawRectangleRec(panel, (Color){ 9, 10, 17, 210 });
     DrawRectangleLinesEx(panel, 1.0f, (Color){ accent.r, accent.g, accent.b, 165 });
@@ -410,28 +410,16 @@ static void draw_pair_passives(CombatState *cs)
         const SynergyPairDef *p = synergy_pair_by_index(i);
         if (!p || !p->class_a || !p->class_b || !p->name || !p->desc) continue;
 
-        // Convert class name strings to ClassType
-        int class_a = -1, class_b = -1;
-        for (int ct = 0; ct < CLASS_COUNT; ct++)
-        {
-            const char *cn = class_name((ClassType)ct);
-            if (!cn) continue;
-            // Check against lowercase class IDs
-            const char *lower_ids[] = { "guardian", "cleric", "mage", "rogue", "shaman", "ranger", "paladin", "warlock", "bard" };
-            if (ct < 9)
-            {
-                if (strcmp(lower_ids[ct], p->class_a) == 0) class_a = ct;
-                if (strcmp(lower_ids[ct], p->class_b) == 0) class_b = ct;
-            }
-        }
-        if (class_a < 0 || class_b < 0) continue;
+        ClassType class_a = class_from_id(p->class_a);
+        ClassType class_b = class_from_id(p->class_b);
+        if (class_a == CLASS_NONE || class_b == CLASS_NONE) continue;
 
         bool active_a = false, active_b = false;
         for (int pm = 0; pm < cs->party.count; pm++)
         {
             if (!cs->party.members[pm].alive) continue;
-            if (cs->party.members[pm].class == (ClassType)class_a) active_a = true;
-            if (cs->party.members[pm].class == (ClassType)class_b) active_b = true;
+            if (cs->party.members[pm].class == class_a) active_a = true;
+            if (cs->party.members[pm].class == class_b) active_b = true;
         }
         if (!active_a || !active_b) continue;
 
@@ -573,7 +561,7 @@ static void draw_combat_feedback(CombatState *cs)
     }
 
     Rectangle feed = layout_action_feed_panel();
-    draw_panel(feed, "ACTIONS", (Color){ 130, 145, 185, 220 });
+    draw_run_panel(feed, "ACTIONS", (Color){ 130, 145, 185, 220 });
     int feed_x = (int)feed.x + 7;
     int feed_y = (int)feed.y + 18;
     for (int i = 0; i < 5; i++)
@@ -847,7 +835,7 @@ void run_screen_draw(void)
     }
     else
     {
-        draw_panel(inspector, "CARD", (Color){ 130, 145, 185, 220 });
+        draw_run_panel(inspector, "CARD", (Color){ 130, 145, 185, 220 });
     }
 
     bool sudden_death_warning = cs->turn >= SUDDEN_DEATH_START_TURN;
@@ -867,7 +855,7 @@ void run_screen_draw(void)
         10, 0, turn_color, TEXT_ALIGN_LEFT);
 
     Rectangle energy_panel = layout_energy_panel();
-    draw_panel(energy_panel, "ENERGY", (Color){ 230, 205, 70, 220 });
+    draw_run_panel(energy_panel, "ENERGY", (Color){ 230, 205, 70, 220 });
     char energy_big[8];
     snprintf(energy_big, sizeof(energy_big), "%d/%d", cs->energy.current, cs->energy.max);
     draw_text_box((Rectangle){ energy_panel.x + 8.0f, energy_panel.y + 18.0f, energy_panel.width - 16.0f, 20.0f },

@@ -1,34 +1,37 @@
 #include "party.h"
+#include "systems/meta.h"
 #include "util/json.h"
 #include "util/log.h"
 #include <stdlib.h>
 #include <string.h>
 
 static const char *class_names[CLASS_COUNT];
+static const char *class_ids[CLASS_COUNT];
 static const char *class_roles[CLASS_COUNT];
+static const char *class_descriptions[CLASS_COUNT];
+static const char *class_hints[CLASS_COUNT];
+static const char *class_abbrevs[CLASS_COUNT];
+static const char *class_unlock_keys[CLASS_COUNT];
+static const char *class_unlock_events[CLASS_COUNT];
+static unsigned char class_colors[CLASS_COUNT][3];
 static int class_hp[CLASS_COUNT];
+static bool class_loaded[CLASS_COUNT];
+static ClassType class_order[CLASS_COUNT];
+static int class_order_count = 0;
+static int next_dynamic_class = CLASS_BUILTIN_COUNT;
 
-typedef struct {
-    const char *name;
-    const char *description;
-} PerkText;
-
-static const PerkText perk_text[PERK_COUNT] = {
-    [PERK_HP_PLUS_4] = { "+4 Max HP", "Gain 4 max HP and heal 4." },
-    [PERK_STARTING_SHIELD_1] = { "Brace", "Start each combat with +1 Shield." },
-    [PERK_CARD_DMG_1] = { "Sharper Cards", "This member's cards deal +1 damage." },
-    [PERK_CARD_HEAL_1] = { "Steadier Hands", "This member's cards heal +1 HP." },
-    [PERK_CARD_SHIELD_1] = { "Better Guard", "This member's cards grant +1 Shield." },
-    [PERK_GUARDIAN_TAUNT_SHIELD] = { "Anchor Stance", "First Taunt each combat grants +4 Shield." },
-    [PERK_CLERIC_OVERHEAL_SHIELD] = { "Overflowing Grace", "Overhealing with Cleric cards grants 2 Shield." },
-    [PERK_MAGE_FIRST_SPELL_DMG] = { "Opening Spark", "First Mage damage card each turn deals +1 damage." },
-    [PERK_ROGUE_MARK_REFUND] = { "Clean Payday", "First Rogue Mark payoff each combat refunds 1 Energy." },
-    [PERK_SHAMAN_EXTEND_STATUS] = { "Lingering Rite", "First Shaman Conductive or Totem each combat lasts +1 turn." },
-    [PERK_RANGER_MARKED_DMG] = { "True Shot", "First Ranger hit against Marked each combat deals +2 damage." },
-    [PERK_PALADIN_HEAL_SHIELD] = { "Blessed Mending", "Paladin heals also grant 1 Shield." },
-    [PERK_WARLOCK_BLIGHT_BOOST] = { "Deeper Rot", "First Warlock Blight each combat gains +1 value." },
-    [PERK_BARD_FIRST_DRAW] = { "Encore", "First Bard card each combat draws 1 card." }
-};
+static const char *perk_ids[PERK_COUNT];
+static const char *perk_names[PERK_COUNT];
+static const char *perk_descriptions[PERK_COUNT];
+static const char *perk_effects[PERK_COUNT];
+static int perk_values[PERK_COUNT];
+static int perk_max_stack_values[PERK_COUNT];
+static bool perk_class_specific[PERK_COUNT];
+static bool perk_loaded[PERK_COUNT];
+static PerkId class_perks[CLASS_COUNT][MAX_CLASS_PERKS];
+static int class_perk_counts[CLASS_COUNT];
+static PerkId generic_perks[PERK_COUNT];
+static int generic_perk_count = 0;
 
 static char *copy_text(const char *text)
 {
@@ -45,7 +48,7 @@ static const JsonValue *field(const JsonValue *object, const char *key)
     return json_object_get(object, key);
 }
 
-static ClassType parse_class_id(const char *text)
+static ClassType builtin_class_id(const char *text)
 {
     if (text && strcmp(text, "guardian") == 0) return CLASS_GUARDIAN;
     if (text && strcmp(text, "cleric") == 0) return CLASS_CLERIC;
@@ -59,8 +62,88 @@ static ClassType parse_class_id(const char *text)
     return CLASS_NONE;
 }
 
+ClassType class_from_id(const char *id)
+{
+    if (!id || !id[0]) return CLASS_NONE;
+    for (int i = 0; i < CLASS_COUNT; i++)
+        if (class_ids[i] && strcmp(class_ids[i], id) == 0)
+            return (ClassType)i;
+    return builtin_class_id(id);
+}
+
+static ClassType class_slot_for_id(const char *id)
+{
+    ClassType existing = class_from_id(id);
+    if (existing != CLASS_NONE)
+        return existing;
+
+    if (next_dynamic_class >= CLASS_COUNT)
+        return CLASS_NONE;
+    return (ClassType)next_dynamic_class++;
+}
+
+static void class_defaults(ClassType ct, unsigned char *r, unsigned char *g, unsigned char *b, const char **abbrev)
+{
+    *r = 130;
+    *g = 135;
+    *b = 160;
+    *abbrev = "--";
+    switch (ct)
+    {
+        case CLASS_GUARDIAN: *r = 74;  *g = 144; *b = 217; *abbrev = "GD"; break;
+        case CLASS_CLERIC:   *r = 225; *g = 170; *b = 50;  *abbrev = "CL"; break;
+        case CLASS_MAGE:     *r = 155; *g = 89;  *b = 182; *abbrev = "MG"; break;
+        case CLASS_ROGUE:    *r = 39;  *g = 174; *b = 96;  *abbrev = "RG"; break;
+        case CLASS_SHAMAN:   *r = 230; *g = 126; *b = 34;  *abbrev = "SH"; break;
+        case CLASS_RANGER:   *r = 70;  *g = 190; *b = 120; *abbrev = "RA"; break;
+        case CLASS_PALADIN:  *r = 240; *g = 210; *b = 95;  *abbrev = "PL"; break;
+        case CLASS_WARLOCK:  *r = 125; *g = 70;  *b = 185; *abbrev = "WL"; break;
+        case CLASS_BARD:     *r = 235; *g = 95;  *b = 155; *abbrev = "BD"; break;
+        default: break;
+    }
+}
+
+static void reset_class_defs(void)
+{
+    memset((void *)class_ids, 0, sizeof(class_ids));
+    memset((void *)class_names, 0, sizeof(class_names));
+    memset((void *)class_roles, 0, sizeof(class_roles));
+    memset((void *)class_descriptions, 0, sizeof(class_descriptions));
+    memset((void *)class_hints, 0, sizeof(class_hints));
+    memset((void *)class_abbrevs, 0, sizeof(class_abbrevs));
+    memset((void *)class_unlock_keys, 0, sizeof(class_unlock_keys));
+    memset((void *)class_unlock_events, 0, sizeof(class_unlock_events));
+    memset(class_colors, 0, sizeof(class_colors));
+    memset(class_hp, 0, sizeof(class_hp));
+    memset(class_loaded, 0, sizeof(class_loaded));
+    memset(class_order, 0, sizeof(class_order));
+    class_order_count = 0;
+    next_dynamic_class = CLASS_BUILTIN_COUNT;
+}
+
+static void reset_perk_defs(void)
+{
+    memset((void *)perk_ids, 0, sizeof(perk_ids));
+    memset((void *)perk_names, 0, sizeof(perk_names));
+    memset((void *)perk_descriptions, 0, sizeof(perk_descriptions));
+    memset((void *)perk_effects, 0, sizeof(perk_effects));
+    memset(perk_values, 0, sizeof(perk_values));
+    memset(perk_max_stack_values, 0, sizeof(perk_max_stack_values));
+    memset(perk_class_specific, 0, sizeof(perk_class_specific));
+    memset(perk_loaded, 0, sizeof(perk_loaded));
+    for (int i = 0; i < CLASS_COUNT; i++)
+    {
+        class_perk_counts[i] = 0;
+        for (int p = 0; p < MAX_CLASS_PERKS; p++)
+            class_perks[i][p] = PERK_INVALID;
+    }
+    generic_perk_count = 0;
+}
+
 bool party_defs_load_json(const char *path)
 {
+    reset_class_defs();
+
     char error[192] = "";
     JsonValue *root = json_load_file(path, error, sizeof(error));
     if (!root)
@@ -84,19 +167,185 @@ bool party_defs_load_json(const char *path)
         const JsonValue *item = json_array_get(classes, i);
         if (!item || item->type != JSON_OBJECT) continue;
 
-        ClassType ct = parse_class_id(json_string(field(item, "id"), NULL));
+        const char *id = json_string(field(item, "id"), NULL);
+        ClassType ct = class_slot_for_id(id);
         if (ct < 0 || ct >= CLASS_COUNT) continue;
 
+        unsigned char r, g, b;
+        const char *abbrev;
+        class_defaults(ct, &r, &g, &b, &abbrev);
+        const JsonValue *color = field(item, "color");
+        if (color && color->type == JSON_ARRAY && json_array_count(color) >= 3)
+        {
+            r = (unsigned char)json_int(json_array_get(color, 0), r);
+            g = (unsigned char)json_int(json_array_get(color, 1), g);
+            b = (unsigned char)json_int(json_array_get(color, 2), b);
+        }
+
+        class_ids[ct] = copy_text(id);
         class_names[ct] = copy_text(json_string(field(item, "name"), "Unknown"));
         class_roles[ct] = copy_text(json_string(field(item, "role"), ""));
+        class_descriptions[ct] = copy_text(json_string(field(item, "description"), json_string(field(item, "tagline"), "")));
+        class_hints[ct] = copy_text(json_string(field(item, "hint"), class_descriptions[ct] ? class_descriptions[ct] : ""));
+        class_abbrevs[ct] = copy_text(json_string(field(item, "abbrev"), abbrev));
+        class_unlock_keys[ct] = copy_text(json_string(field(item, "unlock"), ""));
+        class_unlock_events[ct] = copy_text(json_string(field(item, "unlock_event"), ""));
+        meta_content_register_unlock_event(class_unlock_keys[ct], class_unlock_events[ct]);
+        class_colors[ct][0] = r;
+        class_colors[ct][1] = g;
+        class_colors[ct][2] = b;
         class_hp[ct] = json_int(field(item, "hp"), 1);
         if (class_hp[ct] < 1) class_hp[ct] = 1;
+        if (!class_loaded[ct] && class_order_count < CLASS_COUNT)
+            class_order[class_order_count++] = ct;
+        class_loaded[ct] = true;
         loaded++;
     }
 
     json_free(root);
     LOG_I(CAT_DRAFT, "Loaded %d class definitions from %s", loaded, path);
-    return loaded == CLASS_COUNT;
+    return loaded > 0;
+}
+
+bool perk_defs_load_json(const char *path)
+{
+    reset_perk_defs();
+
+    char error[192] = "";
+    JsonValue *root = json_load_file(path, error, sizeof(error));
+    if (!root)
+    {
+        LOG_E(CAT_DRAFT, "%s", error);
+        return false;
+    }
+
+    const JsonValue *items = field(root, "perks");
+    if (!items || items->type != JSON_ARRAY)
+    {
+        LOG_E(CAT_DRAFT, "%s: perks must be an array", path);
+        json_free(root);
+        return false;
+    }
+
+    int loaded = 0;
+    int count = json_array_count(items);
+    for (int i = 0; i < count; i++)
+    {
+        const JsonValue *item = json_array_get(items, i);
+        if (!item || item->type != JSON_OBJECT)
+            continue;
+
+        int index = json_int(field(item, "index"), -1);
+        PerkId perk = (PerkId)index;
+        if (perk < 0 || perk >= PERK_COUNT)
+        {
+            LOG_E(CAT_DRAFT, "%s: invalid perk index at row %d", path, i);
+            continue;
+        }
+        if (perk_loaded[perk])
+        {
+            LOG_E(CAT_DRAFT, "%s: duplicate perk index %d", path, index);
+            continue;
+        }
+
+        const char *id = json_string(field(item, "id"), "");
+        const char *name = json_string(field(item, "name"), "");
+        const char *description = json_string(field(item, "description"), "");
+        const char *effect = json_string(field(item, "effect"), "");
+        if (!id[0] || !name[0] || !description[0] || !effect[0])
+        {
+            LOG_E(CAT_DRAFT, "%s: perk index %d is missing id, name, description, or effect", path, index);
+            continue;
+        }
+        bool duplicate_id = false;
+        for (int prev = 0; prev < PERK_COUNT; prev++)
+        {
+            if (perk_loaded[prev] && perk_ids[prev] && strcmp(perk_ids[prev], id) == 0)
+            {
+                duplicate_id = true;
+                break;
+            }
+        }
+        if (duplicate_id)
+        {
+            LOG_E(CAT_DRAFT, "%s: duplicate perk id '%s'", path, id);
+            continue;
+        }
+
+        const char *class_id = json_string(field(item, "class"), "");
+        ClassType ct = class_from_id(class_id);
+        if (class_id[0] && ct == CLASS_NONE)
+        {
+            LOG_E(CAT_DRAFT, "%s: perk index %d has unknown class '%s'", path, index, class_id);
+            continue;
+        }
+        if (ct != CLASS_NONE)
+        {
+            if (class_perk_counts[ct] >= MAX_CLASS_PERKS)
+            {
+                LOG_E(CAT_DRAFT, "%s: class '%s' has too many perks assigned", path, class_id);
+                continue;
+            }
+        }
+
+        perk_ids[perk] = copy_text(id);
+        perk_names[perk] = copy_text(name);
+        perk_descriptions[perk] = copy_text(description);
+        perk_effects[perk] = copy_text(effect);
+        perk_values[perk] = json_int(field(item, "value"), 1);
+
+        if (ct != CLASS_NONE)
+        {
+            class_perks[ct][class_perk_counts[ct]++] = perk;
+            perk_class_specific[perk] = true;
+        }
+
+        const char *pool = json_string(field(item, "pool"), "");
+        if (strcmp(pool, "generic") == 0 && generic_perk_count < PERK_COUNT)
+            generic_perks[generic_perk_count++] = perk;
+
+        int default_max = ct != CLASS_NONE ? 1 : MAX_MEMBER_PERKS;
+        perk_max_stack_values[perk] = json_int(field(item, "max_stacks"), default_max);
+        if (perk_max_stack_values[perk] < 1)
+            perk_max_stack_values[perk] = 1;
+        perk_loaded[perk] = true;
+
+        loaded++;
+    }
+
+    json_free(root);
+
+    if (generic_perk_count <= 0)
+    {
+        LOG_E(CAT_DRAFT, "%s: no generic perks defined", path);
+        return false;
+    }
+
+    LOG_I(CAT_DRAFT, "Loaded %d perk definitions from %s", loaded, path);
+    return loaded > 0;
+}
+
+int party_class_count(void)
+{
+    return class_order_count;
+}
+
+ClassType party_class_at(int order_index)
+{
+    if (order_index < 0 || order_index >= class_order_count)
+        return CLASS_NONE;
+    return class_order[order_index];
+}
+
+bool class_is_loaded(ClassType ct)
+{
+    return ct >= 0 && ct < CLASS_COUNT && class_loaded[ct];
+}
+
+const char *class_id(ClassType ct)
+{
+    if (ct < 0 || ct >= CLASS_COUNT) return "";
+    return class_ids[ct] ? class_ids[ct] : "";
 }
 
 const char *class_name(ClassType ct)
@@ -111,6 +360,54 @@ const char *class_role(ClassType ct)
     return class_roles[ct] ? class_roles[ct] : "";
 }
 
+const char *class_description(ClassType ct)
+{
+    if (ct < 0 || ct >= CLASS_COUNT) return "";
+    return class_descriptions[ct] ? class_descriptions[ct] : "";
+}
+
+const char *class_hint(ClassType ct)
+{
+    if (ct < 0 || ct >= CLASS_COUNT) return "";
+    return class_hints[ct] ? class_hints[ct] : "";
+}
+
+const char *class_abbrev(ClassType ct)
+{
+    if (ct < 0 || ct >= CLASS_COUNT) return "??";
+    return class_abbrevs[ct] ? class_abbrevs[ct] : "??";
+}
+
+unsigned char class_color_r(ClassType ct)
+{
+    if (ct < 0 || ct >= CLASS_COUNT) return 130;
+    return class_loaded[ct] ? class_colors[ct][0] : 130;
+}
+
+unsigned char class_color_g(ClassType ct)
+{
+    if (ct < 0 || ct >= CLASS_COUNT) return 135;
+    return class_loaded[ct] ? class_colors[ct][1] : 135;
+}
+
+unsigned char class_color_b(ClassType ct)
+{
+    if (ct < 0 || ct >= CLASS_COUNT) return 160;
+    return class_loaded[ct] ? class_colors[ct][2] : 160;
+}
+
+const char *class_unlock_key(ClassType ct)
+{
+    if (ct < 0 || ct >= CLASS_COUNT) return "";
+    return class_unlock_keys[ct] ? class_unlock_keys[ct] : "";
+}
+
+const char *class_unlock_event(ClassType ct)
+{
+    if (ct < 0 || ct >= CLASS_COUNT) return "";
+    return class_unlock_events[ct] ? class_unlock_events[ct] : "";
+}
+
 void party_create(Party *party, int *class_indices, int count)
 {
     if (count < 0) count = 0;
@@ -121,9 +418,10 @@ void party_create(Party *party, int *class_indices, int count)
     for (int i = 0; i < count; i++)
     {
         ClassType ct = (ClassType)class_indices[i];
+        if (ct < 0 || ct >= CLASS_COUNT || !class_is_loaded(ct)) ct = party_class_at(0);
         if (ct < 0 || ct >= CLASS_COUNT) ct = CLASS_GUARDIAN;
         party->members[i].class = ct;
-        strncpy(party->members[i].name, class_names[ct], MAX_PARTY_NAME - 1);
+        strncpy(party->members[i].name, class_name(ct), MAX_PARTY_NAME - 1);
         party->members[i].name[MAX_PARTY_NAME - 1] = '\0';
         int hp = class_hp[ct] > 0 ? class_hp[ct] : 1;
         party->members[i].max_hp = hp;
@@ -203,7 +501,7 @@ bool party_member_has_perk(const PartyMember *member, PerkId perk)
 
 int party_member_perk_count(const PartyMember *member, PerkId perk)
 {
-    if (!member || perk < 0 || perk >= PERK_COUNT)
+    if (!member || !perk_is_loaded(perk))
         return 0;
     int count = 0;
     for (int i = 0; i < member->perk_count && i < MAX_MEMBER_PERKS; i++)
@@ -214,58 +512,141 @@ int party_member_perk_count(const PartyMember *member, PerkId perk)
 
 bool party_member_add_perk(PartyMember *member, PerkId perk)
 {
-    if (!member || perk < 0 || perk >= PERK_COUNT)
+    if (!member || !perk_is_loaded(perk))
         return false;
     if (member->perk_count >= MAX_MEMBER_PERKS)
         return false;
-    if (perk_is_class_specific(perk) && party_member_has_perk(member, perk))
+    if (party_member_perk_count(member, perk) >= perk_max_stacks(perk))
         return false;
 
     member->perks[member->perk_count++] = (int)perk;
-    if (perk == PERK_HP_PLUS_4)
+    int hp_bonus = 0;
+    if (perk_effects[perk] && strcmp(perk_effects[perk], "max_hp") == 0)
+        hp_bonus = perk_values[perk];
+    if (hp_bonus > 0)
     {
-        member->max_hp += 4;
-        member->hp += 4;
+        member->max_hp += hp_bonus;
+        member->hp += hp_bonus;
         if (member->hp > member->max_hp)
             member->hp = member->max_hp;
     }
     return true;
 }
 
+bool perk_is_loaded(PerkId perk)
+{
+    return perk >= 0 && perk < PERK_COUNT && perk_loaded[perk];
+}
+
 bool perk_is_class_specific(PerkId perk)
 {
-    return perk >= PERK_GUARDIAN_TAUNT_SHIELD && perk <= PERK_BARD_FIRST_DRAW;
+    if (!perk_is_loaded(perk))
+        return false;
+    return perk_class_specific[perk];
+}
+
+int perk_max_stacks(PerkId perk)
+{
+    if (!perk_is_loaded(perk))
+        return 0;
+    return perk_max_stack_values[perk] > 0 ? perk_max_stack_values[perk] : 1;
+}
+
+int perk_class_count(ClassType ct)
+{
+    if (ct < 0 || ct >= CLASS_COUNT)
+        return 0;
+    return class_perk_counts[ct];
+}
+
+PerkId perk_class_at(ClassType ct, int index)
+{
+    if (ct < 0 || ct >= CLASS_COUNT || index < 0 || index >= class_perk_counts[ct])
+        return PERK_INVALID;
+    return class_perks[ct][index];
 }
 
 PerkId perk_for_class(ClassType ct)
 {
-    switch (ct)
-    {
-        case CLASS_GUARDIAN: return PERK_GUARDIAN_TAUNT_SHIELD;
-        case CLASS_CLERIC: return PERK_CLERIC_OVERHEAL_SHIELD;
-        case CLASS_MAGE: return PERK_MAGE_FIRST_SPELL_DMG;
-        case CLASS_ROGUE: return PERK_ROGUE_MARK_REFUND;
-        case CLASS_SHAMAN: return PERK_SHAMAN_EXTEND_STATUS;
-        case CLASS_RANGER: return PERK_RANGER_MARKED_DMG;
-        case CLASS_PALADIN: return PERK_PALADIN_HEAL_SHIELD;
-        case CLASS_WARLOCK: return PERK_WARLOCK_BLIGHT_BOOST;
-        case CLASS_BARD: return PERK_BARD_FIRST_DRAW;
-        default: return PERK_COUNT;
-    }
+    return perk_class_at(ct, 0);
+}
+
+const char *perk_id(PerkId perk)
+{
+    if (!perk_is_loaded(perk))
+        return "";
+    return perk_ids[perk] ? perk_ids[perk] : "";
 }
 
 const char *perk_name(PerkId perk)
 {
-    if (perk < 0 || perk >= PERK_COUNT)
+    if (!perk_is_loaded(perk))
         return "Unknown Perk";
-    return perk_text[perk].name ? perk_text[perk].name : "Unknown Perk";
+    return perk_names[perk] ? perk_names[perk] : "Unknown Perk";
 }
 
 const char *perk_description(PerkId perk)
 {
-    if (perk < 0 || perk >= PERK_COUNT)
+    if (!perk_is_loaded(perk))
         return "";
-    return perk_text[perk].description ? perk_text[perk].description : "";
+    return perk_descriptions[perk] ? perk_descriptions[perk] : "";
+}
+
+const char *perk_effect(PerkId perk)
+{
+    if (!perk_is_loaded(perk))
+        return "";
+    return perk_effects[perk] ? perk_effects[perk] : "";
+}
+
+int perk_effect_value(PerkId perk)
+{
+    if (!perk_is_loaded(perk))
+        return 0;
+    return perk_values[perk];
+}
+
+int party_member_perk_effect_total(const PartyMember *member, const char *effect)
+{
+    if (!member || !effect || !effect[0])
+        return 0;
+    int total = 0;
+    for (int i = 0; i < member->perk_count && i < MAX_MEMBER_PERKS; i++)
+    {
+        PerkId perk = member->perks[i];
+        if (!perk_is_loaded(perk))
+            continue;
+        if (perk_effects[perk] && strcmp(perk_effects[perk], effect) == 0)
+            total += perk_values[perk];
+    }
+    return total;
+}
+
+const char *party_member_perk_effect_name(const PartyMember *member, const char *effect)
+{
+    if (!member || !effect || !effect[0])
+        return "Perk";
+    for (int i = 0; i < member->perk_count && i < MAX_MEMBER_PERKS; i++)
+    {
+        PerkId perk = member->perks[i];
+        if (!perk_is_loaded(perk))
+            continue;
+        if (perk_effects[perk] && strcmp(perk_effects[perk], effect) == 0)
+            return perk_name(perk);
+    }
+    return "Perk";
+}
+
+int perk_generic_count(void)
+{
+    return generic_perk_count;
+}
+
+PerkId perk_generic_at(int index)
+{
+    if (index < 0 || index >= generic_perk_count)
+        return PERK_INVALID;
+    return generic_perks[index];
 }
 
 int party_lowest_hp(Party *party)

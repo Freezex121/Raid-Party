@@ -438,6 +438,21 @@ void game_skip_tutorial(void)
     g_state.tutorial_step = TUTORIAL_STEP_DONE;
 }
 
+void game_restart_tutorial(void)
+{
+    // Reset all tutorial_seen flags to false
+    g_state.meta.tutorial_seen_elite = false;
+    g_state.meta.tutorial_seen_boss = false;
+    g_state.meta.tutorial_seen_shop = false;
+    g_state.meta.tutorial_seen_event = false;
+    g_state.meta.tutorial_seen_rest = false;
+    g_state.meta.tutorial_seen_level_up = false;
+    g_state.meta.tutorial_seen_discard = false;
+    g_state.meta.tutorial_seen_game_over = false;
+    g_state.meta.tutorial_seen_meta_shop = false;
+}
+
+
 bool game_tutorial_handle_skip(void)
 {
     if (!g_state.tutorial_active) return false;

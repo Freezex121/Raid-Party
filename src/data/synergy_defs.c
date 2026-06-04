@@ -28,17 +28,7 @@ static char *copy_text(const char *text)
 
 static ClassType class_from_string(const char *s)
 {
-    if (!s) return CLASS_NONE;
-    if (strcmp(s, "guardian") == 0) return CLASS_GUARDIAN;
-    if (strcmp(s, "cleric") == 0) return CLASS_CLERIC;
-    if (strcmp(s, "mage") == 0) return CLASS_MAGE;
-    if (strcmp(s, "rogue") == 0) return CLASS_ROGUE;
-    if (strcmp(s, "shaman") == 0) return CLASS_SHAMAN;
-    if (strcmp(s, "ranger") == 0) return CLASS_RANGER;
-    if (strcmp(s, "paladin") == 0) return CLASS_PALADIN;
-    if (strcmp(s, "warlock") == 0) return CLASS_WARLOCK;
-    if (strcmp(s, "bard") == 0) return CLASS_BARD;
-    return CLASS_NONE;
+    return class_from_id(s);
 }
 
 static StatusType status_from_string(const char *s)

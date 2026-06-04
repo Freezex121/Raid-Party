@@ -1,10 +1,11 @@
 #include "event_defs.h"
+#include "systems/meta.h"
 #include "util/json.h"
 #include "util/log.h"
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_EVENTS 32
+#define MAX_EVENTS 40
 
 static EventDef events[MAX_EVENTS];
 static int event_count = 0;
@@ -76,6 +77,9 @@ bool event_defs_load_json(const char *path)
         def.id = copy_text(json_string(field(item, "id"), ""));
         def.name = copy_text(json_string(field(item, "name"), ""));
         def.body = copy_text(json_string(field(item, "body"), ""));
+        def.unlock_key = copy_text(json_string(field(item, "unlock"), ""));
+        def.unlock_event = copy_text(json_string(field(item, "unlock_event"), ""));
+        meta_content_register_unlock_event(def.unlock_key, def.unlock_event);
 
         const JsonValue *choices = field(item, "choices");
         int choice_count = json_array_count(choices);

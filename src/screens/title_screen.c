@@ -240,21 +240,24 @@ void title_screen_draw(void)
     theme_draw_background();
 
     int unlocked_class_count = 0;
-    for (int i = 0; i < CLASS_COUNT; i++)
+    int class_count = party_class_count();
+    for (int i = 0; i < class_count; i++)
     {
-        if (meta_class_unlocked(&g_state.meta, i))
+        ClassType ct = party_class_at(i);
+        if (meta_class_unlocked(&g_state.meta, ct))
             unlocked_class_count++;
     }
 
     int unlocked_idx = 0;
-    for (int i = 0; i < CLASS_COUNT; i++)
+    for (int i = 0; i < class_count; i++)
     {
-        if (!meta_class_unlocked(&g_state.meta, i))
+        ClassType ct = party_class_at(i);
+        if (!meta_class_unlocked(&g_state.meta, ct))
             continue;
 
         int x = VIRT_W / 2 - (unlocked_class_count * 22) + unlocked_idx * 50;
         int y = 255;
-        theme_draw_class_portrait((ClassType)i, x, y, 14, true);
+        theme_draw_class_portrait(ct, x, y, 14, true);
         unlocked_idx++;
     }
 

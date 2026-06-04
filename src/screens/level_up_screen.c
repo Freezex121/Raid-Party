@@ -9,8 +9,8 @@
 #include <stdio.h>
 
 static int current_member = -1;
-static PerkId choice_a = PERK_COUNT;
-static PerkId choice_b = PERK_COUNT;
+static PerkId choice_a = PERK_INVALID;
+static PerkId choice_b = PERK_INVALID;
 
 static int find_next_pending_member(void)
 {
@@ -22,33 +22,53 @@ static int find_next_pending_member(void)
 
 static PerkId generic_choice_for(const PartyMember *member, int salt)
 {
-    static const PerkId generic[] = {
-        PERK_HP_PLUS_4,
-        PERK_STARTING_SHIELD_1,
-        PERK_CARD_DMG_1,
-        PERK_CARD_HEAL_1,
-        PERK_CARD_SHIELD_1
-    };
-    int count = (int)(sizeof(generic) / sizeof(generic[0]));
+    int count = perk_generic_count();
+    if (count <= 0)
+        return PERK_INVALID;
     int seed = member ? member->level + member->xp + member->perk_count * 3 : 0;
-    return generic[(seed + salt + rand()) % count];
+    int start = (seed + salt + rand()) % count;
+    for (int attempt = 0; attempt < count; attempt++)
+    {
+        PerkId perk = perk_generic_at((start + attempt) % count);
+        if (perk_is_loaded(perk) &&
+            (!member || party_member_perk_count(member, perk) < perk_max_stacks(perk)))
+            return perk;
+    }
+    return PERK_INVALID;
+}
+
+static PerkId class_choice_for(const PartyMember *member, int salt)
+{
+    if (!member)
+        return PERK_INVALID;
+    int count = perk_class_count(member->class);
+    if (count <= 0)
+        return PERK_INVALID;
+    int seed = member->level + member->xp + member->perk_count * 5;
+    int start = (seed + salt + rand()) % count;
+    for (int attempt = 0; attempt < count; attempt++)
+    {
+        PerkId perk = perk_class_at(member->class, (start + attempt) % count);
+        if (perk_is_loaded(perk) && party_member_perk_count(member, perk) < perk_max_stacks(perk))
+            return perk;
+    }
+    return PERK_INVALID;
 }
 
 static void generate_choices(void)
 {
     if (current_member < 0 || current_member >= g_state.run_party.count)
     {
-        choice_a = PERK_COUNT;
-        choice_b = PERK_COUNT;
+        choice_a = PERK_INVALID;
+        choice_b = PERK_INVALID;
         return;
     }
 
     PartyMember *member = &g_state.run_party.members[current_member];
     choice_a = generic_choice_for(member, 0);
 
-    PerkId class_perk = perk_for_class(member->class);
-    if (class_perk >= 0 && class_perk < PERK_COUNT &&
-        !party_member_has_perk(member, class_perk))
+    PerkId class_perk = class_choice_for(member, 1);
+    if (perk_is_loaded(class_perk))
     {
         choice_b = class_perk;
         return;
@@ -58,6 +78,8 @@ static void generate_choices(void)
     int attempts = 0;
     while (choice_b == choice_a && attempts++ < 8)
         choice_b = generic_choice_for(member, attempts + 3);
+    if (!perk_is_loaded(choice_b))
+        choice_b = choice_a;
 }
 
 static void ensure_current_member(void)
@@ -65,8 +87,8 @@ static void ensure_current_member(void)
     if (current_member >= 0 &&
         current_member < g_state.run_party.count &&
         g_state.run_party.members[current_member].pending_levels > 0 &&
-        choice_a >= 0 && choice_a < PERK_COUNT &&
-        choice_b >= 0 && choice_b < PERK_COUNT)
+        perk_is_loaded(choice_a) &&
+        perk_is_loaded(choice_b))
         return;
 
     current_member = find_next_pending_member();
@@ -120,14 +142,18 @@ static void choose_perk(PerkId perk)
         member->combat_xp);
     telemetry_push_json("level_up_choice", json);
 
-    party_member_add_perk(member, perk);
+    if (!party_member_add_perk(member, perk))
+    {
+        generate_choices();
+        return;
+    }
     member->pending_levels--;
 
     current_member = find_next_pending_member();
     if (current_member < 0)
     {
-        choice_a = PERK_COUNT;
-        choice_b = PERK_COUNT;
+        choice_a = PERK_INVALID;
+        choice_b = PERK_INVALID;
         game_change_screen(g_state.post_combat_destination);
         return;
     }
@@ -169,7 +195,8 @@ static void draw_choice(Rectangle r, PerkId perk, bool hover)
     draw_text_box((Rectangle){ r.x + 10.0f, r.y + 39.0f, r.width - 20.0f, 38.0f },
         perk_description(perk), 10, 0, (Color){ 215, 220, 238, 235 }, TEXT_ALIGN_CENTER);
     draw_text_box((Rectangle){ r.x + 10.0f, r.y + r.height - 15.0f, r.width - 20.0f, 12.0f },
-        perk_is_class_specific(perk) ? "CLASS PERK" : "STACKS", 10, 0, (Color){ 170, 175, 205, 210 }, TEXT_ALIGN_CENTER);
+        perk_max_stacks(perk) > 1 ? "STACKS" : (perk_is_class_specific(perk) ? "CLASS PERK" : "PERK"),
+        10, 0, (Color){ 170, 175, 205, 210 }, TEXT_ALIGN_CENTER);
 }
 
 void level_up_screen_draw(void)

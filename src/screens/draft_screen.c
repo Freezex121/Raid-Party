@@ -16,63 +16,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#define CLASS_COLOR(r,g,b) (Color){ r, g, b, 255 }
-
-static const struct {
-    const char *name;
-    const char *role;
-    unsigned char cr, cg, cb;
-    const char *tagline;
-} class_info[CLASS_COUNT] = {
-    { "Guardian", "Tank",           74, 144, 217, "Draws enemy fire. Protects the party." },
-    { "Cleric",   "Healer",         225, 170, 50,  "Keeps everyone alive. Draws aggro." },
-    { "Mage",     "Burst DPS",      155, 89, 182,  "Massive damage. Risk of overload." },
-    { "Rogue",    "Interrupt DPS",  39, 174, 96,   "Clutch saves. Combo attacks." },
-    { "Shaman",   "Support",        230, 126, 34,  "Totems. Buffs. Crowd control." },
-    { "Ranger",   "Sustained DPS",  70, 190, 120,  "Marks. Traps. Consistent pressure." },
-    { "Paladin",  "Tank / Healer",  240, 210, 95,  "Protective heals. Holy damage." },
-    { "Warlock",  "DOT / Curses",   125, 70, 185,  "Bleeds power from risky curses." },
-    { "Bard",     "Buffer",         235, 95, 155,  "Draw, tempo, and party buffs." },
-};
-
-static Color class_color(int i) { return CLASS_COLOR(class_info[i].cr, class_info[i].cg, class_info[i].cb); }
-
-static const char *class_synergy_hint(int index)
+static Color draft_class_color(ClassType ct)
 {
-    switch ((ClassType)index)
-    {
-        case CLASS_GUARDIAN: return "Feeds BLIGHT payoffs. Pairs: Mage Molten Armor, Shaman Bulwark.";
-        case CLASS_CLERIC:   return "Consumes MARKED/BLIGHT for recovery. Pairs: Rogue Shadow Mend.";
-        case CLASS_MAGE:     return "Detonates CONDUCTIVE and primes Rogue combos.";
-        case CLASS_ROGUE:    return "Consumes MARKED, applies BLIGHT, chains with Mage and Cleric.";
-        case CLASS_SHAMAN:   return "Applies CONDUCTIVE. Pairs with Mage, Ranger, Guardian.";
-        case CLASS_RANGER:   return "Applies MARKED. Pairs with Rogue Ambush and MARKED payoffs.";
-        case CLASS_PALADIN:  return "Consumes MARKED/BLIGHT for heals and control. Chains with Bard and Warlock.";
-        case CLASS_WARLOCK:  return "Turns CONDUCTIVE into BLIGHT. Chains with Bard and Paladin.";
-        case CLASS_BARD:     return "Applies MARKED/CONDUCTIVE, extends statuses, and amplifies Finale.";
-        default:             return "";
-    }
-}
-
-static Color class_feed_color(int index)
-{
-    switch ((ClassType)index)
-    {
-        case CLASS_MAGE:
-        case CLASS_ROGUE:
-        case CLASS_RANGER:
-        case CLASS_WARLOCK:
-            return (Color){ 220, 75, 80, 230 };
-        case CLASS_GUARDIAN:
-        case CLASS_PALADIN:
-            return (Color){ 90, 165, 245, 230 };
-        case CLASS_CLERIC:
-        case CLASS_SHAMAN:
-        case CLASS_BARD:
-            return (Color){ 235, 205, 85, 230 };
-        default:
-            return (Color){ 180, 110, 230, 230 };
-    }
+    return (Color){ class_color_r(ct), class_color_g(ct), class_color_b(ct), 255 };
 }
 
 static bool selected[CLASS_COUNT];
@@ -85,18 +31,40 @@ static Button begin_btn;
 static Button back_btn;
 static float begin_btn_alpha = 0.0f;
 static float title_y = -60.0f;
+static float draft_scroll_y = 0.0f;
 static bool initialized = false;
 
-static Rectangle draft_card_rect_for(int index)
+static Rectangle draft_list_viewport(void)
+{
+    return (Rectangle){ 0.0f, 68.0f, (float)VIRT_W, 228.0f };
+}
+
+static Rectangle draft_card_rect_for_slot(int slot)
 {
     const float card_w = 180.0f;
     const float card_h = 70.0f;
     const float gap_x = 14.0f;
     const float gap_y = 8.0f;
-    int col = index % 3;
-    int row = index / 3;
+    int col = slot % 3;
+    int row = slot / 3;
     float start_x = (VIRT_W - (3.0f * card_w + 2.0f * gap_x)) * 0.5f;
-    return (Rectangle){ start_x + col * (card_w + gap_x), 72.0f + row * (card_h + gap_y), card_w, card_h };
+    return (Rectangle){ start_x + col * (card_w + gap_x), 72.0f + row * (card_h + gap_y) - draft_scroll_y, card_w, card_h };
+}
+
+static float draft_max_scroll(void)
+{
+    int count = party_class_count();
+    int rows = (count + 2) / 3;
+    float content_h = rows > 0 ? rows * 70.0f + (rows - 1) * 8.0f : 0.0f;
+    float viewport_h = draft_list_viewport().height - 4.0f;
+    float max_scroll = content_h - viewport_h;
+    return max_scroll > 0.0f ? max_scroll : 0.0f;
+}
+
+static bool rect_visible_in_draft_list(Rectangle r)
+{
+    Rectangle view = draft_list_viewport();
+    return r.y + r.height >= view.y && r.y <= view.y + view.height;
 }
 
 static Rectangle draft_begin_rect(void)
@@ -119,7 +87,7 @@ static void card_click_cb(int index)
         selected[index] = false;
         selected_count--;
         tween_create(&card_tweens[index], 0.0f, 0.25f, EASE_OUT_QUAD);
-        LOG_I(CAT_DRAFT, "Deselected class %d (%s) — %d/%d", index, class_info[index].name, selected_count, max_selected);
+        LOG_I(CAT_DRAFT, "Deselected class %d (%s) - %d/%d", index, class_name((ClassType)index), selected_count, max_selected);
     }
     else if (selected_count < max_selected)
     {
@@ -128,7 +96,7 @@ static void card_click_cb(int index)
         card_tweens[index] = 1.0f;
         tween_create(&card_tweens[index], -0.04f, 0.3f, EASE_OUT_BACK);
         tween_chain(tween_create(&card_alphas[index], 1.0f, 0.3f, EASE_OUT_QUAD), &card_alphas[index], 1.0f, 0.0f, EASE_LINEAR);
-        LOG_I(CAT_DRAFT, "Selected class %d (%s) — %d/%d", index, class_info[index].name, selected_count, max_selected);
+        LOG_I(CAT_DRAFT, "Selected class %d (%s) - %d/%d", index, class_name((ClassType)index), selected_count, max_selected);
     }
     g_state.selected_count = selected_count;
 }
@@ -150,6 +118,7 @@ void draft_screen_update(void)
         }
         selected_count = 0;
         g_state.selected_count = 0;
+        draft_scroll_y = 0.0f;
 
         begin_btn = button_create(
             draft_begin_rect(),
@@ -190,13 +159,27 @@ void draft_screen_update(void)
         return;
     }
 
-    for (int i = 0; i < CLASS_COUNT; i++)
+    Rectangle viewport = draft_list_viewport();
+    float wheel = GetMouseWheelMove();
+    if (wheel != 0.0f && CheckCollisionPointRec(mouse, viewport))
     {
-        Rectangle card_rect = draft_card_rect_for(i);
+        draft_scroll_y -= wheel * 24.0f;
+        float max_scroll = draft_max_scroll();
+        if (draft_scroll_y < 0.0f) draft_scroll_y = 0.0f;
+        if (draft_scroll_y > max_scroll) draft_scroll_y = max_scroll;
+    }
 
-        bool hovered = CheckCollisionPointRec(mouse, card_rect);
-        if (hovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && meta_class_unlocked(&g_state.meta, i))
-            card_click_cb(i);
+    int class_count = party_class_count();
+    for (int slot = 0; slot < class_count; slot++)
+    {
+        ClassType ct = party_class_at(slot);
+        Rectangle card_rect = draft_card_rect_for_slot(slot);
+        if (!rect_visible_in_draft_list(card_rect))
+            continue;
+
+        bool hovered = CheckCollisionPointRec(mouse, card_rect) && CheckCollisionPointRec(mouse, viewport);
+        if (hovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && meta_class_unlocked(&g_state.meta, ct))
+            card_click_cb((int)ct);
     }
 
     if (selected_count > 0)
@@ -208,10 +191,11 @@ void draft_screen_update(void)
         if (begin_btn.pressed_this_frame)
         {
             int sel_idx = 0;
-            for (int i = 0; i < CLASS_COUNT && sel_idx < selected_count; i++)
+            for (int i = 0; i < class_count && sel_idx < selected_count; i++)
             {
-                if (selected[i])
-                    g_state.selected_classes[sel_idx++] = i;
+                ClassType ct = party_class_at(i);
+                if (ct >= 0 && ct < CLASS_COUNT && selected[ct])
+                    g_state.selected_classes[sel_idx++] = ct;
             }
             g_state.selected_count = sel_idx;
             LOG_I(CAT_DRAFT, "BEGIN RUN pressed. selected_count=%d, max_selected=%d", g_state.selected_count, max_selected);
@@ -372,22 +356,35 @@ void draft_screen_draw(void)
             area_line, 10, 0, (Color){ 150, 155, 180, 200 }, TEXT_ALIGN_CENTER);
     }
 
-    for (int i = 0; i < CLASS_COUNT; i++)
+    Rectangle viewport = draft_list_viewport();
+    Vector2 mouse = GetMousePosition();
+    int hover_idx = -1;
+    int class_count = party_class_count();
+
+    BeginScissorMode(snap_i(viewport.x), snap_i(viewport.y), snap_i(viewport.width), snap_i(viewport.height));
+    for (int slot = 0; slot < class_count; slot++)
     {
-        Color c = class_color(i);
-        c.a = (unsigned char)(card_alphas[i] * 255);
+        ClassType ct = party_class_at(slot);
+        if (ct < 0 || ct >= CLASS_COUNT)
+            continue;
 
-        Rectangle card_rect = draft_card_rect_for(i);
+        Color c = draft_class_color(ct);
+        c.a = (unsigned char)(card_alphas[ct] * 255);
 
-        Vector2 mouse = GetMousePosition();
-        bool hovered = CheckCollisionPointRec(mouse, card_rect);
-        bool unlocked = meta_class_unlocked(&g_state.meta, i);
+        Rectangle card_rect = draft_card_rect_for_slot(slot);
+        if (!rect_visible_in_draft_list(card_rect))
+            continue;
+
+        bool hovered = CheckCollisionPointRec(mouse, card_rect) && CheckCollisionPointRec(mouse, viewport);
+        if (hovered)
+            hover_idx = ct;
+        bool unlocked = meta_class_unlocked(&g_state.meta, ct);
 
         Color card_bg = c;
         card_bg.r = (unsigned char)(card_bg.r * 0.2f);
         card_bg.g = (unsigned char)(card_bg.g * 0.2f);
         card_bg.b = (unsigned char)(card_bg.b * 0.2f);
-        card_bg.a = (unsigned char)(card_alphas[i] * 255);
+        card_bg.a = (unsigned char)(card_alphas[ct] * 255);
 
         if (hovered && unlocked)
         {
@@ -396,7 +393,7 @@ void draft_screen_draw(void)
             card_bg.b = (unsigned char)(card_bg.b * 1.3f);
         }
 
-        float offset_y = card_tweens[i];
+        float offset_y = card_tweens[ct];
         Rectangle draw_rect = card_rect;
         draw_rect.y += offset_y;
 
@@ -404,60 +401,68 @@ void draft_screen_draw(void)
 
         if (!unlocked)
         {
-            DrawRectangleRec(draw_rect, (Color){ 18, 19, 28, (unsigned char)(card_alphas[i] * 230) });
+            DrawRectangleRec(draw_rect, (Color){ 18, 19, 28, (unsigned char)(card_alphas[ct] * 230) });
             c = (Color){ 95, 95, 115, 255 };
         }
 
-        Color border = selected[i] ? c : (Color){ 60, 60, 80, (unsigned char)(card_alphas[i] * 100) };
-        DrawRectangleLinesEx(draw_rect, selected[i] ? 2.0f : 1.0f, border);
+        Color border = selected[ct] ? c : (Color){ 60, 60, 80, (unsigned char)(card_alphas[ct] * 100) };
+        DrawRectangleLinesEx(draw_rect, selected[ct] ? 2.0f : 1.0f, border);
 
         int text_x = snap_i(draw_rect.x + 8);
         Color name_c = unlocked ? RAYWHITE : (Color){ 125, 128, 145, 230 };
-        name_c.a = (unsigned char)(card_alphas[i] * 255);
+        name_c.a = (unsigned char)(card_alphas[ct] * 255);
         draw_text_box((Rectangle){ (float)text_x, draw_rect.y + 7.0f, draw_rect.width - 78.0f, 14.0f },
-            class_info[i].name, 10, 0, name_c, TEXT_ALIGN_LEFT);
+            class_name(ct), 10, 0, name_c, TEXT_ALIGN_LEFT);
 
         Color role_c = c;
-        role_c.a = (unsigned char)(card_alphas[i] * 200);
+        role_c.a = (unsigned char)(card_alphas[ct] * 200);
         draw_text_box((Rectangle){ (float)text_x, draw_rect.y + 23.0f, draw_rect.width - 78.0f, 14.0f },
-            class_info[i].role, 10, 0, role_c, TEXT_ALIGN_LEFT);
+            class_role(ct), 10, 0, role_c, TEXT_ALIGN_LEFT);
 
-        DrawRectangle(text_x, snap_i(draw_rect.y + 38), snap_i(draw_rect.width - 18), 1, (Color){ 60, 60, 80, (unsigned char)(card_alphas[i] * 200) });
+        DrawRectangle(text_x, snap_i(draw_rect.y + 38), snap_i(draw_rect.width - 18), 1, (Color){ 60, 60, 80, (unsigned char)(card_alphas[ct] * 200) });
 
-        Color tag_c = unlocked ? (Color){ 160, 160, 180, (unsigned char)(card_alphas[i] * 200) } : (Color){ 105, 108, 125, (unsigned char)(card_alphas[i] * 200) };
+        Color tag_c = unlocked ? (Color){ 160, 160, 180, (unsigned char)(card_alphas[ct] * 200) } : (Color){ 105, 108, 125, (unsigned char)(card_alphas[ct] * 200) };
         draw_text_box((Rectangle){ (float)text_x, draw_rect.y + 43.0f, draw_rect.width - 58.0f, 24.0f },
-            unlocked ? class_info[i].tagline : "Locked in the Skill Tree.", 10, 0, tag_c, TEXT_ALIGN_LEFT);
+            unlocked ? class_description(ct) : "Locked in the Skill Tree.", 10, 0, tag_c, TEXT_ALIGN_LEFT);
 
-        theme_draw_class_portrait((ClassType)i,
+        theme_draw_class_portrait(ct,
             snap_i(draw_rect.x + draw_rect.width - 28),
             snap_i(draw_rect.y + draw_rect.height - 28),
             13,
             unlocked);
 
-        if (selected[i])
+        if (selected[ct])
             draw_text_box((Rectangle){ draw_rect.x + draw_rect.width - 75.0f, draw_rect.y + 9.0f, 66.0f, 14.0f },
                 "SELECTED", 10, 0, (Color){ 220, 245, 230, 230 }, TEXT_ALIGN_RIGHT);
         else if (!unlocked)
             draw_text_box((Rectangle){ draw_rect.x + draw_rect.width - 68.0f, draw_rect.y + 9.0f, 58.0f, 14.0f },
                 "LOCKED", 10, 0, (Color){ 145, 145, 165, 220 }, TEXT_ALIGN_RIGHT);
 
-        Color feed = class_feed_color(i);
+        Color feed = draft_class_color(ct);
+        feed.a = 230;
         DrawRectangle(snap_i(draw_rect.x), snap_i(draw_rect.y + draw_rect.height - 3), snap_i(draw_rect.width), 3, feed);
     }
+    EndScissorMode();
 
-    int hover_idx = -1;
-    Vector2 mouse = GetMousePosition();
-    for (int i = 0; i < CLASS_COUNT; i++)
-        if (CheckCollisionPointRec(mouse, draft_card_rect_for(i)))
-            hover_idx = i;
-    if (hover_idx >= 0)
+    float max_scroll = draft_max_scroll();
+    if (max_scroll > 0.0f)
+    {
+        Rectangle track = { 616.0f, viewport.y + 4.0f, 4.0f, viewport.height - 8.0f };
+        float thumb_h = track.height * (track.height / (track.height + max_scroll));
+        if (thumb_h < 24.0f) thumb_h = 24.0f;
+        float thumb_y = track.y + (track.height - thumb_h) * (draft_scroll_y / max_scroll);
+        DrawRectangleRec(track, (Color){ 35, 38, 55, 170 });
+        DrawRectangleRec((Rectangle){ track.x, thumb_y, track.width, thumb_h }, (Color){ 120, 128, 165, 220 });
+    }
+
+    if (hover_idx >= 0 && class_hint((ClassType)hover_idx)[0])
     {
         Rectangle hint = { 118.0f, 300.0f, 404.0f, 18.0f };
-        Color c = class_color(hover_idx);
+        Color c = draft_class_color((ClassType)hover_idx);
         DrawRectangleRec(hint, (Color){ 10, 11, 18, 235 });
         DrawRectangleLinesEx(hint, 1.0f, (Color){ c.r, c.g, c.b, 190 });
         draw_text_box((Rectangle){ hint.x + 6.0f, hint.y + 3.0f, hint.width - 12.0f, hint.height - 5.0f },
-            class_synergy_hint(hover_idx), 10, 0, (Color){ 215, 220, 240, 235 }, TEXT_ALIGN_LEFT);
+            class_hint((ClassType)hover_idx), 10, 0, (Color){ 215, 220, 240, 235 }, TEXT_ALIGN_LEFT);
     }
 
     if (selected_count > 0)

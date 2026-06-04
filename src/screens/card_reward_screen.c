@@ -129,23 +129,28 @@ static void generate_rewards(void)
         g_state.reward_keyword[i] = -1;
     }
 
-    // Collect all eligible cards from party classes + utilities
-    const CardDef *pool[80];
-    int pool_count = 0;
-
-    for (int i = 0; i < g_state.selected_count; i++)
+    const CardDef *pool[128];
+    int pool_count = card_reward_pool_for_party(
+        g_state.selected_classes,
+        g_state.selected_count,
+        &g_state.meta,
+        pool,
+        128);
+    if (pool_count <= 0)
     {
-        ClassType ct = (ClassType)g_state.selected_classes[i];
-        const CardDef *set = class_card_sets[ct];
-        for (int c = 0; c < class_card_counts[ct]; c++)
-            pool[pool_count++] = &set[c];
+        const CardDef *fallback = card_def_by_id("util_prep");
+        if (!fallback && utility_card_count > 0)
+            fallback = &utility_cards[0];
+        if (!fallback)
+        {
+            g_state.reward_count = 0;
+            return;
+        }
+        pool[pool_count++] = fallback;
     }
-    // Also include utility cards
-    for (int c = 0; c < utility_card_count; c++)
-        pool[pool_count++] = &utility_cards[c];
 
     // Pick random cards, no duplicates
-    int used_indices[80] = {0};
+    int used_indices[128] = {0};
 
     for (int i = 0; i < count; i++)
     {
@@ -161,6 +166,8 @@ static void generate_rewards(void)
         g_state.reward_upgrade_level[i] = 0;
 
         int upgrade_chance = meta_reward_upgrade_chance_percent(&g_state.meta);
+        if (relic_has(g_state.relics, g_state.relic_count, RELIC_CHRONICLE_QUILL))
+            upgrade_chance += 10;
         if (g_state.encounter_is_boss)
             upgrade_chance += 50;
         if (upgrade_chance > 95)

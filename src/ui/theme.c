@@ -559,19 +559,7 @@ static Texture2D class_icon_texture(ClassType ct)
 
 Color theme_class_color(ClassType ct)
 {
-    switch (ct)
-    {
-        case CLASS_GUARDIAN: return (Color){ 0, 0, 255, 255 };
-        case CLASS_CLERIC:   return (Color){ 255, 255, 255, 255 };
-        case CLASS_MAGE:     return (Color){ 255, 0, 0, 255 };
-        case CLASS_ROGUE:    return (Color){ 0, 255, 0, 255 };
-        case CLASS_SHAMAN:   return (Color){ 0, 0, 157, 255 };
-        case CLASS_RANGER:   return (Color){ 0, 157, 0, 255 };
-        case CLASS_PALADIN:  return (Color){ 157, 157, 0, 255 };
-        case CLASS_WARLOCK:  return (Color){ 157, 0, 0, 255 };
-        case CLASS_BARD:     return (Color){ 204, 0, 204, 255 };
-        default:             return (Color){ 130, 135, 160, 255 };
-    }
+    return (Color){ class_color_r(ct), class_color_g(ct), class_color_b(ct), 255 };
 }
 
 Color theme_class_dark(ClassType ct)
@@ -611,19 +599,7 @@ Color theme_node_color(NodeType type)
 
 const char *theme_class_abbrev(ClassType ct)
 {
-    switch (ct)
-    {
-        case CLASS_GUARDIAN: return "GD";
-        case CLASS_CLERIC:   return "CL";
-        case CLASS_MAGE:     return "MG";
-        case CLASS_ROGUE:    return "RG";
-        case CLASS_SHAMAN:   return "SH";
-        case CLASS_RANGER:   return "RA";
-        case CLASS_PALADIN:  return "PL";
-        case CLASS_WARLOCK:  return "WL";
-        case CLASS_BARD:     return "BD";
-        default:             return "--";
-    }
+    return class_abbrev(ct);
 }
 
 const char *theme_node_icon(NodeType type)

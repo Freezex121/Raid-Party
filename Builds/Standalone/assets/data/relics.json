@@ -78,6 +78,8 @@
       "name": "Blood Amber",
       "icon": "BA",
       "description": "When you play a card, lose 1 HP and gain 1 energy.",
+      "unlock": "relic_blood_amber",
+      "unlock_event": "solo_artist",
       "trigger": "combat",
       "rarity": 3
     },
@@ -158,6 +160,8 @@
       "name": "Titan Heart",
       "icon": "TH",
       "description": "Party max HP increased by 10 for the rest of the run.",
+      "unlock": "relic_titan_heart",
+      "unlock_event": "perfectionist",
       "trigger": "passive",
       "rarity": 3
     },
@@ -166,6 +170,8 @@
       "name": "Frugal Tome",
       "icon": "FT",
       "description": "Once per floor, use both Heal and Upgrade at rest sites.",
+      "unlock": "relic_frugal_tome",
+      "unlock_event": "champion",
       "trigger": "rest",
       "rarity": 3
     },
@@ -182,6 +188,8 @@
       "name": "Echo Bell",
       "icon": "EB",
       "description": "First card played each combat that costs 1+ has its effects doubled.",
+      "unlock": "relic_echo_bell",
+      "unlock_event": "hoarder",
       "trigger": "combat",
       "rarity": 3
     },
@@ -318,6 +326,8 @@
       "name": "Split Prism",
       "icon": "SP",
       "description": "Your first single-target damage card each combat splashes half damage to adjacent enemies.",
+      "unlock": "relic_split_prism",
+      "unlock_event": "speed_demon",
       "trigger": "combat",
       "rarity": 3
     },
@@ -408,6 +418,36 @@
       "description": "Shop boons cost 30g and last 3 turns instead of 1.",
       "trigger": "shop",
       "rarity": 2
+    },
+    {
+      "id": "duelist_sigil",
+      "name": "Duelist Sigil",
+      "icon": "DS",
+      "description": "If your party has 1 member, start combat with +1 energy and draw 1 card.",
+      "unlock": "relic_duelist_sigil",
+      "unlock_event": "solo_artist",
+      "trigger": "combat_start",
+      "rarity": 2
+    },
+    {
+      "id": "fellowship_standard",
+      "name": "Fellowship Standard",
+      "icon": "FS",
+      "description": "If your party has 4 or more members, all allies start combat with 5 Shield.",
+      "unlock": "relic_fellowship_standard",
+      "unlock_event": "full_house",
+      "trigger": "combat_start",
+      "rarity": 2
+    },
+    {
+      "id": "chronicle_quill",
+      "name": "Chronicle Quill",
+      "icon": "CQ",
+      "description": "Card rewards have +10% upgraded chance.",
+      "unlock": "relic_chronicle_quill",
+      "unlock_event": "completionist",
+      "trigger": "card_reward",
+      "rarity": 3
     }
   ]
 }

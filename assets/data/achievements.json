@@ -1,0 +1,349 @@
+{
+  "schema": 1,
+  "achievements": [
+    {
+      "slot": 0,
+      "key": "first_steps",
+      "name": "First Steps",
+      "description": "Complete your first run.",
+      "renown": 2,
+      "condition": { "first_run": true }
+    },
+    {
+      "slot": 1,
+      "key": "champion",
+      "name": "Champion",
+      "description": "Win a run.",
+      "renown": 3,
+      "condition": { "won": true }
+    },
+    {
+      "slot": 2,
+      "key": "perfectionist",
+      "name": "Perfectionist",
+      "description": "Win a run with no deaths.",
+      "renown": 5,
+      "condition": { "won": true, "deaths_max": 0 }
+    },
+    {
+      "slot": 3,
+      "key": "solo_artist",
+      "name": "Solo Artist",
+      "description": "Win a run with 1 party member.",
+      "renown": 5,
+      "condition": { "won": true, "party_size_eq": 1 }
+    },
+    {
+      "slot": 4,
+      "key": "full_house",
+      "name": "Full House",
+      "description": "Win a run with 5 party members.",
+      "renown": 5,
+      "condition": { "won": true, "party_size_min": 5 }
+    },
+    {
+      "slot": 5,
+      "key": "interrupted",
+      "name": "Interrupted",
+      "description": "Interrupt 20 enemy casts across all runs.",
+      "renown": 3,
+      "condition": { "total_interrupts_min": 20 }
+    },
+    {
+      "slot": 6,
+      "key": "hoarder",
+      "name": "Hoarder",
+      "description": "Collect 10 relics in a single run.",
+      "renown": 3,
+      "condition": { "relics_min": 10 }
+    },
+    {
+      "slot": 7,
+      "key": "speed_demon",
+      "name": "Speed Demon",
+      "description": "Clear a combat floor in a single turn.",
+      "renown": 3,
+      "condition": { "won": true, "best_combat_turns_max": 1 }
+    },
+    {
+      "slot": 8,
+      "key": "completionist",
+      "name": "Completionist",
+      "description": "Beat all areas.",
+      "renown": 10,
+      "condition": { "won": true, "final_area": true }
+    },
+    {
+      "slot": 9,
+      "key": "boss_breaker",
+      "name": "Boss Breaker",
+      "description": "Defeat a boss.",
+      "renown": 2,
+      "condition": { "bosses_min": 1 }
+    },
+    {
+      "slot": 10,
+      "key": "boss_rush",
+      "name": "Boss Rush",
+      "description": "Defeat 2 bosses in one run.",
+      "renown": 4,
+      "condition": { "bosses_min": 2 }
+    },
+    {
+      "slot": 11,
+      "key": "relic_hunter",
+      "name": "Relic Hunter",
+      "description": "Collect 5 relics in a single run.",
+      "renown": 2,
+      "condition": { "relics_min": 5 }
+    },
+    {
+      "slot": 12,
+      "key": "relic_lord",
+      "name": "Relic Lord",
+      "description": "Collect 15 relics in a single run.",
+      "renown": 6,
+      "condition": { "relics_min": 15 }
+    },
+    {
+      "slot": 13,
+      "key": "quick_reflexes",
+      "name": "Quick Reflexes",
+      "description": "Interrupt 3 enemy casts in one run.",
+      "renown": 2,
+      "condition": { "run_interrupts_min": 3 }
+    },
+    {
+      "slot": 14,
+      "key": "silencer",
+      "name": "Silencer",
+      "description": "Interrupt 50 enemy casts across all runs.",
+      "renown": 5,
+      "condition": { "total_interrupts_min": 50 }
+    },
+    {
+      "slot": 15,
+      "key": "kept_walking",
+      "name": "Kept Walking",
+      "description": "Complete 5 runs.",
+      "renown": 2,
+      "condition": { "runs_min": 5 }
+    },
+    {
+      "slot": 16,
+      "key": "veteran_runner",
+      "name": "Veteran Runner",
+      "description": "Complete 10 runs.",
+      "renown": 4,
+      "condition": { "runs_min": 10 }
+    },
+    {
+      "slot": 17,
+      "key": "proven_champion",
+      "name": "Proven Champion",
+      "description": "Win 3 runs.",
+      "renown": 5,
+      "condition": { "wins_min": 3 }
+    },
+    {
+      "slot": 18,
+      "key": "legend",
+      "name": "Legend",
+      "description": "Win 10 runs.",
+      "renown": 12,
+      "condition": { "wins_min": 10 }
+    },
+    {
+      "slot": 19,
+      "key": "boss_collector",
+      "name": "Boss Collector",
+      "description": "Defeat 10 bosses across all runs.",
+      "renown": 5,
+      "condition": { "total_bosses_min": 10 }
+    },
+    {
+      "slot": 20,
+      "key": "boss_reaper",
+      "name": "Boss Reaper",
+      "description": "Defeat 25 bosses across all runs.",
+      "renown": 10,
+      "condition": { "total_bosses_min": 25 }
+    },
+    {
+      "slot": 21,
+      "key": "underdog",
+      "name": "Underdog",
+      "description": "Win a run with 2 or fewer party members.",
+      "renown": 4,
+      "condition": { "won": true, "party_size_max": 2 }
+    },
+    {
+      "slot": 22,
+      "key": "formation_fighter",
+      "name": "Formation Fighter",
+      "description": "Win a run with 4 or more party members.",
+      "renown": 3,
+      "condition": { "won": true, "party_size_min": 4 }
+    },
+    {
+      "slot": 23,
+      "key": "no_one_left_behind",
+      "name": "No One Left Behind",
+      "description": "Win a run with 4 or more party members and no deaths.",
+      "renown": 6,
+      "condition": { "won": true, "party_size_min": 4, "deaths_max": 0 }
+    },
+    {
+      "slot": 24,
+      "key": "blood_price",
+      "name": "Blood Price",
+      "description": "Win a run after 3 or more deaths.",
+      "renown": 5,
+      "condition": { "won": true, "deaths_min": 3 }
+    },
+    {
+      "slot": 25,
+      "key": "ascendant",
+      "name": "Ascendant",
+      "description": "Win a run at Ascension 1 or higher.",
+      "renown": 5,
+      "condition": { "won": true, "ascension_min": 1 }
+    },
+    {
+      "slot": 26,
+      "key": "high_ascendant",
+      "name": "High Ascendant",
+      "description": "Win a run at Ascension 5 or higher.",
+      "renown": 10,
+      "condition": { "won": true, "ascension_min": 5 }
+    },
+    {
+      "slot": 27,
+      "key": "pinnacle",
+      "name": "Pinnacle",
+      "description": "Win a run at Ascension 10.",
+      "renown": 20,
+      "condition": { "won": true, "ascension_min": 10 }
+    },
+    {
+      "slot": 28,
+      "key": "deep_run",
+      "name": "Deep Run",
+      "description": "Reach floor 3.",
+      "renown": 2,
+      "condition": { "floor_min": 3 }
+    },
+    {
+      "slot": 29,
+      "key": "deeper_run",
+      "name": "Deeper Run",
+      "description": "Reach floor 6.",
+      "renown": 4,
+      "condition": { "floor_min": 6 }
+    },
+    {
+      "slot": 30,
+      "key": "guardian_clear",
+      "name": "Guardian Clear",
+      "description": "Win a run with a Guardian in your party.",
+      "renown": 3,
+      "condition": { "won": true, "requires_class": "guardian" }
+    },
+    {
+      "slot": 31,
+      "key": "cleric_clear",
+      "name": "Cleric Clear",
+      "description": "Win a run with a Cleric in your party.",
+      "renown": 3,
+      "condition": { "won": true, "requires_class": "cleric" }
+    },
+    {
+      "slot": 32,
+      "key": "mage_clear",
+      "name": "Mage Clear",
+      "description": "Win a run with a Mage in your party.",
+      "renown": 3,
+      "condition": { "won": true, "requires_class": "mage" }
+    },
+    {
+      "slot": 33,
+      "key": "rogue_clear",
+      "name": "Rogue Clear",
+      "description": "Win a run with a Rogue in your party.",
+      "renown": 3,
+      "condition": { "won": true, "requires_class": "rogue" }
+    },
+    {
+      "slot": 34,
+      "key": "shaman_clear",
+      "name": "Shaman Clear",
+      "description": "Win a run with a Shaman in your party.",
+      "renown": 3,
+      "condition": { "won": true, "requires_class": "shaman" }
+    },
+    {
+      "slot": 35,
+      "key": "ranger_clear",
+      "name": "Ranger Clear",
+      "description": "Win a run with a Ranger in your party.",
+      "renown": 3,
+      "condition": { "won": true, "requires_class": "ranger" }
+    },
+    {
+      "slot": 36,
+      "key": "paladin_clear",
+      "name": "Paladin Clear",
+      "description": "Win a run with a Paladin in your party.",
+      "renown": 4,
+      "condition": { "won": true, "requires_class": "paladin" }
+    },
+    {
+      "slot": 37,
+      "key": "warlock_clear",
+      "name": "Warlock Clear",
+      "description": "Win a run with a Warlock in your party.",
+      "renown": 4,
+      "condition": { "won": true, "requires_class": "warlock" }
+    },
+    {
+      "slot": 38,
+      "key": "bard_clear",
+      "name": "Bard Clear",
+      "description": "Win a run with a Bard in your party.",
+      "renown": 4,
+      "condition": { "won": true, "requires_class": "bard" }
+    },
+    {
+      "slot": 39,
+      "key": "venom_victor",
+      "name": "Venom Victor",
+      "description": "Win a run in Area 2 or later.",
+      "renown": 4,
+      "condition": { "won": true, "area_index_min": 1 }
+    },
+    {
+      "slot": 40,
+      "key": "cinder_victor",
+      "name": "Cinder Victor",
+      "description": "Win a run in Area 3 or later.",
+      "renown": 5,
+      "condition": { "won": true, "area_index_min": 2 }
+    },
+    {
+      "slot": 41,
+      "key": "catacomb_victor",
+      "name": "Catacomb Victor",
+      "description": "Win a run in Area 4 or later.",
+      "renown": 6,
+      "condition": { "won": true, "area_index_min": 3 }
+    },
+    {
+      "slot": 42,
+      "key": "citadel_victor",
+      "name": "Citadel Victor",
+      "description": "Win a run in Area 5 or later.",
+      "renown": 8,
+      "condition": { "won": true, "area_index_min": 4 }
+    }
+  ]
+}

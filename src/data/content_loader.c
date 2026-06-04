@@ -6,14 +6,17 @@
 #include "event_defs.h"
 #include "synergy_defs.h"
 #include "systems/party.h"
+#include "systems/achievements.h"
 #include "systems/relic.h"
 #include "util/log.h"
 
 bool content_load_all(void)
 {
     bool ok = true;
+    ok = achievements_load_json("assets/data/achievements.json") && ok;
     ok = area_defs_load_json("assets/data/areas.json") && ok;
     ok = party_defs_load_json("assets/data/classes.json") && ok;
+    ok = perk_defs_load_json("assets/data/perks.json") && ok;
     ok = card_defs_load_json("assets/data/cards.json") && ok;
     ok = enemy_defs_load_json("assets/data/enemies.json") && ok;
     ok = encounter_defs_load_json("assets/data/encounters.json") && ok;

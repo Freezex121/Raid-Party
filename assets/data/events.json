@@ -298,6 +298,42 @@
         { "label": "Accept the Pact", "description": "Gain 25g. A random card gains Exhaust.", "effect": "curse_exhaust", "gold": 25 },
         { "label": "Decline", "description": "Walk away from the deal.", "effect": "none" }
       ]
+    },
+    {
+      "id": "champions_feast",
+      "name": "Champion's Feast",
+      "unlock": "event_champions_feast",
+      "unlock_event": "champion",
+      "body": "A victory table waits under bright banners, loaded with warm food and polished trophies.",
+      "choices": [
+        { "label": "Share The Feast", "description": "Heal all allies for 24.", "effect": "heal_party", "amount": 24 },
+        { "label": "Claim Trophy", "description": "Gain a relic.", "effect": "gain_relic_add_curse", "curse": "" },
+        { "label": "Toast The Run", "description": "All party members gain +3 max HP.", "effect": "gain_max_hp", "amount": 3 }
+      ]
+    },
+    {
+      "id": "crowded_stage",
+      "name": "Crowded Stage",
+      "unlock": "event_crowded_stage",
+      "unlock_event": "full_house",
+      "body": "A tiny stage somehow has room for everyone. The crowd cheers louder for bigger parties.",
+      "choices": [
+        { "label": "Group Number", "description": "Heal all allies for 18.", "effect": "heal_party", "amount": 18 },
+        { "label": "Passing Hat", "description": "Gain 40g. Add Doubt.", "effect": "gain_gold_add_curse", "gold": 40, "curse": "curse_doubt" },
+        { "label": "Encore Drill", "description": "Pay 25g. Upgrade a card.", "effect": "pay_gold_upgrade_random_card", "gold": 25 }
+      ]
+    },
+    {
+      "id": "hall_of_records",
+      "name": "Hall of Records",
+      "unlock": "event_hall_of_records",
+      "unlock_event": "completionist",
+      "body": "Stone shelves hold accounts of every expedition that reached the end and every one that did not.",
+      "choices": [
+        { "label": "Study Victory", "description": "Upgrade a card. Lose 4 HP each.", "effect": "upgrade_random_card_hurt_party", "hp_loss": 4 },
+        { "label": "Rewrite A Loss", "description": "Transform a random card.", "effect": "transform_random_card" },
+        { "label": "Claim Legacy", "description": "Pay 30g. Gain a relic.", "effect": "pay_gold_gain_relic", "gold": 30 }
+      ]
     }
   ]
 }

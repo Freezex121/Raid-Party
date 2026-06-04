@@ -1,0 +1,348 @@
+{
+  "schema": 1,
+  "perks": [
+    {
+      "index": 0,
+      "id": "hp_plus_4",
+      "name": "+4 Max HP",
+      "description": "Gain 4 max HP and heal 4.",
+      "pool": "generic",
+      "effect": "max_hp",
+      "value": 4,
+      "max_stacks": 5
+    },
+    {
+      "index": 1,
+      "id": "starting_shield_1",
+      "name": "Brace",
+      "description": "Start each combat with +1 Shield.",
+      "pool": "generic",
+      "effect": "combat_start_shield",
+      "value": 1,
+      "max_stacks": 5
+    },
+    {
+      "index": 2,
+      "id": "card_dmg_1",
+      "name": "Sharper Cards",
+      "description": "This member's cards deal +1 damage.",
+      "pool": "generic",
+      "effect": "card_damage",
+      "value": 1,
+      "max_stacks": 5
+    },
+    {
+      "index": 3,
+      "id": "card_heal_1",
+      "name": "Steadier Hands",
+      "description": "This member's cards heal +1 HP.",
+      "pool": "generic",
+      "effect": "card_heal",
+      "value": 1,
+      "max_stacks": 5
+    },
+    {
+      "index": 4,
+      "id": "card_shield_1",
+      "name": "Better Guard",
+      "description": "This member's cards grant +1 Shield.",
+      "pool": "generic",
+      "effect": "card_shield",
+      "value": 1,
+      "max_stacks": 5
+    },
+    {
+      "index": 5,
+      "id": "guardian_taunt_shield",
+      "name": "Anchor Stance",
+      "description": "First Taunt each combat grants +4 Shield.",
+      "class": "guardian",
+      "effect": "first_taunt_shield",
+      "value": 4
+    },
+    {
+      "index": 6,
+      "id": "cleric_overheal_shield",
+      "name": "Overflowing Grace",
+      "description": "Overhealing with Cleric cards grants 2 Shield.",
+      "class": "cleric",
+      "effect": "overheal_shield",
+      "value": 2
+    },
+    {
+      "index": 7,
+      "id": "mage_first_spell_dmg",
+      "name": "Opening Spark",
+      "description": "First Mage damage card each turn deals +1 damage.",
+      "class": "mage",
+      "effect": "first_mage_damage_each_turn",
+      "value": 1
+    },
+    {
+      "index": 8,
+      "id": "rogue_mark_refund",
+      "name": "Clean Payday",
+      "description": "First Rogue Mark payoff each combat refunds 1 Energy.",
+      "class": "rogue",
+      "effect": "marked_payoff_energy_once",
+      "value": 1
+    },
+    {
+      "index": 9,
+      "id": "shaman_extend_status",
+      "name": "Lingering Rite",
+      "description": "First Shaman Conductive or Totem each combat lasts +1 turn.",
+      "class": "shaman",
+      "effect": "extend_shaman_status_once",
+      "value": 1
+    },
+    {
+      "index": 10,
+      "id": "ranger_marked_dmg",
+      "name": "True Shot",
+      "description": "First Ranger hit against Marked each combat deals +2 damage.",
+      "class": "ranger",
+      "effect": "first_marked_damage",
+      "value": 2
+    },
+    {
+      "index": 11,
+      "id": "paladin_heal_shield",
+      "name": "Blessed Mending",
+      "description": "Paladin heals also grant 1 Shield.",
+      "class": "paladin",
+      "effect": "heal_grant_shield",
+      "value": 1
+    },
+    {
+      "index": 12,
+      "id": "warlock_blight_boost",
+      "name": "Deeper Rot",
+      "description": "First Warlock Blight each combat gains +1 value.",
+      "class": "warlock",
+      "effect": "first_blight_bonus",
+      "value": 1
+    },
+    {
+      "index": 13,
+      "id": "bard_first_draw",
+      "name": "Encore",
+      "description": "First Bard card each combat draws 1 card.",
+      "class": "bard",
+      "effect": "first_bard_draw",
+      "value": 1
+    },
+    {
+      "index": 14,
+      "id": "hp_plus_8",
+      "name": "Vital Training",
+      "description": "Gain 8 max HP and heal 8.",
+      "pool": "generic",
+      "effect": "max_hp",
+      "value": 8,
+      "max_stacks": 1
+    },
+    {
+      "index": 15,
+      "id": "starting_shield_2",
+      "name": "Iron Nerves",
+      "description": "Start each combat with +2 Shield.",
+      "pool": "generic",
+      "effect": "combat_start_shield",
+      "value": 2,
+      "max_stacks": 3
+    },
+    {
+      "index": 16,
+      "id": "combat_start_energy",
+      "name": "Morning Focus",
+      "description": "Start each combat with +1 Energy.",
+      "pool": "generic",
+      "effect": "combat_start_energy",
+      "value": 1,
+      "max_stacks": 1
+    },
+    {
+      "index": 17,
+      "id": "combat_start_draw",
+      "name": "Quick Study",
+      "description": "Draw 1 extra card at combat start.",
+      "pool": "generic",
+      "effect": "combat_start_draw",
+      "value": 1,
+      "max_stacks": 1
+    },
+    {
+      "index": 18,
+      "id": "turn_draw_bonus",
+      "name": "Tactical Rhythm",
+      "description": "Draw 1 extra card each player turn.",
+      "pool": "generic",
+      "effect": "turn_draw",
+      "value": 1,
+      "max_stacks": 1
+    },
+    {
+      "index": 19,
+      "id": "guardian_guarded_entry",
+      "name": "Guarded Entry",
+      "description": "Guardian starts each combat with +2 Shield.",
+      "class": "guardian",
+      "effect": "combat_start_shield",
+      "value": 2
+    },
+    {
+      "index": 20,
+      "id": "cleric_gentle_light",
+      "name": "Gentle Light",
+      "description": "Cleric cards heal +1 HP.",
+      "class": "cleric",
+      "effect": "card_heal",
+      "value": 1
+    },
+    {
+      "index": 21,
+      "id": "mage_arcane_reserve",
+      "name": "Arcane Reserve",
+      "description": "Start each combat with +1 Energy while Mage is alive.",
+      "class": "mage",
+      "effect": "combat_start_energy",
+      "value": 1
+    },
+    {
+      "index": 22,
+      "id": "rogue_quick_hands",
+      "name": "Quick Hands",
+      "description": "Draw 1 extra card at combat start while Rogue is alive.",
+      "class": "rogue",
+      "effect": "combat_start_draw",
+      "value": 1
+    },
+    {
+      "index": 23,
+      "id": "shaman_earthward",
+      "name": "Earthward",
+      "description": "Shaman cards grant +1 Shield.",
+      "class": "shaman",
+      "effect": "card_shield",
+      "value": 1
+    },
+    {
+      "index": 24,
+      "id": "ranger_keen_edge",
+      "name": "Keen Edge",
+      "description": "Ranger cards deal +1 damage.",
+      "class": "ranger",
+      "effect": "card_damage",
+      "value": 1
+    },
+    {
+      "index": 25,
+      "id": "paladin_radiant_guard",
+      "name": "Radiant Guard",
+      "description": "Paladin starts each combat with +2 Shield.",
+      "class": "paladin",
+      "effect": "combat_start_shield",
+      "value": 2
+    },
+    {
+      "index": 26,
+      "id": "warlock_cruel_study",
+      "name": "Cruel Study",
+      "description": "Warlock cards deal +1 damage.",
+      "class": "warlock",
+      "effect": "card_damage",
+      "value": 1
+    },
+    {
+      "index": 27,
+      "id": "bard_warmup_song",
+      "name": "Warmup Song",
+      "description": "Draw 1 extra card at combat start while Bard is alive.",
+      "class": "bard",
+      "effect": "combat_start_draw",
+      "value": 1
+    },
+    {
+      "index": 28,
+      "id": "guardian_reinforced_grip",
+      "name": "Reinforced Grip",
+      "description": "Guardian cards grant +1 Shield.",
+      "class": "guardian",
+      "effect": "card_shield",
+      "value": 1
+    },
+    {
+      "index": 29,
+      "id": "cleric_prayer_cycle",
+      "name": "Prayer Cycle",
+      "description": "Draw 1 extra card at combat start while Cleric is alive.",
+      "class": "cleric",
+      "effect": "combat_start_draw",
+      "value": 1
+    },
+    {
+      "index": 30,
+      "id": "mage_spellcraft",
+      "name": "Spellcraft",
+      "description": "Mage cards deal +1 damage.",
+      "class": "mage",
+      "effect": "card_damage",
+      "value": 1
+    },
+    {
+      "index": 31,
+      "id": "rogue_dirty_work",
+      "name": "Dirty Work",
+      "description": "Rogue cards deal +1 damage.",
+      "class": "rogue",
+      "effect": "card_damage",
+      "value": 1
+    },
+    {
+      "index": 32,
+      "id": "shaman_totemic_rhythm",
+      "name": "Totemic Rhythm",
+      "description": "Draw 1 extra card each player turn while Shaman is alive.",
+      "class": "shaman",
+      "effect": "turn_draw",
+      "value": 1
+    },
+    {
+      "index": 33,
+      "id": "ranger_scouting_route",
+      "name": "Scouting Route",
+      "description": "Draw 1 extra card at combat start while Ranger is alive.",
+      "class": "ranger",
+      "effect": "combat_start_draw",
+      "value": 1
+    },
+    {
+      "index": 34,
+      "id": "paladin_lay_hands",
+      "name": "Lay Hands",
+      "description": "Paladin cards heal +1 HP.",
+      "class": "paladin",
+      "effect": "card_heal",
+      "value": 1
+    },
+    {
+      "index": 35,
+      "id": "warlock_soul_battery",
+      "name": "Soul Battery",
+      "description": "Start each combat with +1 Energy while Warlock is alive.",
+      "class": "warlock",
+      "effect": "combat_start_energy",
+      "value": 1
+    },
+    {
+      "index": 36,
+      "id": "bard_soothing_chorus",
+      "name": "Soothing Chorus",
+      "description": "Bard cards heal +1 HP.",
+      "class": "bard",
+      "effect": "card_heal",
+      "value": 1
+    }
+  ]
+}

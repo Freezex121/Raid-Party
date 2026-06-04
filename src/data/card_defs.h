@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include "systems/deck.h"
+#include "systems/meta.h"
 
 #define CLASS_CARD_COUNT 9
 #define GUARDIAN_CARD_COUNT 9
@@ -35,5 +36,7 @@ extern int utility_card_count;
 bool card_defs_load_json(const char *path);
 const CardDef *card_def_by_id(const char *id);
 int card_defs_loaded_count(void);
+bool card_def_available_for_rewards(const CardDef *def, const MetaProgress *meta);
+int card_reward_pool_for_party(const int *class_indices, int class_count, const MetaProgress *meta, const CardDef **out, int max);
 
 #endif

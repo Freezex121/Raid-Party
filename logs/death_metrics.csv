@@ -29,3 +29,4 @@ timestamp,run_id,area,floor,encounter_id,encounter_type,class,combat_turn,source
 1780424558,"13","2","3","elder_dragon_drain+ember_knight","boss","Mage","5","Elder Dragon"
 1780433930,"13","2","5","forge_tyrant_drain+ember_knight","elite","Mage","9","Forge Tyrant"
 1780434702,"13","2","5","forge_tyrant_drain+cinder_warden+ash_cultist","boss","Ranger","12","Forge Tyrant"
+1780574933,"2","1","4","greater_manticore+basilisk+plague_alchemist","normal","Rogue","5","Basilisk"

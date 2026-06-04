@@ -158,6 +158,21 @@ void deck_add_card_with_level(Deck *deck, const CardDef *def, int upgrade_level)
     deck->draw[deck->draw_count++] = idx;
 }
 
+int deck_add_card_copy(Deck *deck, const CardInstance *source)
+{
+    if (!deck || !source || !source->def || !source->def->id || !source->def->name)
+        return -1;
+    if (deck->card_count >= MAX_DECK_SIZE)
+        return -1;
+
+    int idx = deck->card_count++;
+    deck->cards[idx] = *source;
+    deck->cards[idx].uid = deck->next_uid++;
+    deck->cards[idx].upgrade_level = card_clamp_upgrade_level(deck->cards[idx].def, deck->cards[idx].upgrade_level);
+    deck->draw[deck->draw_count++] = idx;
+    return idx;
+}
+
 void deck_prepare_for_combat(Deck *deck)
 {
     deck->draw_count = 0;

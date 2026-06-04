@@ -210,19 +210,13 @@ static int deck_min_enchant_cost(void)
 
 static const CardDef *random_party_card(void)
 {
-    const CardDef *pool[96];
-    int count = 0;
-
-    for (int i = 0; i < g_state.selected_count; i++)
-    {
-        ClassType ct = (ClassType)g_state.selected_classes[i];
-        if (ct < 0 || ct >= CLASS_COUNT || !class_card_sets[ct]) continue;
-        for (int c = 0; c < class_card_counts[ct] && count < 96; c++)
-            pool[count++] = &class_card_sets[ct][c];
-    }
-
-    for (int c = 0; c < utility_card_count && count < 96; c++)
-        pool[count++] = &utility_cards[c];
+    const CardDef *pool[128];
+    int count = card_reward_pool_for_party(
+        g_state.selected_classes,
+        g_state.selected_count,
+        &g_state.meta,
+        pool,
+        128);
 
     if (count <= 0)
         return utility_card_count > 0 ? &utility_cards[0] : card_def_by_id("util_prep");

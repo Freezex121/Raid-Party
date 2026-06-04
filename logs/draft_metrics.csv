@@ -49,3 +49,7 @@ timestamp,run_id,area,ascension,party_size,max_party_size,party_not_full,classes
 1780489004,"1","0","0","3","3","0","Mage|Rogue|Ranger"
 1780504880,"1","0","0","3","3","0","Guardian|Cleric|Shaman"
 1780507239,"1","0","0","3","3","0","Cleric|Mage|Ranger"
+1780540852,"1","0","0","3","3","0","Cleric|Mage|Ranger"
+1780567446,"1","0","0","3","3","0","Cleric|Mage|Ranger"
+1780567493,"1","0","0","3","3","0","Cleric|Mage|Ranger"
+1780573314,"2","1","0","3","3","0","Guardian|Rogue|Shaman"

@@ -20,6 +20,8 @@
 #define MAX_COLS_GREENWOOD 4
 #define MAX_COLS_VENOM_MIRE 4
 #define MAX_COLS_CINDER_SPIRE 4
+#define MAX_COLS_HOLLOW_CATACOMBS 5
+#define MAX_COLS_STARFALL_CITADEL 5
 
 // Chance (percent) to get a rare 5-column row at the midpoint
 #define RARE_5_COL_CHANCE 15
@@ -29,21 +31,29 @@
 #define MIN_SHOP_GREENWOOD 0
 #define MIN_SHOP_VENOM_MIRE 1
 #define MIN_SHOP_CINDER_SPIRE 1
+#define MIN_SHOP_HOLLOW_CATACOMBS 1
+#define MIN_SHOP_STARFALL_CITADEL 1
 
 // Event range
 #define MAX_EVENT_GREENWOOD 1
 #define MAX_EVENT_VENOM_MIRE 2
 #define MAX_EVENT_CINDER_SPIRE 2
+#define MAX_EVENT_HOLLOW_CATACOMBS 3
+#define MAX_EVENT_STARFALL_CITADEL 3
 
 // Base elites per floor (bonus added for later floors)
 #define ELITE_EACH_GREENWOOD 1
 #define ELITE_EACH_VENOM_MIRE 1
 #define ELITE_EACH_CINDER_SPIRE 1
+#define ELITE_EACH_HOLLOW_CATACOMBS 2
+#define ELITE_EACH_STARFALL_CITADEL 2
 
 // Branch and merge chances (percent)
 #define BRANCH_GREENWOOD 50
 #define BRANCH_VENOM_MIRE 60
 #define BRANCH_CINDER_SPIRE 70
+#define BRANCH_HOLLOW_CATACOMBS 75
+#define BRANCH_STARFALL_CITADEL 80
 #define MERGE_CHANCE 20
 
 // ── Area Config ────────────────────────────────────────────────
@@ -83,6 +93,22 @@ static AreaGenConfig config_for_area(const char *area_id)
         cfg.max_event = MAX_EVENT_CINDER_SPIRE;
         cfg.elite_each = ELITE_EACH_CINDER_SPIRE;
         cfg.branch_chance = BRANCH_CINDER_SPIRE;
+    }
+    else if (strcmp(area_id, "hollow_catacombs") == 0)
+    {
+        cfg.max_cols = MAX_COLS_HOLLOW_CATACOMBS;
+        cfg.min_shop = MIN_SHOP_HOLLOW_CATACOMBS;
+        cfg.max_event = MAX_EVENT_HOLLOW_CATACOMBS;
+        cfg.elite_each = ELITE_EACH_HOLLOW_CATACOMBS;
+        cfg.branch_chance = BRANCH_HOLLOW_CATACOMBS;
+    }
+    else if (strcmp(area_id, "starfall_citadel") == 0)
+    {
+        cfg.max_cols = MAX_COLS_STARFALL_CITADEL;
+        cfg.min_shop = MIN_SHOP_STARFALL_CITADEL;
+        cfg.max_event = MAX_EVENT_STARFALL_CITADEL;
+        cfg.elite_each = ELITE_EACH_STARFALL_CITADEL;
+        cfg.branch_chance = BRANCH_STARFALL_CITADEL;
     }
     return cfg;
 }

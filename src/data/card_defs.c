@@ -20,6 +20,7 @@ CardDef ranger_cards[CLASS_CARD_COUNT];
 CardDef paladin_cards[CLASS_CARD_COUNT];
 CardDef warlock_cards[CLASS_CARD_COUNT];
 CardDef bard_cards[CLASS_CARD_COUNT];
+static CardDef dynamic_class_cards[CLASS_COUNT - CLASS_BUILTIN_COUNT][CLASS_CARD_COUNT];
 CardDef utility_cards[MAX_UTILITY_CARDS];
 int utility_card_count = 0;
 
@@ -61,16 +62,7 @@ static CardType parse_card_type(const char *text)
 
 static ClassType parse_class(const char *text)
 {
-    if (text && strcmp(text, "guardian") == 0) return CLASS_GUARDIAN;
-    if (text && strcmp(text, "cleric") == 0) return CLASS_CLERIC;
-    if (text && strcmp(text, "mage") == 0) return CLASS_MAGE;
-    if (text && strcmp(text, "rogue") == 0) return CLASS_ROGUE;
-    if (text && strcmp(text, "shaman") == 0) return CLASS_SHAMAN;
-    if (text && strcmp(text, "ranger") == 0) return CLASS_RANGER;
-    if (text && strcmp(text, "paladin") == 0) return CLASS_PALADIN;
-    if (text && strcmp(text, "warlock") == 0) return CLASS_WARLOCK;
-    if (text && strcmp(text, "bard") == 0) return CLASS_BARD;
-    return CLASS_NONE;
+    return class_from_id(text);
 }
 
 static TargetType parse_target(const char *text)
@@ -128,14 +120,29 @@ static void reset_cards(void)
     memset(paladin_cards, 0, sizeof(paladin_cards));
     memset(warlock_cards, 0, sizeof(warlock_cards));
     memset(bard_cards, 0, sizeof(bard_cards));
+    memset(dynamic_class_cards, 0, sizeof(dynamic_class_cards));
     memset(utility_cards, 0, sizeof(utility_cards));
     memset(class_card_counts, 0, sizeof(class_card_counts));
+    class_card_sets[CLASS_GUARDIAN] = guardian_cards;
+    class_card_sets[CLASS_CLERIC] = cleric_cards;
+    class_card_sets[CLASS_MAGE] = mage_cards;
+    class_card_sets[CLASS_ROGUE] = rogue_cards;
+    class_card_sets[CLASS_SHAMAN] = shaman_cards;
+    class_card_sets[CLASS_RANGER] = ranger_cards;
+    class_card_sets[CLASS_PALADIN] = paladin_cards;
+    class_card_sets[CLASS_WARLOCK] = warlock_cards;
+    class_card_sets[CLASS_BARD] = bard_cards;
+    for (int i = CLASS_BUILTIN_COUNT; i < CLASS_COUNT; i++)
+        class_card_sets[i] = dynamic_class_cards[i - CLASS_BUILTIN_COUNT];
     all_card_count = 0;
     utility_card_count = 0;
 }
 
 static CardDef *class_storage(ClassType ct)
 {
+    if (ct >= CLASS_BUILTIN_COUNT && ct < CLASS_COUNT)
+        return dynamic_class_cards[ct - CLASS_BUILTIN_COUNT];
+
     switch (ct)
     {
         case CLASS_GUARDIAN: return guardian_cards;
@@ -154,6 +161,7 @@ static CardDef *class_storage(ClassType ct)
 static bool add_to_visible_sets(const CardDef *def, const char *class_text)
 {
     if (!def || !class_text) return true;
+    if (def->reward_only) return true;
 
     if (strcmp(class_text, "utility") == 0)
     {
@@ -233,6 +241,11 @@ bool card_defs_load_json(const char *path)
         def.splash = json_int(field(item, "splash"), 0);
         def.retain = json_bool(field(item, "retain"), false);
         def.fleeting = json_bool(field(item, "fleeting"), false);
+        def.reward_only = json_bool(field(item, "reward_only"), false);
+        def.is_utility = strcmp(class_text, "utility") == 0;
+        def.unlock_key = copy_text(json_string(field(item, "unlock"), ""));
+        def.unlock_event = copy_text(json_string(field(item, "unlock_event"), ""));
+        meta_content_register_unlock_event(def.unlock_key, def.unlock_event);
         def.target = parse_target(json_string(field(item, "target"), "enemy"));
         def.repeat_hits = json_int(field(item, "repeat_hits"), 1);
         if (def.repeat_hits < 1) def.repeat_hits = 1;
@@ -276,4 +289,54 @@ const CardDef *card_def_by_id(const char *id)
 int card_defs_loaded_count(void)
 {
     return all_card_count;
+}
+
+bool card_def_available_for_rewards(const CardDef *def, const MetaProgress *meta)
+{
+    if (!def) return false;
+    return meta_content_active(meta, def->unlock_key);
+}
+
+static bool party_has_class(const int *class_indices, int class_count, ClassType ct)
+{
+    if (ct < 0 || ct >= CLASS_COUNT) return false;
+    for (int i = 0; i < class_count; i++)
+        if ((ClassType)class_indices[i] == ct)
+            return true;
+    return false;
+}
+
+static bool append_reward_card(const CardDef *def, const MetaProgress *meta, const CardDef **out, int *count, int max)
+{
+    if (!def || !out || !count || *count >= max) return false;
+    if (!card_def_available_for_rewards(def, meta)) return false;
+    out[(*count)++] = def;
+    return true;
+}
+
+int card_reward_pool_for_party(const int *class_indices, int class_count, const MetaProgress *meta, const CardDef **out, int max)
+{
+    if (!out || max <= 0) return 0;
+
+    int count = 0;
+    for (int i = 0; i < class_count && count < max; i++)
+    {
+        ClassType ct = (ClassType)class_indices[i];
+        if (ct < 0 || ct >= CLASS_COUNT || !class_card_sets[ct]) continue;
+        for (int c = 0; c < class_card_counts[ct] && count < max; c++)
+            append_reward_card(&class_card_sets[ct][c], meta, out, &count, max);
+    }
+
+    for (int c = 0; c < utility_card_count && count < max; c++)
+        append_reward_card(&utility_cards[c], meta, out, &count, max);
+
+    for (int i = 0; i < all_card_count && count < max; i++)
+    {
+        const CardDef *def = &all_cards[i];
+        if (!def->reward_only) continue;
+        if (def->is_utility || party_has_class(class_indices, class_count, def->class))
+            append_reward_card(def, meta, out, &count, max);
+    }
+
+    return count;
 }

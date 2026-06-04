@@ -70,6 +70,9 @@ static const char *relic_ids[RELIC_COUNT] = {
     [RELIC_SOUL_REAPER] = "soul_reaper",
     [RELIC_LEECHING_FANG] = "leeching_fang",
     [RELIC_BLOOD_PACT] = "blood_pact",
+    [RELIC_DUELIST_SIGIL] = "duelist_sigil",
+    [RELIC_FELLOWSHIP_STANDARD] = "fellowship_standard",
+    [RELIC_CHRONICLE_QUILL] = "chronicle_quill",
 };
 
 static char *copy_text(const char *text)
@@ -98,17 +101,7 @@ static RelicId relic_id_from_text(const char *id)
 
 static ClassType class_from_string(const char *text)
 {
-    if (!text) return CLASS_NONE;
-    if (strcmp(text, "guardian") == 0) return CLASS_GUARDIAN;
-    if (strcmp(text, "cleric") == 0) return CLASS_CLERIC;
-    if (strcmp(text, "mage") == 0) return CLASS_MAGE;
-    if (strcmp(text, "rogue") == 0) return CLASS_ROGUE;
-    if (strcmp(text, "shaman") == 0) return CLASS_SHAMAN;
-    if (strcmp(text, "ranger") == 0) return CLASS_RANGER;
-    if (strcmp(text, "paladin") == 0) return CLASS_PALADIN;
-    if (strcmp(text, "warlock") == 0) return CLASS_WARLOCK;
-    if (strcmp(text, "bard") == 0) return CLASS_BARD;
-    return CLASS_NONE;
+    return class_from_id(text);
 }
 
 const char *relic_id_string(RelicId id)
@@ -154,6 +147,7 @@ static bool relic_can_appear_in_rewards(RelicId id, const RelicId *owned, int co
         relic_defs[id].rarity <= max_rarity &&
         !relic_has(owned, count, id) &&
         meta_relic_available(&g_state.meta, id) &&
+        meta_content_active(&g_state.meta, relic_defs[id].unlock_key) &&
         relic_meets_party_requirements(id);
 }
 
@@ -197,6 +191,9 @@ bool relic_defs_load_json(const char *path)
         relic_defs[id].name = copy_text(json_string(field(item, "name"), ""));
         relic_defs[id].icon = copy_text(json_string(field(item, "icon"), ""));
         relic_defs[id].description = copy_text(json_string(field(item, "description"), ""));
+        relic_defs[id].unlock_key = copy_text(json_string(field(item, "unlock"), ""));
+        relic_defs[id].unlock_event = copy_text(json_string(field(item, "unlock_event"), ""));
+        meta_content_register_unlock_event(relic_defs[id].unlock_key, relic_defs[id].unlock_event);
         relic_defs[id].rarity = json_int(field(item, "rarity"), 1);
         if (relic_defs[id].rarity < 1) relic_defs[id].rarity = 1;
 

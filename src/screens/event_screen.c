@@ -270,23 +270,48 @@ static int random_deck_card_no_override(void)
 
 static const CardDef *random_party_card(void)
 {
-    const CardDef *pool[80];
-    int count = 0;
-
-    for (int i = 0; i < g_state.selected_count; i++)
-    {
-        ClassType ct = (ClassType)g_state.selected_classes[i];
-        if (ct < 0 || ct >= CLASS_COUNT || !class_card_sets[ct]) continue;
-        for (int c = 0; c < class_card_counts[ct]; c++)
-            pool[count++] = &class_card_sets[ct][c];
-    }
-
-    for (int c = 0; c < utility_card_count; c++)
-        pool[count++] = &utility_cards[c];
+    const CardDef *pool[128];
+    int count = card_reward_pool_for_party(
+        g_state.selected_classes,
+        g_state.selected_count,
+        &g_state.meta,
+        pool,
+        128);
 
     if (count <= 0)
         return utility_card_count > 0 ? &utility_cards[0] : card_def_by_id("util_prep");
     return pool[rand() % count];
+}
+
+static bool event_available(const EventDef *event)
+{
+    return event && meta_content_active(&g_state.meta, event->unlock_key);
+}
+
+static int event_index_for_def(const EventDef *event)
+{
+    if (!event) return -1;
+    int count = event_defs_count();
+    for (int i = 0; i < count; i++)
+        if (event_def_by_index(i) == event)
+            return i;
+    return -1;
+}
+
+static int random_available_event_index(void)
+{
+    int event_count = event_defs_count();
+    int available[64];
+    int count = 0;
+    for (int i = 0; i < event_count && count < 64; i++)
+    {
+        const EventDef *event = event_def_by_index(i);
+        if (event_available(event))
+            available[count++] = i;
+    }
+    if (count <= 0)
+        return event_count > 0 ? rand() % event_count : 0;
+    return available[rand() % count];
 }
 
 static void complete_map_node(void)
@@ -461,7 +486,7 @@ static void apply_choice(int choice)
             else
             {
                 CardInstance inst = g_state.run_deck.cards[idx];
-                deck_add_card_with_level(&g_state.run_deck, inst.def, inst.upgrade_level);
+                deck_add_card_copy(&g_state.run_deck, &inst);
                 bool downed = hurt_party(choice_def->hp_loss);
                 finish_event("%s was duplicated%s.", inst.def ? inst.def->name : "A card", downed ? ", but the echo cut deep" : "");
             }
@@ -544,32 +569,22 @@ static void init_event_if_needed(void)
     assets_play_music(MUSIC_EVENT);
     active_node = node;
     active_floor = floor;
-    int event_count = event_defs_count();
 
     // Check for event_id override from maps.json
     const EventDef *override = NULL;
     if (node >= 0 && node < g_state.map.node_count && g_state.map.nodes[node].event_id)
         override = event_def_by_id(g_state.map.nodes[node].event_id);
+    if (override && !event_available(override))
+        override = NULL;
 
     if (override)
     {
-        for (int i = 0; i < event_count; i++)
-        {
-            const EventDef *e = event_def_by_index(i);
-            if (e == override)
-            {
-                active_event = i;
-                break;
-            }
-        }
-    }
-    else if (event_count > 0)
-    {
-        active_event = rand() % event_count;
+        int idx = event_index_for_def(override);
+        active_event = idx >= 0 ? idx : random_available_event_index();
     }
     else
     {
-        active_event = 0;
+        active_event = random_available_event_index();
     }
 
     if (active_event < 0) active_event = 0;

@@ -13,6 +13,7 @@ static Button fullscreen_btn;
 static Button scale_down_btn;
 static Button scale_up_btn;
 static Button telemetry_btn;
+static Button tutorial_btn;
 static bool initialized = false;
 
 static Rectangle visual_panel_rect(void)
@@ -30,7 +31,7 @@ static void init_if_needed(void)
     if (initialized) return;
 
     back_btn = button_create(
-        (Rectangle){ (float)(VIRT_W / 2 - BTN_MED / 2), 328.0f, (float)BTN_MED, (float)BTN_H },
+        (Rectangle){ (float)(VIRT_W / 2 - BTN_MED / 2), 340.0f, (float)BTN_MED, (float)BTN_H },
         "BACK",
         (Color){ 42, 48, 70, 255 },
         (Color){ 70, 78, 110, 255 },
@@ -60,6 +61,13 @@ static void init_if_needed(void)
     telemetry_btn = button_create(
         (Rectangle){ (float)(VIRT_W / 2 - BTN_WIDE / 2), 266.0f, (float)BTN_WIDE, (float)BTN_H },
         "TELEMETRY: OFF",
+        (Color){ 42, 48, 70, 255 },
+        (Color){ 70, 78, 110, 255 },
+        RAYWHITE);
+    
+    tutorial_btn = button_create(
+        (Rectangle){ (float)(VIRT_W / 2 - BTN_WIDE / 2), 304.0f, (float)BTN_WIDE, (float)BTN_H },
+        "RESTART TUTORIAL",
         (Color){ 42, 48, 70, 255 },
         (Color){ 70, 78, 110, 255 },
         RAYWHITE);
@@ -101,6 +109,7 @@ void settings_screen_update(void)
     button_update(&scale_down_btn);
     button_update(&scale_up_btn);
     button_update(&telemetry_btn);
+    button_update(&tutorial_btn);
 
     if (back_btn.pressed_this_frame || IsKeyPressed(KEY_ESCAPE))
     {
@@ -121,6 +130,11 @@ void settings_screen_update(void)
     {
         g_state.telemetry_opt_in = !g_state.telemetry_opt_in;
         g_state.telemetry_prompt_seen = true;
+        game_settings_save();
+    }
+    if (tutorial_btn.pressed_this_frame)
+    {
+        game_restart_tutorial();
         game_settings_save();
     }
 
@@ -190,9 +204,13 @@ void settings_screen_draw(void)
 
     telemetry_btn.text = g_state.telemetry_opt_in ? "TELEMETRY: ON" : "TELEMETRY: OFF";
     button_draw_9slice(&telemetry_btn);
-    draw_text_box((Rectangle){ 120.0f, 292.0f, 400.0f, 28.0f },
+    draw_text_box((Rectangle){ 120.0f, 290.0f, 400.0f, 12.0f },
         "Sends anonymous gameplay metrics for balance. No names, Steam IDs, or personal data.",
         10, 0, (Color){ 150, 158, 185, 215 }, TEXT_ALIGN_CENTER);
+
+    button_draw_9slice(&tutorial_btn);
+    draw_text_box((Rectangle){ 80.0f, 328.0f, 480.0f, 10.0f },
+        "Reset tutorial progress to show all tutorial prompts again.", 10, 0, (Color){ 150, 158, 185, 215 }, TEXT_ALIGN_CENTER);
 
     button_draw_9slice(&back_btn);
 }

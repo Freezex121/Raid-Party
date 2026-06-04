@@ -2493,6 +2493,68 @@
         }
       ],
       "description": "Status effects you apply are 30% stronger for 3 turns."
+    },
+    {
+      "id": "card_tactical_shift",
+      "name": "Tactical Shift",
+      "type": "skill",
+      "class": "utility",
+      "cost": 0,
+      "target": "self",
+      "exhaust": true,
+      "fleeting": true,
+      "reward_only": true,
+      "unlock": "card_tactical_shift",
+      "unlock_event": "first_steps",
+      "effects": [
+        { "type": "draw_cards", "amount": 1 },
+        { "type": "gain_energy", "amount": 1 }
+      ],
+      "description": "Draw 1 card. Gain 1 energy. Fleeting. Exhaust."
+    },
+    {
+      "id": "card_iron_intercept",
+      "name": "Iron Intercept",
+      "type": "skill",
+      "class": "guardian",
+      "cost": 1,
+      "target": "enemy",
+      "shield": 10,
+      "interrupt": true,
+      "aggro_self": 18,
+      "reward_only": true,
+      "unlock": "card_iron_intercept",
+      "unlock_event": "interrupted",
+      "description": "Interrupt an enemy. Gain 10 Shield. Generate high aggro."
+    },
+    {
+      "id": "card_sanctuary",
+      "name": "Sanctuary",
+      "type": "skill",
+      "class": "cleric",
+      "cost": 2,
+      "target": "all_allies",
+      "heal": 8,
+      "shield": 6,
+      "exhaust": true,
+      "reward_only": true,
+      "unlock": "card_sanctuary",
+      "unlock_event": "perfectionist",
+      "description": "All allies heal 8 and gain 6 Shield. Exhaust."
+    },
+    {
+      "id": "card_prismatic_burst",
+      "name": "Prismatic Burst",
+      "type": "attack",
+      "class": "mage",
+      "cost": 2,
+      "target": "all_enemies",
+      "damage": 7,
+      "exhaust": true,
+      "reward_only": true,
+      "unlock": "card_prismatic_burst",
+      "unlock_event": "speed_demon",
+      "description": "Deal 7 damage to all enemies. Exhaust."
     }
   ]
 }

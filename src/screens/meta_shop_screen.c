@@ -60,7 +60,7 @@ typedef enum {
     META_EFFECT_REWARD_UPGRADE_CHANCE,
     META_EFFECT_STARTING_RELIC_RANK,
     META_EFFECT_RELIC_CHOICE,
-    META_EFFECT_RELIC_UNLOCK,
+    META_EFFECT_CONTENT_UNLOCK,
     META_EFFECT_SLOT4,
     META_EFFECT_FORMATION_DRILLS,
     META_EFFECT_SLOT5,
@@ -149,6 +149,16 @@ typedef enum {
     META_NODE_U_RELIC_BLOOD_AMBER,
     META_NODE_U_RELIC_TITAN_HEART,
     META_NODE_U_RELIC_FRUGAL_TOME,
+    META_NODE_U_CARD_TACTICAL_SHIFT,
+    META_NODE_U_CARD_IRON_INTERCEPT,
+    META_NODE_U_CARD_SANCTUARY,
+    META_NODE_U_CARD_PRISMATIC_BURST,
+    META_NODE_U_RELIC_DUELIST_SIGIL,
+    META_NODE_U_RELIC_FELLOWSHIP_STANDARD,
+    META_NODE_U_RELIC_CHRONICLE_QUILL,
+    META_NODE_U_EVENT_CHAMPIONS_FEAST,
+    META_NODE_U_EVENT_CROWDED_STAGE,
+    META_NODE_U_EVENT_HALL_OF_RECORDS,
     META_NODE_U_PARTY_SLOT_IV,
     META_NODE_U_FORMATION_DRILLS,
     META_NODE_U_PARTY_SLOT_V,
@@ -168,6 +178,8 @@ typedef struct {
     int cost;
     MetaNodeEffect effect;
     int effect_value;
+    int required_achievement;
+    const char *unlock_key;
 } MetaTreeNode;
 
 static const MetaTreeNode TREE_NODES[META_NODE_COUNT] = {
@@ -234,7 +246,7 @@ static const MetaTreeNode TREE_NODES[META_NODE_COUNT] = {
     },
     [META_NODE_A_UNLOCK_WARLOCK] = {
         "UNLOCK WARLOCK", "Add Warlock to party selection.", "WARLOCK", "WL",
-        META_ICON_UNLOCK_WARLOCK, META_BRANCH_ATTACK, 300, -300, META_NODE_A_BLADES_I, META_CLASS_UNLOCK_COST, META_EFFECT_CLASS_WARLOCK, 1
+        META_ICON_UNLOCK_WARLOCK, META_BRANCH_ATTACK, 300, -300, META_NODE_A_BLADES_I, META_CLASS_UNLOCK_COST, META_EFFECT_CLASS_WARLOCK, 1, ACH_INTERRUPTED + 1, "class_warlock"
     },
     [META_NODE_A_WARLOCK_ADEPT] = {
         "WARLOCK ADEPT", "Warlock damage cards get +2 damage.", "ADEPT", "WA",
@@ -327,7 +339,7 @@ static const MetaTreeNode TREE_NODES[META_NODE_COUNT] = {
     },
     [META_NODE_D_UNLOCK_PALADIN] = {
         "UNLOCK PALADIN", "Add Paladin to party selection.", "PALADIN", "P",
-        META_ICON_UNLOCK_PALADIN, META_BRANCH_DEFENSE, 480, 300, META_NODE_D_ARMOR_II, META_CLASS_UNLOCK_COST, META_EFFECT_CLASS_PALADIN, 1
+        META_ICON_UNLOCK_PALADIN, META_BRANCH_DEFENSE, 480, 300, META_NODE_D_ARMOR_II, META_CLASS_UNLOCK_COST, META_EFFECT_CLASS_PALADIN, 1, ACH_PERFECTIONIST + 1, "class_paladin"
     },
     [META_NODE_D_PALADIN_BULWARK] = {
         "PALADIN BULWARK", "Paladin shield cards get +2 shield.", "BULWARK", "PB",
@@ -396,7 +408,7 @@ static const MetaTreeNode TREE_NODES[META_NODE_COUNT] = {
     },
     [META_NODE_S_UNLOCK_BARD] = {
         "UNLOCK BARD", "Add Bard to party selection.", "BARD", "B",
-        META_ICON_UNLOCK_BARD, META_BRANCH_SUPPORT, 300, 300, META_NODE_S_MANA_CRYSTAL, META_CLASS_UNLOCK_COST, META_EFFECT_CLASS_BARD, 1
+        META_ICON_UNLOCK_BARD, META_BRANCH_SUPPORT, 300, 300, META_NODE_S_MANA_CRYSTAL, META_CLASS_UNLOCK_COST, META_EFFECT_CLASS_BARD, 1, ACH_SPEED_DEMON + 1, "class_bard"
     },
     [META_NODE_S_BARD_ENCORE] = {
         "BARD ENCORE", "First Bard card each combat draws 2 cards.", "ENCORE", "BE",
@@ -481,35 +493,75 @@ static const MetaTreeNode TREE_NODES[META_NODE_COUNT] = {
     },
     [META_NODE_U_RELIC_ECHO_BELL] = {
         "ECHO BELL", "Echo Bell can appear in relic rewards.", "ECHO BELL", "EB",
-        META_ICON_RELIC_ECHO_BELL, META_BRANCH_UTILITY, -1080, 360, META_NODE_U_RELIC_CHOICE, 28, META_EFFECT_RELIC_UNLOCK, META_RELIC_UNLOCK_ECHO_BELL
+        META_ICON_RELIC_ECHO_BELL, META_BRANCH_UTILITY, -1080, 360, META_NODE_U_RELIC_CHOICE, 28, META_EFFECT_CONTENT_UNLOCK, 1, ACH_HOARDER + 1, "relic_echo_bell"
     },
     [META_NODE_U_RELIC_SPLIT_PRISM] = {
         "SPLIT PRISM", "Split Prism can appear in relic rewards.", "PRISM", "SP",
-        META_ICON_RELIC_SPLIT_PRISM, META_BRANCH_UTILITY, -1230, 360, META_NODE_U_RELIC_ECHO_BELL, 34, META_EFFECT_RELIC_UNLOCK, META_RELIC_UNLOCK_SPLIT_PRISM
+        META_ICON_RELIC_SPLIT_PRISM, META_BRANCH_UTILITY, -1230, 360, META_NODE_U_RELIC_ECHO_BELL, 34, META_EFFECT_CONTENT_UNLOCK, 1, ACH_SPEED_DEMON + 1, "relic_split_prism"
     },
     [META_NODE_U_RELIC_BLOOD_AMBER] = {
         "BLOOD AMBER", "Blood Amber can appear in relic rewards.", "AMBER", "BA",
-        META_ICON_RELIC_BLOOD_AMBER, META_BRANCH_UTILITY, -1080, 240, META_NODE_U_RELIC_CHOICE, 32, META_EFFECT_RELIC_UNLOCK, META_RELIC_UNLOCK_BLOOD_AMBER
+        META_ICON_RELIC_BLOOD_AMBER, META_BRANCH_UTILITY, -1080, 240, META_NODE_U_RELIC_CHOICE, 32, META_EFFECT_CONTENT_UNLOCK, 1, ACH_SOLO_ARTIST + 1, "relic_blood_amber"
     },
     [META_NODE_U_RELIC_TITAN_HEART] = {
         "TITAN HEART", "Titan Heart can appear in relic rewards.", "TITAN", "TH",
-        META_ICON_RELIC_TITAN_HEART, META_BRANCH_UTILITY, -1080, 510, META_NODE_U_RELIC_CHOICE, 32, META_EFFECT_RELIC_UNLOCK, META_RELIC_UNLOCK_TITAN_HEART
+        META_ICON_RELIC_TITAN_HEART, META_BRANCH_UTILITY, -1080, 510, META_NODE_U_RELIC_CHOICE, 32, META_EFFECT_CONTENT_UNLOCK, 1, ACH_PERFECTIONIST + 1, "relic_titan_heart"
     },
     [META_NODE_U_RELIC_FRUGAL_TOME] = {
         "FRUGAL TOME", "Frugal Tome can appear in relic rewards.", "FRUGAL", "FT",
-        META_ICON_RELIC_FRUGAL_TOME, META_BRANCH_UTILITY, -1230, 510, META_NODE_U_RELIC_TITAN_HEART, 34, META_EFFECT_RELIC_UNLOCK, META_RELIC_UNLOCK_FRUGAL_TOME
+        META_ICON_RELIC_FRUGAL_TOME, META_BRANCH_UTILITY, -1230, 510, META_NODE_U_RELIC_TITAN_HEART, 34, META_EFFECT_CONTENT_UNLOCK, 1, ACH_CHAMPION + 1, "relic_frugal_tome"
+    },
+    [META_NODE_U_CARD_TACTICAL_SHIFT] = {
+        "TACTICAL SHIFT", "Tactical Shift can appear in card rewards.", "TACTIC", "TS",
+        META_ICON_REWARD_CHOICE_I, META_BRANCH_UTILITY, -1230, 150, META_NODE_U_VETERAN_REWARDS_II, 12, META_EFFECT_CONTENT_UNLOCK, 1, ACH_FIRST_STEPS + 1, "card_tactical_shift"
+    },
+    [META_NODE_U_CARD_IRON_INTERCEPT] = {
+        "IRON INTERCEPT", "Iron Intercept can appear for Guardian parties.", "INTERCEPT", "II",
+        META_ICON_REWARD_CHOICE_II, META_BRANCH_UTILITY, -1380, 150, META_NODE_U_CARD_TACTICAL_SHIFT, 16, META_EFFECT_CONTENT_UNLOCK, 1, ACH_INTERRUPTED + 1, "card_iron_intercept"
+    },
+    [META_NODE_U_CARD_SANCTUARY] = {
+        "SANCTUARY", "Sanctuary can appear for Cleric parties.", "SANCT", "SA",
+        META_ICON_REWARD_CHOICE_II, META_BRANCH_UTILITY, -1530, 150, META_NODE_U_CARD_IRON_INTERCEPT, 18, META_EFFECT_CONTENT_UNLOCK, 1, ACH_PERFECTIONIST + 1, "card_sanctuary"
+    },
+    [META_NODE_U_CARD_PRISMATIC_BURST] = {
+        "PRISMATIC BURST", "Prismatic Burst can appear for Mage parties.", "BURST", "PB",
+        META_ICON_REWARD_CHOICE_II, META_BRANCH_UTILITY, -1680, 150, META_NODE_U_CARD_SANCTUARY, 18, META_EFFECT_CONTENT_UNLOCK, 1, ACH_SPEED_DEMON + 1, "card_prismatic_burst"
+    },
+    [META_NODE_U_RELIC_DUELIST_SIGIL] = {
+        "DUELIST SIGIL", "Duelist Sigil can appear in relic rewards.", "DUELIST", "DS",
+        META_ICON_RELIC_CHOICE, META_BRANCH_UTILITY, -1380, 360, META_NODE_U_RELIC_SPLIT_PRISM, 32, META_EFFECT_CONTENT_UNLOCK, 1, ACH_SOLO_ARTIST + 1, "relic_duelist_sigil"
+    },
+    [META_NODE_U_RELIC_FELLOWSHIP_STANDARD] = {
+        "FELLOWSHIP STANDARD", "Fellowship Standard can appear in relic rewards.", "STANDARD", "FS",
+        META_ICON_RELIC_CHOICE, META_BRANCH_UTILITY, -1530, 360, META_NODE_U_RELIC_DUELIST_SIGIL, 36, META_EFFECT_CONTENT_UNLOCK, 1, ACH_FULL_HOUSE + 1, "relic_fellowship_standard"
+    },
+    [META_NODE_U_RELIC_CHRONICLE_QUILL] = {
+        "CHRONICLE QUILL", "Chronicle Quill can appear in relic rewards.", "QUILL", "CQ",
+        META_ICON_RELIC_CHOICE, META_BRANCH_UTILITY, -1680, 360, META_NODE_U_RELIC_FELLOWSHIP_STANDARD, 40, META_EFFECT_CONTENT_UNLOCK, 1, ACH_COMPLETIONIST + 1, "relic_chronicle_quill"
+    },
+    [META_NODE_U_EVENT_CHAMPIONS_FEAST] = {
+        "CHAMPION'S FEAST", "Champion's Feast can appear at event nodes.", "FEAST", "CF",
+        META_ICON_COMPLETIONIST_BANNER, META_BRANCH_UTILITY, -1380, 510, META_NODE_U_RELIC_FRUGAL_TOME, 22, META_EFFECT_CONTENT_UNLOCK, 1, ACH_CHAMPION + 1, "event_champions_feast"
+    },
+    [META_NODE_U_EVENT_CROWDED_STAGE] = {
+        "CROWDED STAGE", "Crowded Stage can appear at event nodes.", "STAGE", "CS",
+        META_ICON_COMPLETIONIST_BANNER, META_BRANCH_UTILITY, -1530, 510, META_NODE_U_EVENT_CHAMPIONS_FEAST, 26, META_EFFECT_CONTENT_UNLOCK, 1, ACH_FULL_HOUSE + 1, "event_crowded_stage"
+    },
+    [META_NODE_U_EVENT_HALL_OF_RECORDS] = {
+        "HALL OF RECORDS", "Hall of Records can appear at event nodes.", "RECORDS", "HR",
+        META_ICON_COMPLETIONIST_BANNER, META_BRANCH_UTILITY, -1680, 510, META_NODE_U_EVENT_CROWDED_STAGE, 36, META_EFFECT_CONTENT_UNLOCK, 1, ACH_COMPLETIONIST + 1, "event_hall_of_records"
     },
     [META_NODE_U_PARTY_SLOT_IV] = {
         "PARTY SLOT IV", "Unlock a fourth party member.", "SLOT IV", "4",
-        META_ICON_PARTY_SLOT_IV, META_BRANCH_UTILITY, -630, -300, META_NODE_U_MERCHANT_CONTACTS_II, META_SLOT4_COST, META_EFFECT_SLOT4, 1
+        META_ICON_PARTY_SLOT_IV, META_BRANCH_UTILITY, -630, -300, META_NODE_U_MERCHANT_CONTACTS_II, META_SLOT4_COST, META_EFFECT_SLOT4, 1, ACH_FIRST_STEPS + 1, "party_slot_iv"
     },
     [META_NODE_U_FORMATION_DRILLS] = {
         "FORMATION DRILLS", "Unlock training toward a fifth party slot.", "DRILLS", "FD",
-        META_ICON_FORMATION_DRILLS, META_BRANCH_UTILITY, -780, -300, META_NODE_U_PARTY_SLOT_IV, 24, META_EFFECT_FORMATION_DRILLS, 1
+        META_ICON_FORMATION_DRILLS, META_BRANCH_UTILITY, -780, -300, META_NODE_U_PARTY_SLOT_IV, 24, META_EFFECT_FORMATION_DRILLS, 1, ACH_CHAMPION + 1, "formation_drills"
     },
     [META_NODE_U_PARTY_SLOT_V] = {
         "PARTY SLOT V", "Unlock a fifth party member.", "SLOT V", "5",
-        META_ICON_PARTY_SLOT_V, META_BRANCH_UTILITY, -930, -300, META_NODE_U_FORMATION_DRILLS, META_SLOT5_COST, META_EFFECT_SLOT5, 1
+        META_ICON_PARTY_SLOT_V, META_BRANCH_UTILITY, -930, -300, META_NODE_U_FORMATION_DRILLS, META_SLOT5_COST, META_EFFECT_SLOT5, 1, ACH_CHAMPION + 1, "party_slot_v"
     },
 };
 
@@ -669,7 +721,7 @@ static int node_effect_current(const MetaTreeNode *node) {
         case META_EFFECT_REWARD_UPGRADE_CHANCE: return meta->reward_upgrade_chance_rank;
         case META_EFFECT_STARTING_RELIC_RANK: return meta->starting_relic_rank;
         case META_EFFECT_RELIC_CHOICE: return meta->relic_choice_bonus;
-        case META_EFFECT_RELIC_UNLOCK: return meta->relic_unlock_flags & node->effect_value;
+        case META_EFFECT_CONTENT_UNLOCK: return meta_content_active(meta, node->unlock_key) ? 1 : 0;
         case META_EFFECT_SLOT4: return meta->slot4_unlocked ? 1 : 0;
         case META_EFFECT_FORMATION_DRILLS: return meta->formation_drills ? 1 : 0;
         case META_EFFECT_SLOT5: return meta->slot5_unlocked ? 1 : 0;
@@ -720,6 +772,25 @@ static bool node_complete(int node_id) {
     return node_activated(node_id);
 }
 
+static AchievementId node_required_achievement(int node_id) {
+    const MetaTreeNode *node = &TREE_NODES[node_id];
+    if (node->unlock_key && node->unlock_key[0])
+        return meta_content_required_achievement(node->unlock_key);
+    int stored = TREE_NODES[node_id].required_achievement;
+    if (stored <= 0) return ACH_COUNT;
+    AchievementId id = (AchievementId)(stored - 1);
+    return (id >= 0 && id < ACH_COUNT) ? id : ACH_COUNT;
+}
+
+static bool node_achievement_met(int node_id) {
+    if (node_activated(node_id))
+        return true;
+    AchievementId id = node_required_achievement(node_id);
+    if (id < 0 || id >= ACH_COUNT)
+        return true;
+    return g_state.meta.achievements[id];
+}
+
 static int branch_purchase_count(MetaBranch branch) {
     int count = 0;
     for (int i = 0; i < META_NODE_COUNT; i++)
@@ -741,7 +812,7 @@ static bool prerequisite_met(int node_id) {
     int prerequisite = TREE_NODES[node_id].prerequisite;
     if (prerequisite >= 0 && !node_activated(prerequisite))
         return false;
-    return class_gate_met(node_id);
+    return class_gate_met(node_id) && node_achievement_met(node_id);
 }
 
 static bool node_unlocked(int node_id) {
@@ -813,13 +884,16 @@ static void apply_node_purchase(int node_id) {
         case META_EFFECT_REWARD_UPGRADE_CHANCE: if (meta->reward_upgrade_chance_rank < value) meta->reward_upgrade_chance_rank = value; break;
         case META_EFFECT_STARTING_RELIC_RANK: if (meta->starting_relic_rank < value) meta->starting_relic_rank = value; break;
         case META_EFFECT_RELIC_CHOICE: if (meta->relic_choice_bonus < value) meta->relic_choice_bonus = value; break;
-        case META_EFFECT_RELIC_UNLOCK: meta->relic_unlock_flags |= value; break;
+        case META_EFFECT_CONTENT_UNLOCK: break;
         case META_EFFECT_SLOT4: meta->slot4_unlocked = true; break;
         case META_EFFECT_FORMATION_DRILLS: meta->formation_drills = true; break;
         case META_EFFECT_SLOT5: meta->slot4_unlocked = true; meta->slot5_unlocked = true; break;
         case META_EFFECT_SEASONED_ADVENTURER: meta->seasoned_adventurer = true; break;
         default: break;
     }
+
+    if (node->unlock_key && node->unlock_key[0])
+        meta_content_activate(meta, node->unlock_key);
 }
 
 static void try_buy_node(int node_id) {
@@ -836,6 +910,11 @@ static void try_buy_node(int node_id) {
     }
     if (!class_gate_met(node_id)) {
         snprintf(shop_msg, sizeof(shop_msg), "Requires 2 %s purchases first.", branch_name(node->branch));
+        return;
+    }
+    if (!node_achievement_met(node_id)) {
+        AchievementId req = node_required_achievement(node_id);
+        snprintf(shop_msg, sizeof(shop_msg), "Requires achievement: %s.", achievement_name(req));
         return;
     }
     if (g_state.meta.renown < cost) {
@@ -905,6 +984,7 @@ static void draw_connection(int node_id) {
     bool owned = node_activated(node_id);
     bool can_buy = node_can_buy_now(node_id);
     bool needs_renown = node_needs_renown(node_id);
+    bool needs_achievement = !owned && !node_achievement_met(node_id);
     bool parent_owned = node_activated(parent_id);
     Color color = (Color){59, 64, 76, 255};
     if (owned)
@@ -913,6 +993,8 @@ static void draw_connection(int node_id) {
         color = (Color){255, 222, 92, 255};
     else if (needs_renown)
         color = (Color){218, 144, 70, 220};
+    else if (needs_achievement && parent_owned)
+        color = (Color){132, 96, 210, 225};
     else if (parent_owned)
         color = (Color){83, 89, 108, 230};
     float pulse = (float)(0.5 + 0.5 * sin(GetTime() * 5.0));
@@ -942,27 +1024,6 @@ static void draw_node_badge(Rectangle frame_rect, const char *text, Color bg, Co
     draw_tree_text(text, badge, tree_scaled_font(7, 5), text_color, TEXT_ALIGN_CENTER);
 }
 
-static void draw_state_legend(void) {
-    const struct {
-        const char *label;
-        Color color;
-    } items[] = {
-        { "BUY now", (Color){255, 222, 92, 255} },
-        { "need Renown", (Color){218, 144, 70, 255} },
-        { "owned", (Color){115, 222, 134, 255} },
-        { "locked", (Color){92, 96, 112, 255} },
-    };
-    float x = 16.0f;
-    float y = 50.0f;
-    for (int i = 0; i < 4; i++)
-    {
-        DrawRectangleRec((Rectangle){x, y + 3.0f, 8.0f, 8.0f}, items[i].color);
-        DrawRectangleLinesEx((Rectangle){x, y + 3.0f, 8.0f, 8.0f}, 1.0f, Fade(WHITE, 0.55f));
-        draw_tree_text(items[i].label, (Rectangle){x + 12.0f, y, 86.0f, 14.0f}, 8, (Color){190, 196, 210, 245}, TEXT_ALIGN_LEFT);
-        x += 106.0f;
-    }
-}
-
 static void draw_node(int node_id, bool hovered) {
     const MetaTreeNode *node = &TREE_NODES[node_id];
     Rectangle icon_rect = tree_icon_rect_screen(node_id);
@@ -973,16 +1034,19 @@ static void draw_node(int node_id, bool hovered) {
     bool owned = node_activated(node_id);
     bool can_buy = node_can_buy_now(node_id);
     bool needs_renown = node_needs_renown(node_id);
+    bool needs_achievement = !owned && !node_achievement_met(node_id);
     bool unlocked = can_buy || needs_renown;
     Texture2D icon = g_assets.meta_upgrade_icons[node->icon];
     float pulse = (float)(0.5 + 0.5 * sin(GetTime() * 5.0));
     Color frame_color = owned ? color :
         can_buy ? (Color){255, 222, 92, 255} :
         needs_renown ? (Color){218, 144, 70, 235} :
+        needs_achievement ? (Color){132, 96, 210, 230} :
         (Color){72, 77, 92, 215};
     Color inner_bg = owned ? (Color){39, 46, 60, 255} :
         can_buy ? (Color){54, 48, 25, 255} :
         needs_renown ? (Color){45, 35, 28, 255} :
+        needs_achievement ? (Color){35, 30, 52, 255} :
         (Color){24, 27, 35, 255};
 
     if (can_buy)
@@ -1043,6 +1107,10 @@ static void draw_node(int node_id, bool hovered) {
                        (Color){230, 158, 84, 245},
                        TEXT_ALIGN_LEFT);
     }
+    else if (needs_achievement)
+    {
+        draw_node_badge(frame_rect, "ACH", (Color){58, 42, 96, 245}, (Color){178, 142, 255, 245}, WHITE);
+    }
     else
     {
         draw_node_badge(frame_rect, "LOCK", (Color){34, 37, 48, 235}, (Color){91, 96, 112, 220}, (Color){150, 154, 170, 235});
@@ -1074,6 +1142,9 @@ static void draw_tooltip(int node_id) {
         snprintf(action, sizeof(action), "Requires: %s", TREE_NODES[node->prerequisite].title);
     } else if (!class_gate_met(node_id)) {
         snprintf(action, sizeof(action), "Requires 2 %s purchases", branch_name(node->branch));
+    } else if (!node_achievement_met(node_id)) {
+        AchievementId req = node_required_achievement(node_id);
+        snprintf(action, sizeof(action), "Requires: %s", achievement_name(req));
     } else if (g_state.meta.renown < node->cost) {
         snprintf(action, sizeof(action), "Need %d more Renown", node->cost - g_state.meta.renown);
     } else {
@@ -1165,7 +1236,6 @@ void meta_shop_screen_draw(void) {
     char summary[64];
     snprintf(summary, sizeof(summary), "RENOWN: %d", g_state.meta.renown);
     draw_tree_text(summary, (Rectangle){475, 12, 145, 14}, 11, (Color){232, 193, 100, 255}, TEXT_ALIGN_RIGHT);
-    draw_state_legend();
 
     DrawRectangleRec(viewport, (Color){18, 23, 34, 255});
     DrawRectangleLinesEx(viewport, 1, (Color){57, 65, 82, 255});
@@ -1175,7 +1245,7 @@ void meta_shop_screen_draw(void) {
     draw_branch_label("ATTACK", 0.0f, -880.0f, META_BRANCH_ATTACK);
     draw_branch_label("DEFENSE", 900.0f, 0.0f, META_BRANCH_DEFENSE);
     draw_branch_label("SUPPORT", 0.0f, 880.0f, META_BRANCH_SUPPORT);
-    draw_branch_label("UTILITY", -1120.0f, 0.0f, META_BRANCH_UTILITY);
+    draw_branch_label("UTILITY", -1450.0f, 0.0f, META_BRANCH_UTILITY);
     for (int i = 0; i < META_NODE_COUNT; i++)
         draw_connection(i);
     for (int i = 0; i < META_NODE_COUNT; i++)

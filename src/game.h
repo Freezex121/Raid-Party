@@ -133,6 +133,7 @@ bool game_transition_allows_update(void);
 void game_draw_tutorial_overlay(Rectangle highlight, const char *text);
 void game_draw_tutorial_overlay_ex(Rectangle highlight, const char *title, const char *body, const char *footer, int step, int total_steps);
 void game_skip_tutorial(void);
+void game_restart_tutorial(void);
 bool game_tutorial_handle_skip(void);
 bool game_tutorial_handle_close(void);
 bool game_start_tutorial_once(bool *seen_flag, int step);

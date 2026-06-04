@@ -146,6 +146,138 @@
       "boss": { "id": "cinder_f5_boss_final_forge", "enemies": [ "forge_tyrant_drain", "cinder_warden", "ash_cultist" ] }
     },
     {
+      "area": "hollow_catacombs",
+      "floor": 1,
+      "normal": [
+        { "id": "catacombs_f1_lancer", "enemies": [ "bone_lancer" ] },
+        { "id": "catacombs_f1_wraith_acolyte", "enemies": [ "grave_wraith", "crypt_acolyte" ] },
+        { "id": "catacombs_f1_guard", "enemies": [ "ossuary_guard" ] },
+        { "id": "catacombs_f1_lancer_acolyte", "enemies": [ "bone_lancer", "crypt_acolyte" ] }
+      ],
+      "elite": { "id": "catacombs_f1_elite_knight_acolyte", "enemies": [ "death_knight", "crypt_acolyte" ] },
+      "boss": { "id": "catacombs_f1_boss_banshee_wraith", "enemies": [ "tomb_banshee", "grave_wraith" ] }
+    },
+    {
+      "area": "hollow_catacombs",
+      "floor": 2,
+      "normal": [
+        { "id": "catacombs_f2_guard_wraith", "enemies": [ "ossuary_guard", "grave_wraith" ] },
+        { "id": "catacombs_f2_banshee_acolyte", "enemies": [ "tomb_banshee", "crypt_acolyte" ] },
+        { "id": "catacombs_f2_lancer_guard", "enemies": [ "bone_lancer", "ossuary_guard" ] },
+        { "id": "catacombs_f2_crypt_pack", "enemies": [ "grave_wraith", "bone_lancer", "crypt_acolyte" ] }
+      ],
+      "elite": { "id": "catacombs_f2_elite_knight_guard", "enemies": [ "death_knight", "ossuary_guard" ] },
+      "boss": { "id": "catacombs_f2_boss_banshee_guard", "enemies": [ "tomb_banshee", "ossuary_guard" ] }
+    },
+    {
+      "area": "hollow_catacombs",
+      "floor": 3,
+      "normal": [
+        { "id": "catacombs_f3_knight_lancer", "enemies": [ "death_knight", "bone_lancer" ] },
+        { "id": "catacombs_f3_lich_acolyte", "enemies": [ "lich_lord", "crypt_acolyte" ] },
+        { "id": "catacombs_f3_banshee_wraith_acolyte", "enemies": [ "tomb_banshee", "grave_wraith", "crypt_acolyte" ] },
+        { "id": "catacombs_f3_guard_banshee", "enemies": [ "ossuary_guard", "tomb_banshee" ] }
+      ],
+      "elite": { "id": "catacombs_f3_elite_lich_guard", "enemies": [ "lich_lord", "ossuary_guard" ] },
+      "boss": { "id": "catacombs_f3_boss_knight_banshee", "enemies": [ "death_knight", "tomb_banshee" ] }
+    },
+    {
+      "area": "hollow_catacombs",
+      "floor": 4,
+      "normal": [
+        { "id": "catacombs_f4_lich_lancer", "enemies": [ "lich_lord", "bone_lancer" ] },
+        { "id": "catacombs_f4_knight_wraith", "enemies": [ "death_knight", "grave_wraith" ] },
+        { "id": "catacombs_f4_king_acolyte", "enemies": [ "hollow_king", "crypt_acolyte" ] },
+        { "id": "catacombs_f4_banshee_guard_wraith", "enemies": [ "tomb_banshee", "ossuary_guard", "grave_wraith" ] }
+      ],
+      "elite": { "id": "catacombs_f4_elite_king_banshee", "enemies": [ "hollow_king", "tomb_banshee" ] },
+      "boss": { "id": "catacombs_f4_boss_lich_knight", "enemies": [ "lich_lord", "death_knight" ] }
+    },
+    {
+      "area": "hollow_catacombs",
+      "floor": 5,
+      "normal": [
+        { "id": "catacombs_f5_king_acolyte", "enemies": [ "hollow_king", "crypt_acolyte" ] },
+        { "id": "catacombs_f5_king_guard", "enemies": [ "hollow_king", "ossuary_guard" ] },
+        { "id": "catacombs_f5_lich_banshee", "enemies": [ "lich_lord", "tomb_banshee" ] },
+        { "id": "catacombs_f5_knight_guard_acolyte", "enemies": [ "death_knight", "ossuary_guard", "crypt_acolyte" ] }
+      ],
+      "elite": { "id": "catacombs_f5_elite_king_knight", "enemies": [ "hollow_king", "death_knight" ] },
+      "boss": { "id": "catacombs_f5_boss_hollow_court", "enemies": [ "hollow_king", "lich_lord", "crypt_acolyte" ] }
+    },
+    {
+      "area": "starfall_citadel",
+      "floor": 1,
+      "normal": [
+        { "id": "citadel_f1_sentry", "enemies": [ "astral_sentry" ] },
+        { "id": "citadel_f1_channeler_sentry", "enemies": [ "void_channeler", "astral_sentry" ] },
+        { "id": "citadel_f1_duelist_oracle", "enemies": [ "starforged_duelist", "citadel_oracle" ] },
+        { "id": "citadel_f1_rift_beast", "enemies": [ "rift_beast" ] }
+      ],
+      "elite": { "id": "citadel_f1_elite_beast_oracle", "enemies": [ "rift_beast", "citadel_oracle" ] },
+      "boss": { "id": "citadel_f1_boss_archon_sentry", "enemies": [ "void_archon", "astral_sentry" ] }
+    },
+    {
+      "area": "starfall_citadel",
+      "floor": 2,
+      "normal": [
+        { "id": "citadel_f2_duelist_sentry", "enemies": [ "starforged_duelist", "astral_sentry" ] },
+        { "id": "citadel_f2_channeler_oracle", "enemies": [ "void_channeler", "citadel_oracle" ] },
+        { "id": "citadel_f2_beast_sentry", "enemies": [ "rift_beast", "astral_sentry" ] },
+        { "id": "citadel_f2_duelist_channeler_oracle", "enemies": [ "starforged_duelist", "void_channeler", "citadel_oracle" ] }
+      ],
+      "elite": { "id": "citadel_f2_elite_dragon_oracle", "enemies": [ "eclipse_dragon", "citadel_oracle" ] },
+      "boss": { "id": "citadel_f2_boss_beast_archon", "enemies": [ "rift_beast", "void_archon" ] }
+    },
+    {
+      "area": "starfall_citadel",
+      "floor": 3,
+      "normal": [
+        { "id": "citadel_f3_dragon_sentry", "enemies": [ "eclipse_dragon", "astral_sentry" ] },
+        { "id": "citadel_f3_archon_channeler", "enemies": [ "void_archon", "void_channeler" ] },
+        { "id": "citadel_f3_beast_duelist", "enemies": [ "rift_beast", "starforged_duelist" ] },
+        { "id": "citadel_f3_oracle_sentry_channeler", "enemies": [ "citadel_oracle", "astral_sentry", "void_channeler" ] }
+      ],
+      "elite": { "id": "citadel_f3_elite_dragon_channeler", "enemies": [ "eclipse_dragon", "void_channeler" ] },
+      "boss": { "id": "citadel_f3_boss_archon_dragon", "enemies": [ "void_archon", "eclipse_dragon" ] }
+    },
+    {
+      "area": "starfall_citadel",
+      "floor": 4,
+      "normal": [
+        { "id": "citadel_f4_archon_duelist", "enemies": [ "void_archon", "starforged_duelist" ] },
+        { "id": "citadel_f4_dragon_beast", "enemies": [ "eclipse_dragon", "rift_beast" ] },
+        { "id": "citadel_f4_sentry_oracle_channeler", "enemies": [ "astral_sentry", "citadel_oracle", "void_channeler" ] },
+        { "id": "citadel_f4_archon_oracle", "enemies": [ "void_archon", "citadel_oracle" ] }
+      ],
+      "elite": { "id": "citadel_f4_elite_dragon_archon", "enemies": [ "eclipse_dragon", "void_archon" ] },
+      "boss": { "id": "citadel_f4_boss_empress_oracle", "enemies": [ "starfall_empress", "citadel_oracle" ] }
+    },
+    {
+      "area": "starfall_citadel",
+      "floor": 5,
+      "normal": [
+        { "id": "citadel_f5_empress_sentry", "enemies": [ "starfall_empress", "astral_sentry" ] },
+        { "id": "citadel_f5_archon_dragon", "enemies": [ "void_archon", "eclipse_dragon" ] },
+        { "id": "citadel_f5_beast_duelist_channeler", "enemies": [ "rift_beast", "starforged_duelist", "void_channeler" ] },
+        { "id": "citadel_f5_dragon_oracle", "enemies": [ "eclipse_dragon", "citadel_oracle" ] }
+      ],
+      "elite": { "id": "citadel_f5_elite_empress_beast", "enemies": [ "starfall_empress", "rift_beast" ] },
+      "boss": { "id": "citadel_f5_boss_empress_archon", "enemies": [ "starfall_empress", "void_archon" ] }
+    },
+    {
+      "area": "starfall_citadel",
+      "floor": 6,
+      "normal": [
+        { "id": "citadel_f6_empress_oracle", "enemies": [ "starfall_empress", "citadel_oracle" ] },
+        { "id": "citadel_f6_dragon_archon", "enemies": [ "eclipse_dragon", "void_archon" ] },
+        { "id": "citadel_f6_empress_duelist_channeler", "enemies": [ "starfall_empress", "starforged_duelist", "void_channeler" ] },
+        { "id": "citadel_f6_beast_archon_oracle", "enemies": [ "rift_beast", "void_archon", "citadel_oracle" ] }
+      ],
+      "elite": { "id": "citadel_f6_elite_empress_dragon", "enemies": [ "starfall_empress", "eclipse_dragon" ] },
+      "boss": { "id": "citadel_f6_boss_starfall_throne", "enemies": [ "starfall_empress", "void_archon", "citadel_oracle" ] }
+    },
+    {
       "floor": 1,
       "normal": [
         { "id": "fallback_f1_spider", "enemies": [ "giant_spider" ] },

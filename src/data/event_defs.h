@@ -39,6 +39,8 @@ typedef struct {
     const char *id;
     const char *name;
     const char *body;
+    const char *unlock_key;
+    const char *unlock_event;
     EventChoiceDef choices[EVENT_CHOICE_COUNT];
     int choice_count;
 } EventDef;

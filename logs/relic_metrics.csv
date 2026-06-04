@@ -15,3 +15,8 @@ timestamp,run_id,area,floor,source,offered,picked
 1780424115,"13","2","3","boss_reward","scholar_notes|blood_amber|hunters_compass","blood_amber"
 1780424650,"13","2","4","boss_reward","veil_pin|prosperity_charm|quickdraw_glove","prosperity_charm"
 1780433634,"13","2","5","boss_reward","veil_pin|mirror_shield|lantern_oil","lantern_oil"
+1780567723,"1","0","2","boss_reward","hunters_compass|phoenix_feather|battle_drum","phoenix_feather"
+1780568155,"1","0","3","boss_reward","mirror_shield|hunters_compass|leech_blade","leech_blade"
+1780573859,"2","1","2","boss_reward","poison_fang|void_stone|mark_of_the_hunt","poison_fang"
+1780574439,"2","1","3","boss_reward","hunters_compass|lantern_oil|gilded_charm","gilded_charm"
+1780574811,"2","1","4","boss_reward","hunters_compass|veil_pin|leech_blade","veil_pin"

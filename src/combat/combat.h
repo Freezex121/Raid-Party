@@ -70,6 +70,7 @@ typedef struct {
 #define MAX_CARD_THROW_ANIMS 8
 #define MAX_ENEMY_CARD_THROWS 8
 #define SUDDEN_DEATH_START_TURN 15
+#define ECHO_DELAY_SECONDS 0.5f
 
 typedef struct {
     bool active;
@@ -186,6 +187,12 @@ typedef struct {
     bool deadly_poison_used;
     int vengeful_ally;
     int mana_gem_bonus;
+    bool echo_pending;
+    float echo_timer;
+    const CardDef *echo_card;
+    int echo_upgrade_level;
+    int echo_target_enemy;
+    int echo_target_ally;
     CardThrowAnim card_throws[MAX_CARD_THROW_ANIMS];
     EnemyCardThrow enemy_card_throws[MAX_ENEMY_CARD_THROWS];
 } CombatState;

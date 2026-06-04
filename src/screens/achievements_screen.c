@@ -14,19 +14,7 @@ static int hovered_ach = -1;
 
 static const char *class_short_name(ClassType ct)
 {
-    switch (ct)
-    {
-        case CLASS_GUARDIAN: return "Guardian";
-        case CLASS_CLERIC:   return "Cleric";
-        case CLASS_MAGE:     return "Mage";
-        case CLASS_ROGUE:    return "Rogue";
-        case CLASS_SHAMAN:   return "Shaman";
-        case CLASS_RANGER:   return "Ranger";
-        case CLASS_PALADIN:  return "Paladin";
-        case CLASS_WARLOCK:  return "Warlock";
-        case CLASS_BARD:     return "Bard";
-        default:             return "Unknown";
-    }
+    return class_name(ct);
 }
 
 void achievements_screen_update(void)
@@ -55,8 +43,15 @@ void achievements_screen_update(void)
     int start_x = (VIRT_W - total_w) / 2;
     int start_y = 66;
 
-    for (int i = 0; i < ACH_COUNT; i++)
+    int achievement_total = achievement_count();
+    int rows = (achievement_total + cols - 1) / cols;
+    int max_scroll = rows * (box_h + gap_y) - gap_y - (VIRT_H - start_y - 42);
+    if (max_scroll < 0) max_scroll = 0;
+    if (scroll_offset > max_scroll) scroll_offset = max_scroll;
+
+    for (int i = 0; i < achievement_total; i++)
     {
+        AchievementId id = achievement_at(i);
         int col = i % cols;
         int row = i / cols;
         int cx = start_x + col * (box_w + gap_x);
@@ -65,7 +60,7 @@ void achievements_screen_update(void)
         if (cy + box_h < 56 || cy > VIRT_H) continue;
 
         Rectangle r = { (float)cx, (float)cy, (float)box_w, (float)box_h };
-        if (CheckCollisionPointRec(mouse, r)) hovered_ach = i;
+        if (CheckCollisionPointRec(mouse, r)) hovered_ach = id;
     }
 
     // Back button
@@ -86,10 +81,14 @@ void achievements_screen_draw(void)
     draw_text_box((Rectangle){ 80.0f, 10.0f, 480.0f, 20.0f }, "ACHIEVEMENTS", 18, 0, RAYWHITE, TEXT_ALIGN_CENTER);
 
     int unlocked_count = 0;
-    for (int i = 0; i < ACH_COUNT; i++)
-        if (g_state.meta.achievements[i]) unlocked_count++;
+    int achievement_total = achievement_count();
+    for (int i = 0; i < achievement_total; i++)
+    {
+        AchievementId id = achievement_at(i);
+        if (id >= 0 && id < ACH_COUNT && g_state.meta.achievements[id]) unlocked_count++;
+    }
     char stats[64];
-    snprintf(stats, sizeof(stats), "%d / %d unlocked", unlocked_count, ACH_COUNT);
+    snprintf(stats, sizeof(stats), "%d / %d unlocked", unlocked_count, achievement_total);
     draw_text_box((Rectangle){ 80.0f, 30.0f, 480.0f, 12.0f }, stats, 10, 0, (Color){ 190, 195, 220, 230 }, TEXT_ALIGN_CENTER);
 
     int box_w = 120;
@@ -103,8 +102,9 @@ void achievements_screen_draw(void)
 
     Vector2 mouse = GetMousePosition();
 
-    for (int i = 0; i < ACH_COUNT; i++)
+    for (int i = 0; i < achievement_total; i++)
     {
+        AchievementId id = achievement_at(i);
         int col = i % cols;
         int row = i / cols;
         int cx = start_x + col * (box_w + gap_x);
@@ -113,8 +113,8 @@ void achievements_screen_draw(void)
         if (cy + box_h < 56 || cy > VIRT_H) continue;
 
         Rectangle r = { (float)cx, (float)cy, (float)box_w, (float)box_h };
-        bool unlocked = g_state.meta.achievements[i];
-        bool hover = (i == hovered_ach) || CheckCollisionPointRec(mouse, r);
+        bool unlocked = id >= 0 && id < ACH_COUNT && g_state.meta.achievements[id];
+        bool hover = (id == hovered_ach) || CheckCollisionPointRec(mouse, r);
 
         Color bg = unlocked ? (Color){ 25, 44, 35, 238 } : (Color){ 20, 21, 30, 225 };
         Color border = unlocked ? (Color){ 95, 210, 130, 210 } : (Color){ 70, 72, 88, 170 };
@@ -127,7 +127,7 @@ void achievements_screen_draw(void)
         DrawRectangleRec(r, bg);
         DrawRectangleLinesEx(r, hover ? 2.0f : 1.0f, border);
 
-        const char *name = achievement_name((AchievementId)i);
+        const char *name = achievement_name(id);
         Color name_col = unlocked ? RAYWHITE : (Color){ 150, 154, 175, 230 };
         draw_text_box((Rectangle){ r.x + 5.0f, r.y + 2.0f, r.width - 10.0f, 13.0f },
             name, 10, 0, name_col, TEXT_ALIGN_LEFT);
@@ -135,7 +135,7 @@ void achievements_screen_draw(void)
         if (unlocked)
         {
             char run_label[16];
-            snprintf(run_label, sizeof(run_label), "Run #%d", g_state.meta.achievement_times[i]);
+            snprintf(run_label, sizeof(run_label), "Run #%d", g_state.meta.achievement_times[id]);
             draw_text_box((Rectangle){ r.x + 5.0f, r.y + 14.0f, r.width - 10.0f, 12.0f },
                 run_label, 10, 0, (Color){ 140, 200, 160, 220 }, TEXT_ALIGN_LEFT);
         }
@@ -160,9 +160,20 @@ void achievements_screen_draw(void)
         if (desc_h < ui_line_height(10)) desc_h = ui_line_height(10);
         body_h += desc_h + 4;
 
-        char reward[24];
+        char reward[48];
         snprintf(reward, sizeof(reward), "Reward: +%d Renown", achievement_reward(id));
         body_h += ui_line_height(10) + 4;
+        char unlocks[192];
+        char unlock_line[224] = "";
+        meta_content_achievement_rewards(id, unlocked, unlocks, sizeof(unlocks));
+        int unlock_h = 0;
+        if (unlocks[0])
+        {
+            snprintf(unlock_line, sizeof(unlock_line), "Enables: %s", unlocks);
+            unlock_h = measure_text_box(unlock_line, tip_w - 12, 10, 0);
+            if (unlock_h < ui_line_height(10)) unlock_h = ui_line_height(10);
+            body_h += unlock_h + 4;
+        }
 
         if (unlocked)
         {
@@ -174,12 +185,14 @@ void achievements_screen_draw(void)
             if (party_mask != 0)
             {
                 char party_str[64] = "";
-                for (int c = 0; c < CLASS_COUNT; c++)
+                int class_count = party_class_count();
+                for (int i = 0; i < class_count; i++)
                 {
-                    if (party_mask & (1 << c))
+                    ClassType c = party_class_at(i);
+                    if (c >= 0 && c < 31 && (party_mask & (1 << c)))
                     {
                         if (party_str[0]) strcat(party_str, ", ");
-                        strcat(party_str, class_short_name((ClassType)c));
+                        strcat(party_str, class_short_name(c));
                     }
                 }
                 if (party_str[0])
@@ -217,6 +230,13 @@ void achievements_screen_draw(void)
             reward, 10, 0, (Color){ 230, 205, 95, 240 }, TEXT_ALIGN_LEFT);
         ly += ui_line_height(10) + 4;
 
+        if (unlocks[0])
+        {
+            draw_text_box((Rectangle){ tip.x + 6.0f, (float)ly, tip.width - 12.0f, (float)unlock_h },
+                unlock_line, 10, 0, (Color){ 150, 210, 240, 230 }, TEXT_ALIGN_LEFT);
+            ly += unlock_h + 4;
+        }
+
         if (unlocked)
         {
             char run[32];
@@ -229,12 +249,14 @@ void achievements_screen_draw(void)
             if (party_mask != 0)
             {
                 char party_str[64] = "";
-                for (int c = 0; c < CLASS_COUNT; c++)
+                int class_count = party_class_count();
+                for (int i = 0; i < class_count; i++)
                 {
-                    if (party_mask & (1 << c))
+                    ClassType c = party_class_at(i);
+                    if (c >= 0 && c < 31 && (party_mask & (1 << c)))
                     {
                         if (party_str[0]) strcat(party_str, ", ");
-                        strcat(party_str, class_short_name((ClassType)c));
+                        strcat(party_str, class_short_name(c));
                     }
                 }
                 if (party_str[0])

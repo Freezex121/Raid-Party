@@ -47,6 +47,9 @@ static int party_regen(int party_count)
     return BASE_REGEN;
 }
 
+static void check_victory(CombatState *cs);
+static void check_defeat(CombatState *cs);
+
 static int active_ascension(void)
 {
     int level = g_state.meta.ascension_level;
@@ -336,6 +339,29 @@ static void combat_flash_played_card(CombatState *cs, const CardDef *card, int t
     }
 }
 
+static void combat_flash_echo(CombatState *cs, int target_enemy, int target_ally)
+{
+    snprintf(cs->play_flash_text, sizeof(cs->play_flash_text), "ECHO");
+    cs->play_flash_timer = 0.55f;
+
+    if (target_enemy >= 0 && target_enemy < cs->enemy_count)
+    {
+        cs->play_flash_x = (float)(cs->enemies[target_enemy].pos_x - 42);
+        cs->play_flash_y = (float)(cs->enemies[target_enemy].pos_y - 12);
+    }
+    else if (target_ally >= 0 && target_ally < cs->party.count)
+    {
+        Vector2 p = party_feedback_pos(cs, target_ally);
+        cs->play_flash_x = p.x - 42.0f;
+        cs->play_flash_y = p.y;
+    }
+    else
+    {
+        cs->play_flash_x = (float)(VIRT_W / 2 - 42);
+        cs->play_flash_y = (float)(VIRT_H / 2);
+    }
+}
+
 // ── Damage / heal / shield / taunt ──────────────────────────
 
 static int combat_member_index_for_class(CombatState *cs, ClassType ct)
@@ -347,16 +373,27 @@ static int combat_member_index_for_class(CombatState *cs, ClassType ct)
     return -1;
 }
 
-static bool combat_class_has_perk(CombatState *cs, ClassType ct, PerkId perk)
+static int combat_class_perk_effect_total(CombatState *cs, ClassType ct, const char *effect)
 {
     int idx = combat_member_index_for_class(cs, ct);
-    return idx >= 0 && party_member_has_perk(&cs->party.members[idx], perk);
+    return idx >= 0 ? party_member_perk_effect_total(&cs->party.members[idx], effect) : 0;
 }
 
-static int combat_class_perk_count(CombatState *cs, ClassType ct, PerkId perk)
+static const char *combat_class_perk_effect_name(CombatState *cs, ClassType ct, const char *effect)
 {
     int idx = combat_member_index_for_class(cs, ct);
-    return idx >= 0 ? party_member_perk_count(&cs->party.members[idx], perk) : 0;
+    return idx >= 0 ? party_member_perk_effect_name(&cs->party.members[idx], effect) : "Perk";
+}
+
+static int combat_party_perk_effect_total(CombatState *cs, const char *effect)
+{
+    if (!cs || !effect || !effect[0])
+        return 0;
+    int total = 0;
+    for (int i = 0; i < cs->party.count; i++)
+        if (cs->party.members[i].alive)
+            total += party_member_perk_effect_total(&cs->party.members[i], effect);
+    return total;
 }
 
 static int combat_lowest_level_living_member(CombatState *cs)
@@ -405,12 +442,15 @@ static void combat_try_rogue_mark_refund(CombatState *cs)
 {
     if (!cs || cs->rogue_mark_refund_used)
         return;
-    if (!combat_class_has_perk(cs, CLASS_ROGUE, PERK_ROGUE_MARK_REFUND))
+    int refund = combat_class_perk_effect_total(cs, CLASS_ROGUE, "marked_payoff_energy_once");
+    if (refund <= 0)
         return;
     cs->rogue_mark_refund_used = true;
-    if (cs->energy.current < cs->energy.max)
-        cs->energy.current++;
-    combat_feed_add(cs, "Clean Payday: +1 energy");
+    cs->energy.current += refund;
+    if (cs->energy.current > cs->energy.max)
+        cs->energy.current = cs->energy.max;
+    combat_feed_add(cs, "%s: +%d energy",
+        combat_class_perk_effect_name(cs, CLASS_ROGUE, "marked_payoff_energy_once"), refund);
 }
 
 static void apply_damage_to_ally(CombatState *cs, int ally_idx, int damage, const char *source);
@@ -499,20 +539,26 @@ static void apply_heal_to_ally(CombatState *cs, int ally_idx, int amount)
 
     LOG_I(CAT_CARD, "  ally[%d] %s: +%d HP (%d)", ally_idx, pm->name, amount, pm->hp);
 
+    int paladin_heal_shield = combat_class_perk_effect_total(cs, CLASS_PALADIN, "heal_grant_shield");
     if (amount > 0 &&
         cs->resolving_card_class == CLASS_PALADIN &&
-        combat_class_has_perk(cs, CLASS_PALADIN, PERK_PALADIN_HEAL_SHIELD))
+        paladin_heal_shield > 0)
     {
-        apply_shield_to_ally(cs, ally_idx, 1);
-        combat_feed_add(cs, "Blessed Mending: +1 Shield");
+        apply_shield_to_ally(cs, ally_idx, paladin_heal_shield);
+        combat_feed_add(cs, "%s: +%d Shield",
+            combat_class_perk_effect_name(cs, CLASS_PALADIN, "heal_grant_shield"),
+            paladin_heal_shield);
     }
 
+    int overheal_shield = combat_class_perk_effect_total(cs, CLASS_CLERIC, "overheal_shield");
     if (overheal > 0 &&
         cs->resolving_card_class == CLASS_CLERIC &&
-        combat_class_has_perk(cs, CLASS_CLERIC, PERK_CLERIC_OVERHEAL_SHIELD))
+        overheal_shield > 0)
     {
-        apply_shield_to_ally(cs, ally_idx, 2);
-        combat_feed_add(cs, "Overflowing Grace: +2 Shield");
+        apply_shield_to_ally(cs, ally_idx, overheal_shield);
+        combat_feed_add(cs, "%s: +%d Shield",
+            combat_class_perk_effect_name(cs, CLASS_CLERIC, "overheal_shield"),
+            overheal_shield);
     }
 
     if (cs->vengeful_active && cs->vengeful_ally == ally_idx)
@@ -1034,8 +1080,14 @@ void combat_draw_enemy_card_throws(CombatState *cs)
         {
             case INTENT_HEAL:
             case INTENT_SHIELD:
+            case INTENT_AOE_SHIELD:
                 fake_card.type = CARD_SKILL;
-                fake_card.target = thr->intent == INTENT_HEAL ? TARGET_ALLY : TARGET_SELF;
+                if (thr->intent == INTENT_HEAL)
+                    fake_card.target = TARGET_ALLY;
+                else if (thr->intent == INTENT_AOE_SHIELD)
+                    fake_card.target = TARGET_ALL_ALLIES;
+                else
+                    fake_card.target = TARGET_SELF;
                 break;
             case INTENT_BUFF:
                 fake_card.type = CARD_POWER;
@@ -1078,6 +1130,7 @@ void combat_draw_enemy_card_throws(CombatState *cs)
 bool combat_any_pending(CombatState *cs)
 {
     if (!cs) return false;
+    if (cs->echo_pending) return true;
     for (int i = 0; i < MAX_ENEMY_CARD_THROWS; i++)
         if (cs->enemy_card_throws[i].active) return true;
     for (int i = 0; i < cs->enemy_count; i++)
@@ -1323,24 +1376,30 @@ static void apply_status_to_enemy(CombatState *cs, int enemy_idx, StatusType sta
     if (turns > 0 && is_enemy_synergy_status(status) &&
         relic_has(g_state.relics, g_state.relic_count, RELIC_LINGERING_SIGIL))
         turns++;
+    int shaman_extend = combat_class_perk_effect_total(cs, CLASS_SHAMAN, "extend_shaman_status_once");
     if (turns > 0 &&
         status == STATUS_CONDUCTIVE &&
         cs->resolving_card_class == CLASS_SHAMAN &&
         !cs->shaman_extend_status_used &&
-        combat_class_has_perk(cs, CLASS_SHAMAN, PERK_SHAMAN_EXTEND_STATUS))
+        shaman_extend > 0)
     {
-        turns++;
+        turns += shaman_extend;
         cs->shaman_extend_status_used = true;
-        combat_feed_add(cs, "Lingering Rite: +1 turn");
+        combat_feed_add(cs, "%s: +%d turn",
+            combat_class_perk_effect_name(cs, CLASS_SHAMAN, "extend_shaman_status_once"),
+            shaman_extend);
     }
+    int blight_bonus = combat_class_perk_effect_total(cs, CLASS_WARLOCK, "first_blight_bonus");
     if (status == STATUS_BLIGHT &&
         cs->resolving_card_class == CLASS_WARLOCK &&
         !cs->warlock_blight_boost_used &&
-        combat_class_has_perk(cs, CLASS_WARLOCK, PERK_WARLOCK_BLIGHT_BOOST))
+        blight_bonus > 0)
     {
-        amount++;
+        amount += blight_bonus;
         cs->warlock_blight_boost_used = true;
-        combat_feed_add(cs, "Deeper Rot: +1 BLIGHT");
+        combat_feed_add(cs, "%s: +%d BLIGHT",
+            combat_class_perk_effect_name(cs, CLASS_WARLOCK, "first_blight_bonus"),
+            blight_bonus);
     }
 
     // ── Call of Nature: Shaman+Bard — CONDUCTIVE also applies MARKED ──
@@ -1375,15 +1434,18 @@ static void apply_status_to_ally(CombatState *cs, int ally_idx, StatusType statu
     PartyMember *pm = &cs->party.members[ally_idx];
     if (!pm->alive) return;
 
+    int shaman_extend = combat_class_perk_effect_total(cs, CLASS_SHAMAN, "extend_shaman_status_once");
     if (turns > 0 &&
         status == STATUS_TOTEM_HEAL &&
         cs->resolving_card_class == CLASS_SHAMAN &&
         !cs->shaman_extend_status_used &&
-        combat_class_has_perk(cs, CLASS_SHAMAN, PERK_SHAMAN_EXTEND_STATUS))
+        shaman_extend > 0)
     {
-        turns++;
+        turns += shaman_extend;
         cs->shaman_extend_status_used = true;
-        combat_feed_add(cs, "Lingering Rite: +1 turn");
+        combat_feed_add(cs, "%s: +%d turn",
+            combat_class_perk_effect_name(cs, CLASS_SHAMAN, "extend_shaman_status_once"),
+            shaman_extend);
     }
 
     // ── Status amplification buff ──
@@ -1526,6 +1588,227 @@ static void apply_card_effect_chain(CombatState *cs, const CardDef *card, int ta
         apply_card_effect(cs, card, &card->effects[i], target_enemy, target_ally);
 }
 
+static int echo_half_value(int value)
+{
+    if (value <= 0) return 0;
+    int half = (value + 1) / 2;
+    return half > 0 ? half : 1;
+}
+
+static void apply_echo_card_effect(CombatState *cs, const CardDef *card, const CardEffect *effect, int target_enemy, int target_ally)
+{
+    if (!cs || !card || !effect) return;
+
+    int amount = echo_half_value(effect->amount);
+    int turns = echo_half_value(effect->turns);
+
+    switch (effect->type)
+    {
+        case CARD_EFFECT_DRAW_CARDS:
+            for (int d = 0; d < amount; d++)
+                deck_draw(&cs->deck);
+            if (amount > 0)
+                combat_feed_add(cs, "Echo drew %d", amount);
+            break;
+
+        case CARD_EFFECT_GAIN_ENERGY:
+            if (amount > 0)
+            {
+                cs->energy.current += amount;
+                if (cs->energy.current > cs->energy.max) cs->energy.current = cs->energy.max;
+                combat_feed_add(cs, "Echo gained %d energy", amount);
+            }
+            break;
+
+        case CARD_EFFECT_APPLY_STATUS_TARGET_ENEMY:
+            if (target_enemy >= 0)
+                apply_status_to_enemy(cs, target_enemy, effect->status, turns, amount);
+            break;
+
+        case CARD_EFFECT_APPLY_STATUS_TARGET_ALLY:
+            if (target_ally >= 0)
+                apply_status_to_ally(cs, target_ally, effect->status, turns, amount);
+            break;
+
+        case CARD_EFFECT_APPLY_STATUS_ALL_ALLIES:
+            for (int i = 0; i < cs->party.count; i++)
+                if (cs->party.members[i].alive)
+                    apply_status_to_ally(cs, i, effect->status, turns, amount);
+            break;
+
+        case CARD_EFFECT_GAIN_BUFF:
+            if (amount > 0)
+            {
+                float mult = 1.0f + (float)amount / 100.0f;
+                cs->player_damage_mult *= mult;
+                if (turns > cs->player_buff_turns)
+                    cs->player_buff_turns = turns;
+                combat_feed_add(cs, "Echo damage buff x%.2f", mult);
+            }
+            break;
+
+        case CARD_EFFECT_EXTRA_DRAW:
+            if (amount > 0)
+            {
+                cs->player_extra_draw += amount;
+                if (turns > cs->player_extra_draw_turns)
+                    cs->player_extra_draw_turns = turns;
+                combat_feed_add(cs, "Echo extra draw +%d", amount);
+            }
+            break;
+
+        case CARD_EFFECT_GAIN_STATUS_AMP:
+            if (amount > 0)
+            {
+                cs->player_status_amp += amount;
+                if (turns > cs->player_status_amp_turns)
+                    cs->player_status_amp_turns = turns;
+                combat_feed_add(cs, "Echo status amp +%d%%", amount);
+            }
+            break;
+
+        case CARD_EFFECT_REVIVE_TARGET:
+        case CARD_EFFECT_RESET_CASTER_AGGRO:
+        case CARD_EFFECT_TRANSFER_AGGRO_TO_GUARDIAN:
+            break;
+    }
+}
+
+static int echo_pick_enemy_target(CombatState *cs, int preferred)
+{
+    if (preferred >= 0 && preferred < cs->enemy_count &&
+        cs->enemies[preferred].def && cs->enemies[preferred].hp > 0)
+        return preferred;
+
+    int alive[MAX_ENEMIES], alive_count = 0;
+    for (int i = 0; i < cs->enemy_count; i++)
+        if (cs->enemies[i].def && cs->enemies[i].hp > 0)
+            alive[alive_count++] = i;
+    return alive_count > 0 ? alive[rand() % alive_count] : -1;
+}
+
+static int echo_pick_ally_target(CombatState *cs, int preferred)
+{
+    if (preferred >= 0 && preferred < cs->party.count && cs->party.members[preferred].alive)
+        return preferred;
+
+    int alive[MAX_PARTY_SIZE], alive_count = 0;
+    for (int i = 0; i < cs->party.count; i++)
+        if (cs->party.members[i].alive)
+            alive[alive_count++] = i;
+    return alive_count > 0 ? alive[rand() % alive_count] : -1;
+}
+
+static void combat_schedule_echo(CombatState *cs, const CardDef *card, int upgrade_level, int target_enemy, int target_ally)
+{
+    if (!cs || !card)
+        return;
+    cs->echo_pending = true;
+    cs->echo_timer = ECHO_DELAY_SECONDS;
+    cs->echo_card = card;
+    cs->echo_upgrade_level = upgrade_level;
+    cs->echo_target_enemy = target_enemy;
+    cs->echo_target_ally = target_ally;
+}
+
+static void combat_resolve_pending_echo(CombatState *cs)
+{
+    if (!cs || !cs->echo_pending)
+        return;
+
+    const CardDef *card = cs->echo_card;
+    int upgrade_level = cs->echo_upgrade_level;
+    int target_enemy = -1;
+    int target_ally = -1;
+    bool resolved = false;
+
+    cs->echo_pending = false;
+    cs->echo_card = NULL;
+    cs->echo_timer = 0.0f;
+
+    if (!card)
+        return;
+
+    if (card->target == TARGET_ENEMY || card->target == TARGET_ALL_ENEMIES)
+        target_enemy = echo_pick_enemy_target(cs, cs->echo_target_enemy);
+    else if (card->target == TARGET_ALLY || card->target == TARGET_ALL_ALLIES)
+        target_ally = echo_pick_ally_target(cs, cs->echo_target_ally);
+
+    combat_flash_echo(cs, target_enemy, target_ally);
+    cs->resolving_card_class = card->class;
+
+    int half_dmg = echo_half_value(card_damage(card, upgrade_level));
+    int half_hl = echo_half_value(card_heal(card, upgrade_level));
+    int half_sh = echo_half_value(card_shield(card, upgrade_level));
+
+    if (half_dmg > 0)
+    {
+        if (card->target == TARGET_ALL_ENEMIES)
+        {
+            for (int i = 0; i < cs->enemy_count; i++)
+                if (cs->enemies[i].def && cs->enemies[i].hp > 0)
+                {
+                    apply_damage_to_enemy(cs, i, half_dmg);
+                    resolved = true;
+                }
+        }
+        else if (target_enemy >= 0)
+        {
+            apply_damage_to_enemy(cs, target_enemy, half_dmg);
+            resolved = true;
+        }
+    }
+
+    if (card->target == TARGET_ALL_ALLIES)
+    {
+        for (int i = 0; i < cs->party.count; i++)
+            if (cs->party.members[i].alive)
+            {
+                if (half_hl > 0) apply_heal_to_ally(cs, i, half_hl);
+                if (half_sh > 0) apply_shield_to_ally(cs, i, half_sh);
+                resolved = resolved || half_hl > 0 || half_sh > 0;
+            }
+    }
+    else if (card->target == TARGET_ALLY && target_ally >= 0)
+    {
+        if (half_hl > 0) apply_heal_to_ally(cs, target_ally, half_hl);
+        if (half_sh > 0) apply_shield_to_ally(cs, target_ally, half_sh);
+        resolved = resolved || half_hl > 0 || half_sh > 0;
+    }
+    else
+    {
+        int caster = -1;
+        find_caster(cs, card->class, &caster);
+        if (caster >= 0)
+        {
+            if (half_hl > 0) apply_heal_to_ally(cs, caster, half_hl);
+            if (half_sh > 0) apply_shield_to_ally(cs, caster, half_sh);
+            resolved = resolved || half_hl > 0 || half_sh > 0;
+        }
+    }
+
+    if (card->effects && card->effect_count > 0)
+    {
+        for (int i = 0; i < card->effect_count; i++)
+        {
+            apply_echo_card_effect(cs, card, &card->effects[i], target_enemy, target_ally);
+            resolved = true;
+        }
+    }
+
+    cs->resolving_card_class = CLASS_NONE;
+
+    if (resolved)
+    {
+        LOG_D(CAT_CARD, "Echo: resolving copy at 50%% after delay");
+        combat_feed_add(cs, "Echo copy resolves");
+    }
+
+    check_defeat(cs);
+    if (cs->phase == COMBAT_DEFEAT) return;
+    check_victory(cs);
+}
+
 static bool card_is_heal_card(const CardDef *card)
 {
     if (!card) return false;
@@ -1651,6 +1934,14 @@ static void apply_relic_combat_start(CombatState *cs)
         combat_feed_add(cs, "Scouting Map: drew 1");
     }
 
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_DUELIST_SIGIL) && cs->party.count == 1)
+    {
+        cs->energy.current += 1;
+        if (cs->energy.current > cs->energy.max) cs->energy.current = cs->energy.max;
+        deck_draw(&cs->deck);
+        combat_feed_add(cs, "Duelist Sigil: +1 energy, drew 1");
+    }
+
     if (relic_has(g_state.relics, g_state.relic_count, RELIC_QUICKDRAW_GLOVE))
     {
         deck_draw(&cs->deck);
@@ -1663,6 +1954,14 @@ static void apply_relic_combat_start(CombatState *cs)
             if (cs->party.members[i].alive)
                 add_party_member_shield_capped(&cs->party.members[i], 4);
         combat_feed_add(cs, "Ward Stone: +4 Shield");
+    }
+
+    if (relic_has(g_state.relics, g_state.relic_count, RELIC_FELLOWSHIP_STANDARD) && cs->party.count >= 4)
+    {
+        for (int i = 0; i < cs->party.count; i++)
+            if (cs->party.members[i].alive)
+                add_party_member_shield_capped(&cs->party.members[i], 5);
+        combat_feed_add(cs, "Fellowship Standard: +5 Shield");
     }
 
     if (relic_has(g_state.relics, g_state.relic_count, RELIC_PROSPERITY_CHARM))
@@ -1754,9 +2053,9 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
     int sh  = card_shield(card, upgrade_level) + meta_shield_bonus(&g_state.meta);
     if (card->class != CLASS_NONE)
     {
-        if (dmg > 0) dmg += combat_class_perk_count(cs, card->class, PERK_CARD_DMG_1);
-        if (hl > 0) hl += combat_class_perk_count(cs, card->class, PERK_CARD_HEAL_1);
-        if (sh > 0) sh += combat_class_perk_count(cs, card->class, PERK_CARD_SHIELD_1);
+        if (dmg > 0) dmg += combat_class_perk_effect_total(cs, card->class, "card_damage");
+        if (hl > 0) hl += combat_class_perk_effect_total(cs, card->class, "card_heal");
+        if (sh > 0) sh += combat_class_perk_effect_total(cs, card->class, "card_shield");
     }
     if (dmg > 0 && card->class == CLASS_WARLOCK)
         dmg += meta_warlock_damage_bonus(&g_state.meta);
@@ -1891,8 +2190,9 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
     bool have_sneaky_steal = (dmg > 0 && party_has_pair(cs, CLASS_ROGUE, CLASS_PALADIN));
 
     int bard_draw = 0;
-    if (combat_class_has_perk(cs, CLASS_BARD, PERK_BARD_FIRST_DRAW))
-        bard_draw = 1;
+    int bard_perk_draw = combat_class_perk_effect_total(cs, CLASS_BARD, "first_bard_draw");
+    if (bard_perk_draw > bard_draw)
+        bard_draw = bard_perk_draw;
     if (meta_bard_draw_bonus(&g_state.meta) > bard_draw)
         bard_draw = meta_bard_draw_bonus(&g_state.meta);
     if (card->class == CLASS_BARD &&
@@ -1901,7 +2201,9 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
     {
         cs->bard_first_draw_used = true;
         deal_cards(&cs->deck, bard_draw);
-        combat_feed_add(cs, "Encore: drew %d", bard_draw);
+        combat_feed_add(cs, "%s: drew %d",
+            bard_perk_draw > 0 ? combat_class_perk_effect_name(cs, CLASS_BARD, "first_bard_draw") : "Harmony",
+            bard_draw);
     }
 
     // ── Blood Amber: lose 1 HP, gain 1 energy per card played ──
@@ -1920,13 +2222,16 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
     }
 
     // ── Echo: resolve card again at 50% (from card keyword or Echo Bell relic) ──
-    bool echo_this_card = card_instance_has_echo(inst) ||
-        (!cs->echo_used && card->cost >= 1 && relic_has(g_state.relics, g_state.relic_count, RELIC_ECHO_BELL));
-    if (echo_this_card)
-    {
+    bool echo_from_card = card_instance_has_echo(inst);
+    bool echo_from_bell = !echo_from_card &&
+        !cs->echo_used &&
+        card->cost >= 1 &&
+        relic_has(g_state.relics, g_state.relic_count, RELIC_ECHO_BELL);
+    bool echo_this_card = echo_from_card || echo_from_bell;
+    if (echo_from_bell)
         cs->echo_used = true;
-        combat_feed_add(cs, "%s echoed", card->name);
-    }
+    if (echo_this_card)
+        combat_feed_add(cs, "%s will echo", card->name);
 
     // ── Player damage buff multiplier ──
     if (cs->player_damage_mult > 1.0f && dmg > 0)
@@ -1966,7 +2271,7 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
     if (card_is(card, "rng_pounce") && marked_target)
     {
         dmg = card_damage(card, upgrade_level) + meta_dmg_bonus(&g_state.meta) +
-            combat_class_perk_count(cs, card->class, PERK_CARD_DMG_1);
+            combat_class_perk_effect_total(cs, card->class, "card_damage");
         combat_feed_add(cs, "[MARKED] Pounce found the opening");
     }
     if (card_is(card, "rog_evis") && marked_target)
@@ -2077,24 +2382,30 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
 
     // ── Utility card effects ────────────────────────────────
     // Channel cards don't resolve immediately — they start a channel instead
+    int mage_first_damage = combat_class_perk_effect_total(cs, CLASS_MAGE, "first_mage_damage_each_turn");
     if (dmg > 0 &&
         card->class == CLASS_MAGE &&
         !cs->mage_first_spell_used &&
-        combat_class_has_perk(cs, CLASS_MAGE, PERK_MAGE_FIRST_SPELL_DMG))
+        mage_first_damage > 0)
     {
-        dmg += 1;
+        dmg += mage_first_damage;
         cs->mage_first_spell_used = true;
-        combat_feed_add(cs, "Opening Spark: +1 damage");
+        combat_feed_add(cs, "%s: +%d damage",
+            combat_class_perk_effect_name(cs, CLASS_MAGE, "first_mage_damage_each_turn"),
+            mage_first_damage);
     }
+    int ranger_marked_damage = combat_class_perk_effect_total(cs, CLASS_RANGER, "first_marked_damage");
     if (dmg > 0 &&
         card->class == CLASS_RANGER &&
         marked_target &&
         !cs->ranger_marked_dmg_used &&
-        combat_class_has_perk(cs, CLASS_RANGER, PERK_RANGER_MARKED_DMG))
+        ranger_marked_damage > 0)
     {
-        dmg += 2;
+        dmg += ranger_marked_damage;
         cs->ranger_marked_dmg_used = true;
-        combat_feed_add(cs, "True Shot: +2 damage");
+        combat_feed_add(cs, "%s: +%d damage",
+            combat_class_perk_effect_name(cs, CLASS_RANGER, "first_marked_damage"),
+            ranger_marked_damage);
     }
 
     if (!card->channel)
@@ -2266,12 +2577,14 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
             set_party_member_aggro(&cs->party.members[caster], highest + 30);
             LOG_I(CAT_CARD, "Taunt: caster aggro set to %d", cs->party.members[caster].aggro);
             assets_play_sfx(SFX_TAUNT);
-            if (!cs->guardian_taunt_shield_used &&
-                combat_class_has_perk(cs, CLASS_GUARDIAN, PERK_GUARDIAN_TAUNT_SHIELD))
+            int taunt_shield = combat_class_perk_effect_total(cs, CLASS_GUARDIAN, "first_taunt_shield");
+            if (!cs->guardian_taunt_shield_used && taunt_shield > 0)
             {
                 cs->guardian_taunt_shield_used = true;
-                apply_shield_to_ally(cs, caster, 4);
-                combat_feed_add(cs, "Anchor Stance: +4 Shield");
+                apply_shield_to_ally(cs, caster, taunt_shield);
+                combat_feed_add(cs, "%s: +%d Shield",
+                    combat_class_perk_effect_name(cs, CLASS_GUARDIAN, "first_taunt_shield"),
+                    taunt_shield);
             }
         }
     }
@@ -2432,8 +2745,14 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
         cs->last_played_class = card->class;
     }
 
-    // ── Echo: resolve again at 50% if flagged ──
     if (echo_this_card)
+    {
+        combat_schedule_echo(cs, card, upgrade_level, target_enemy, target_ally);
+        echo_this_card = false;
+    }
+
+    // ── Echo: resolve again at 50% if flagged ──
+    if (false && echo_this_card)
     {
         int half_dmg = card_damage(card, upgrade_level) / 2;
         int half_hl = card_heal(card, upgrade_level) / 2;
@@ -2519,6 +2838,7 @@ static void resolve_card_on_target(CombatState *cs, int hand_idx, int target_ene
 
 static void check_victory(CombatState *cs)
 {
+    if (cs->echo_pending) return;
     for (int i = 0; i < cs->enemy_count; i++)
         if (cs->enemies[i].def && cs->enemies[i].hp > 0) return;
     cs->phase = COMBAT_VICTORY;
@@ -3209,7 +3529,9 @@ void combat_start(CombatState *cs, const Party *party, const EncounterDef *encou
     LOG_T("  deck copied: card_count=%d draw_count=%d", cs->deck.card_count, cs->deck.draw_count);
 
     int asc = active_ascension();
-    cs->turn_draw_count = party_draw_count(cs->party.count) + meta_first_draw_bonus(&g_state.meta);
+    cs->turn_draw_count = party_draw_count(cs->party.count) +
+        meta_first_draw_bonus(&g_state.meta) +
+        combat_party_perk_effect_total(cs, "turn_draw");
     if (asc >= 8)
         cs->turn_draw_count--;
     if (cs->turn_draw_count < 1) cs->turn_draw_count = 1;
@@ -3221,11 +3543,15 @@ void combat_start(CombatState *cs, const Party *party, const EncounterDef *encou
     g_state.next_combat_boon_turns = 0;
 
     deal_opening_hand(&cs->deck, cs->party.count, asc);
+    int perk_start_draw = combat_party_perk_effect_total(cs, "combat_start_draw");
+    if (perk_start_draw > 0)
+        deal_cards(&cs->deck, perk_start_draw);
     LOG_T("  hand dealt: hand_count=%d draw_count=%d", cs->deck.hand_count, cs->deck.draw_count);
 
     int start_energy = party_start_energy(cs->party.count);
     if (asc >= 2) start_energy--;
     start_energy += meta_starting_energy_bonus(&g_state.meta);
+    start_energy += combat_party_perk_effect_total(cs, "combat_start_energy");
     if (start_energy < 0) start_energy = 0;
     int regen = party_regen(cs->party.count);
     LOG_T("  calling energy_init(%d, %d, %d)", start_energy, MAX_ENERGY, regen);
@@ -3319,7 +3645,7 @@ void combat_start(CombatState *cs, const Party *party, const EncounterDef *encou
     {
         PartyMember *pm = &cs->party.members[i];
         if (!pm->alive) continue;
-        int shield_perks = party_member_perk_count(pm, PERK_STARTING_SHIELD_1);
+        int shield_perks = party_member_perk_effect_total(pm, "combat_start_shield");
         if (shield_perks > 0)
         {
             add_party_member_shield_capped(pm, shield_perks);
@@ -3634,6 +3960,12 @@ void combat_update(CombatState *cs)
         if (cs->action_feed_timer[i] > 0.0f)
             cs->action_feed_timer[i] -= dt;
     combat_update_card_throws(cs, dt);
+    if (cs->echo_pending)
+    {
+        cs->echo_timer -= dt;
+        if (cs->echo_timer <= 0.0f)
+            combat_resolve_pending_echo(cs);
+    }
 
     if (cs->phase == COMBAT_VICTORY || cs->phase == COMBAT_DEFEAT)
     {

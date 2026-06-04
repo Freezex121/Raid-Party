@@ -22,6 +22,33 @@
 #define META_RELIC_UNLOCK_FRUGAL_TOME (1 << 4)
 #define META_RELIC_UNLOCK_ALL (META_RELIC_UNLOCK_ECHO_BELL | META_RELIC_UNLOCK_SPLIT_PRISM | META_RELIC_UNLOCK_BLOOD_AMBER | META_RELIC_UNLOCK_TITAN_HEART | META_RELIC_UNLOCK_FRUGAL_TOME)
 
+typedef enum {
+    META_CONTENT_PARTY_SLOT_IV,
+    META_CONTENT_FORMATION_DRILLS,
+    META_CONTENT_PARTY_SLOT_V,
+    META_CONTENT_CLASS_PALADIN,
+    META_CONTENT_CLASS_WARLOCK,
+    META_CONTENT_CLASS_BARD,
+    META_CONTENT_RELIC_ECHO_BELL,
+    META_CONTENT_RELIC_SPLIT_PRISM,
+    META_CONTENT_RELIC_BLOOD_AMBER,
+    META_CONTENT_RELIC_TITAN_HEART,
+    META_CONTENT_RELIC_FRUGAL_TOME,
+    META_CONTENT_CARD_TACTICAL_SHIFT,
+    META_CONTENT_CARD_IRON_INTERCEPT,
+    META_CONTENT_CARD_SANCTUARY,
+    META_CONTENT_CARD_PRISMATIC_BURST,
+    META_CONTENT_RELIC_DUELIST_SIGIL,
+    META_CONTENT_RELIC_FELLOWSHIP_STANDARD,
+    META_CONTENT_RELIC_CHRONICLE_QUILL,
+    META_CONTENT_EVENT_CHAMPIONS_FEAST,
+    META_CONTENT_EVENT_CROWDED_STAGE,
+    META_CONTENT_EVENT_HALL_OF_RECORDS,
+    META_CONTENT_COUNT
+} MetaContentUnlock;
+
+#define META_CONTENT_UNLOCK_ALL ((1 << META_CONTENT_COUNT) - 1)
+
 typedef struct {
     int runs_completed;
     int wins;
@@ -78,6 +105,7 @@ typedef struct {
     int gold_conversion_rank;
     int relic_choice_bonus;
     int relic_unlock_flags;
+    int content_unlock_flags;
     bool formation_drills;
     int ascension_beaten;
     bool tutorial_seen_elite;
@@ -129,6 +157,17 @@ int meta_reward_choice_bonus(const MetaProgress *meta);
 int meta_reward_upgrade_chance_percent(const MetaProgress *meta);
 int meta_gold_conversion_divisor(const MetaProgress *meta);
 int meta_relic_choice_bonus(const MetaProgress *meta);
+const char *meta_content_key(MetaContentUnlock id);
+MetaContentUnlock meta_content_from_key(const char *key);
+const char *meta_content_display_name(const char *key, bool revealed);
+AchievementId meta_content_required_achievement(const char *key);
+const char *meta_content_unlock_event(const char *key);
+void meta_content_register_unlock_event(const char *unlock_key, const char *unlock_event);
+bool meta_content_active(const MetaProgress *meta, const char *key);
+bool meta_content_eligible(const MetaProgress *meta, const char *key);
+void meta_content_activate(MetaProgress *meta, const char *key);
+const char *meta_relic_unlock_key(RelicId id);
+void meta_content_achievement_rewards(AchievementId id, bool achieved, char *out, int out_size);
 int meta_relic_unlock_flag(RelicId id);
 bool meta_relic_available(const MetaProgress *meta, RelicId id);
 void meta_unlock_relic(MetaProgress *meta, RelicId id);

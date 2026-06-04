@@ -16,6 +16,56 @@ static int clamp_int(int value, int min_value, int max_value)
     return value;
 }
 
+typedef struct {
+    MetaContentUnlock id;
+    const char *key;
+    const char *name;
+    const char *secret_name;
+    AchievementId required_achievement;
+} MetaContentDef;
+
+static const MetaContentDef META_CONTENT_DEFS[META_CONTENT_COUNT] = {
+    [META_CONTENT_PARTY_SLOT_IV] = { META_CONTENT_PARTY_SLOT_IV, "party_slot_iv", "Party Slot IV", "Party Slot IV", ACH_FIRST_STEPS },
+    [META_CONTENT_FORMATION_DRILLS] = { META_CONTENT_FORMATION_DRILLS, "formation_drills", "Formation Drills", "Formation Drills", ACH_CHAMPION },
+    [META_CONTENT_PARTY_SLOT_V] = { META_CONTENT_PARTY_SLOT_V, "party_slot_v", "Party Slot V", "Party Slot V", ACH_CHAMPION },
+    [META_CONTENT_CLASS_PALADIN] = { META_CONTENT_CLASS_PALADIN, "class_paladin", "Unlock Paladin", "Unlock Paladin", ACH_PERFECTIONIST },
+    [META_CONTENT_CLASS_WARLOCK] = { META_CONTENT_CLASS_WARLOCK, "class_warlock", "Unlock Warlock", "Unlock Warlock", ACH_INTERRUPTED },
+    [META_CONTENT_CLASS_BARD] = { META_CONTENT_CLASS_BARD, "class_bard", "Unlock Bard", "Unlock Bard", ACH_SPEED_DEMON },
+    [META_CONTENT_RELIC_ECHO_BELL] = { META_CONTENT_RELIC_ECHO_BELL, "relic_echo_bell", "Echo Bell", "Echo Bell", ACH_HOARDER },
+    [META_CONTENT_RELIC_SPLIT_PRISM] = { META_CONTENT_RELIC_SPLIT_PRISM, "relic_split_prism", "Split Prism", "Split Prism", ACH_SPEED_DEMON },
+    [META_CONTENT_RELIC_BLOOD_AMBER] = { META_CONTENT_RELIC_BLOOD_AMBER, "relic_blood_amber", "Blood Amber", "Blood Amber", ACH_SOLO_ARTIST },
+    [META_CONTENT_RELIC_TITAN_HEART] = { META_CONTENT_RELIC_TITAN_HEART, "relic_titan_heart", "Titan Heart", "Titan Heart", ACH_PERFECTIONIST },
+    [META_CONTENT_RELIC_FRUGAL_TOME] = { META_CONTENT_RELIC_FRUGAL_TOME, "relic_frugal_tome", "Frugal Tome", "Frugal Tome", ACH_CHAMPION },
+    [META_CONTENT_CARD_TACTICAL_SHIFT] = { META_CONTENT_CARD_TACTICAL_SHIFT, "card_tactical_shift", "Tactical Shift", "Mystery Card", ACH_FIRST_STEPS },
+    [META_CONTENT_CARD_IRON_INTERCEPT] = { META_CONTENT_CARD_IRON_INTERCEPT, "card_iron_intercept", "Iron Intercept", "Mystery Card", ACH_INTERRUPTED },
+    [META_CONTENT_CARD_SANCTUARY] = { META_CONTENT_CARD_SANCTUARY, "card_sanctuary", "Sanctuary", "Mystery Card", ACH_PERFECTIONIST },
+    [META_CONTENT_CARD_PRISMATIC_BURST] = { META_CONTENT_CARD_PRISMATIC_BURST, "card_prismatic_burst", "Prismatic Burst", "Mystery Card", ACH_SPEED_DEMON },
+    [META_CONTENT_RELIC_DUELIST_SIGIL] = { META_CONTENT_RELIC_DUELIST_SIGIL, "relic_duelist_sigil", "Duelist Sigil", "Mystery Relic", ACH_SOLO_ARTIST },
+    [META_CONTENT_RELIC_FELLOWSHIP_STANDARD] = { META_CONTENT_RELIC_FELLOWSHIP_STANDARD, "relic_fellowship_standard", "Fellowship Standard", "Mystery Relic", ACH_FULL_HOUSE },
+    [META_CONTENT_RELIC_CHRONICLE_QUILL] = { META_CONTENT_RELIC_CHRONICLE_QUILL, "relic_chronicle_quill", "Chronicle Quill", "Mystery Relic", ACH_COMPLETIONIST },
+    [META_CONTENT_EVENT_CHAMPIONS_FEAST] = { META_CONTENT_EVENT_CHAMPIONS_FEAST, "event_champions_feast", "Champion's Feast", "Mystery Event", ACH_CHAMPION },
+    [META_CONTENT_EVENT_CROWDED_STAGE] = { META_CONTENT_EVENT_CROWDED_STAGE, "event_crowded_stage", "Crowded Stage", "Mystery Event", ACH_FULL_HOUSE },
+    [META_CONTENT_EVENT_HALL_OF_RECORDS] = { META_CONTENT_EVENT_HALL_OF_RECORDS, "event_hall_of_records", "Hall of Records", "Mystery Event", ACH_COMPLETIONIST },
+};
+
+static int meta_content_flag(MetaContentUnlock id)
+{
+    if (id < 0 || id >= META_CONTENT_COUNT) return 0;
+    return 1 << id;
+}
+
+#define META_UNLOCK_EVENT_REGISTRY_MAX 96
+
+typedef struct {
+    const char *unlock_key;
+    const char *unlock_event;
+    AchievementId achievement;
+    bool registered;
+} MetaUnlockEventDef;
+
+static MetaUnlockEventDef meta_unlock_events[META_UNLOCK_EVENT_REGISTRY_MAX];
+static int meta_unlock_event_count = 0;
+
 void meta_set_defaults(MetaProgress *meta)
 {
     if (!meta) return;
@@ -24,6 +74,78 @@ void meta_set_defaults(MetaProgress *meta)
     meta->highest_area_unlocked = 0;
     meta->max_ascension_unlocked = 0;
     meta->ascension_beaten = 0;
+}
+
+static bool meta_has_content_flag(const MetaProgress *meta, MetaContentUnlock id)
+{
+    int flag = meta_content_flag(id);
+    return meta && flag != 0 && ((meta->content_unlock_flags & flag) != 0);
+}
+
+static void meta_set_content_flag(MetaProgress *meta, MetaContentUnlock id)
+{
+    int flag = meta_content_flag(id);
+    if (meta && flag != 0)
+        meta->content_unlock_flags |= flag;
+}
+
+static void migrate_content_unlocks(MetaProgress *meta)
+{
+    if (!meta) return;
+
+    if (meta->slot5_unlocked)
+        meta->slot4_unlocked = true;
+    if (meta->slot4_unlocked)
+        meta_set_content_flag(meta, META_CONTENT_PARTY_SLOT_IV);
+    if (meta->formation_drills)
+        meta_set_content_flag(meta, META_CONTENT_FORMATION_DRILLS);
+    if (meta->slot5_unlocked)
+        meta_set_content_flag(meta, META_CONTENT_PARTY_SLOT_V);
+    if (meta->paladin_unlocked)
+        meta_set_content_flag(meta, META_CONTENT_CLASS_PALADIN);
+    if (meta->warlock_unlocked)
+        meta_set_content_flag(meta, META_CONTENT_CLASS_WARLOCK);
+    if (meta->bard_unlocked)
+        meta_set_content_flag(meta, META_CONTENT_CLASS_BARD);
+    if ((meta->relic_unlock_flags & META_RELIC_UNLOCK_ECHO_BELL) != 0)
+        meta_set_content_flag(meta, META_CONTENT_RELIC_ECHO_BELL);
+    if ((meta->relic_unlock_flags & META_RELIC_UNLOCK_SPLIT_PRISM) != 0)
+        meta_set_content_flag(meta, META_CONTENT_RELIC_SPLIT_PRISM);
+    if ((meta->relic_unlock_flags & META_RELIC_UNLOCK_BLOOD_AMBER) != 0)
+        meta_set_content_flag(meta, META_CONTENT_RELIC_BLOOD_AMBER);
+    if ((meta->relic_unlock_flags & META_RELIC_UNLOCK_TITAN_HEART) != 0)
+        meta_set_content_flag(meta, META_CONTENT_RELIC_TITAN_HEART);
+    if ((meta->relic_unlock_flags & META_RELIC_UNLOCK_FRUGAL_TOME) != 0)
+        meta_set_content_flag(meta, META_CONTENT_RELIC_FRUGAL_TOME);
+
+    meta->content_unlock_flags &= META_CONTENT_UNLOCK_ALL;
+
+    if (meta_has_content_flag(meta, META_CONTENT_PARTY_SLOT_V))
+    {
+        meta->slot4_unlocked = true;
+        meta->slot5_unlocked = true;
+        meta_set_content_flag(meta, META_CONTENT_PARTY_SLOT_IV);
+    }
+    if (meta_has_content_flag(meta, META_CONTENT_PARTY_SLOT_IV))
+        meta->slot4_unlocked = true;
+    if (meta_has_content_flag(meta, META_CONTENT_FORMATION_DRILLS))
+        meta->formation_drills = true;
+    if (meta_has_content_flag(meta, META_CONTENT_CLASS_PALADIN))
+        meta->paladin_unlocked = true;
+    if (meta_has_content_flag(meta, META_CONTENT_CLASS_WARLOCK))
+        meta->warlock_unlocked = true;
+    if (meta_has_content_flag(meta, META_CONTENT_CLASS_BARD))
+        meta->bard_unlocked = true;
+    if (meta_has_content_flag(meta, META_CONTENT_RELIC_ECHO_BELL))
+        meta->relic_unlock_flags |= META_RELIC_UNLOCK_ECHO_BELL;
+    if (meta_has_content_flag(meta, META_CONTENT_RELIC_SPLIT_PRISM))
+        meta->relic_unlock_flags |= META_RELIC_UNLOCK_SPLIT_PRISM;
+    if (meta_has_content_flag(meta, META_CONTENT_RELIC_BLOOD_AMBER))
+        meta->relic_unlock_flags |= META_RELIC_UNLOCK_BLOOD_AMBER;
+    if (meta_has_content_flag(meta, META_CONTENT_RELIC_TITAN_HEART))
+        meta->relic_unlock_flags |= META_RELIC_UNLOCK_TITAN_HEART;
+    if (meta_has_content_flag(meta, META_CONTENT_RELIC_FRUGAL_TOME))
+        meta->relic_unlock_flags |= META_RELIC_UNLOCK_FRUGAL_TOME;
 }
 
 static void sanitize_meta(MetaProgress *meta)
@@ -77,6 +199,7 @@ static void sanitize_meta(MetaProgress *meta)
         meta->paladin_unlocked = true;
     if (meta->bard_draw_bonus > 0)
         meta->bard_unlocked = true;
+    migrate_content_unlocks(meta);
     if (meta->starting_gold_rank > 0 ||
         meta->starting_relic_rank > 0 ||
         meta->slot4_unlocked ||
@@ -119,6 +242,7 @@ static void sanitize_meta(MetaProgress *meta)
         meta->gold_conversion_rank > 0 ||
         meta->relic_choice_bonus > 0 ||
         meta->relic_unlock_flags != 0 ||
+        meta->content_unlock_flags != 0 ||
         meta->formation_drills)
         meta->meta_progress_unlocked = true;
 }
@@ -151,6 +275,7 @@ static bool meta_load_expanded_key(MetaProgress *meta, const char *key, int valu
     else if (strcmp(key, "gold_conversion_rank") == 0) meta->gold_conversion_rank = value;
     else if (strcmp(key, "relic_choice_bonus") == 0) meta->relic_choice_bonus = value;
     else if (strcmp(key, "relic_unlock_flags") == 0) meta->relic_unlock_flags = value;
+    else if (strcmp(key, "content_unlock_flags") == 0) meta->content_unlock_flags = value;
     else if (strcmp(key, "formation_drills") == 0) meta->formation_drills = value != 0;
     else return false;
     return true;
@@ -392,6 +517,7 @@ void meta_save(const MetaProgress *meta)
     FMT("gold_conversion_rank=%d\n", meta->gold_conversion_rank);
     FMT("relic_choice_bonus=%d\n", meta->relic_choice_bonus);
     FMT("relic_unlock_flags=%d\n", meta->relic_unlock_flags);
+    FMT("content_unlock_flags=%d\n", meta->content_unlock_flags);
     FMT("formation_drills=%d\n", meta->formation_drills ? 1 : 0);
     FMT("tutorial_seen_elite=%d\n", meta->tutorial_seen_elite ? 1 : 0);
     FMT("tutorial_seen_boss=%d\n", meta->tutorial_seen_boss ? 1 : 0);
@@ -475,6 +601,7 @@ void meta_save(const MetaProgress *meta)
     fprintf(f, "gold_conversion_rank=%d\n", meta->gold_conversion_rank);
     fprintf(f, "relic_choice_bonus=%d\n", meta->relic_choice_bonus);
     fprintf(f, "relic_unlock_flags=%d\n", meta->relic_unlock_flags);
+    fprintf(f, "content_unlock_flags=%d\n", meta->content_unlock_flags);
     fprintf(f, "formation_drills=%d\n", meta->formation_drills ? 1 : 0);
     fprintf(f, "tutorial_seen_elite=%d\n", meta->tutorial_seen_elite ? 1 : 0);
     fprintf(f, "tutorial_seen_boss=%d\n", meta->tutorial_seen_boss ? 1 : 0);
@@ -538,8 +665,13 @@ bool meta_area_unlocked(const MetaProgress *meta, int area_index)
 bool meta_class_unlocked(const MetaProgress *meta, int class_index)
 {
     if (class_index < 0) return false;
-    if (class_index <= 5) return true;
+    if (!class_is_loaded((ClassType)class_index)) return false;
+    const char *unlock_key = class_unlock_key((ClassType)class_index);
+    if (!unlock_key || !unlock_key[0])
+        return true;
     if (!meta) return false;
+    if (meta_content_active(meta, unlock_key))
+        return true;
     switch (class_index)
     {
         case 6: return meta->paladin_unlocked;
@@ -551,13 +683,19 @@ bool meta_class_unlocked(const MetaProgress *meta, int class_index)
 
 bool meta_unlock_class(MetaProgress *meta, int class_index)
 {
-    if (!meta || class_index < 6 || class_index > 8)
+    if (!meta || class_index < 0 || class_index >= CLASS_COUNT || !class_is_loaded((ClassType)class_index))
         return false;
+    const char *unlock_key = class_unlock_key((ClassType)class_index);
+    if (unlock_key && unlock_key[0])
+    {
+        meta_content_activate(meta, unlock_key);
+        return true;
+    }
     switch (class_index)
     {
-        case 6: meta->paladin_unlocked = true; return true;
-        case 7: meta->warlock_unlocked = true; return true;
-        case 8: meta->bard_unlocked = true; return true;
+        case 6: meta_content_activate(meta, "class_paladin"); return true;
+        case 7: meta_content_activate(meta, "class_warlock"); return true;
+        case 8: meta_content_activate(meta, "class_bard"); return true;
         default: return false;
     }
 }
@@ -740,6 +878,193 @@ int meta_relic_choice_bonus(const MetaProgress *meta)
     return meta->relic_choice_bonus;
 }
 
+const char *meta_content_key(MetaContentUnlock id)
+{
+    if (id < 0 || id >= META_CONTENT_COUNT) return NULL;
+    return META_CONTENT_DEFS[id].key;
+}
+
+MetaContentUnlock meta_content_from_key(const char *key)
+{
+    if (!key || !key[0]) return META_CONTENT_COUNT;
+    for (int i = 0; i < META_CONTENT_COUNT; i++)
+        if (META_CONTENT_DEFS[i].key && strcmp(META_CONTENT_DEFS[i].key, key) == 0)
+            return (MetaContentUnlock)i;
+    return META_CONTENT_COUNT;
+}
+
+const char *meta_content_display_name(const char *key, bool revealed)
+{
+    MetaContentUnlock id = meta_content_from_key(key);
+    if (id < 0 || id >= META_CONTENT_COUNT) return "";
+    const MetaContentDef *def = &META_CONTENT_DEFS[id];
+    return revealed ? def->name : def->secret_name;
+}
+
+static MetaUnlockEventDef *meta_unlock_event_entry(const char *key)
+{
+    if (!key || !key[0]) return NULL;
+    for (int i = 0; i < meta_unlock_event_count; i++)
+        if (meta_unlock_events[i].unlock_key && strcmp(meta_unlock_events[i].unlock_key, key) == 0)
+            return &meta_unlock_events[i];
+    return NULL;
+}
+
+const char *meta_content_unlock_event(const char *key)
+{
+    MetaUnlockEventDef *entry = meta_unlock_event_entry(key);
+    if (entry && entry->registered)
+        return entry->unlock_event ? entry->unlock_event : "";
+
+    AchievementId req = meta_content_required_achievement(key);
+    return (req >= 0 && req < ACH_COUNT) ? achievement_key(req) : "";
+}
+
+void meta_content_register_unlock_event(const char *unlock_key, const char *unlock_event)
+{
+    if (!unlock_key || !unlock_key[0]) return;
+
+    MetaUnlockEventDef *entry = meta_unlock_event_entry(unlock_key);
+    if (!entry)
+    {
+        if (meta_unlock_event_count >= META_UNLOCK_EVENT_REGISTRY_MAX)
+            return;
+        entry = &meta_unlock_events[meta_unlock_event_count++];
+    }
+
+    entry->unlock_key = unlock_key;
+    entry->unlock_event = unlock_event ? unlock_event : "";
+    entry->achievement = achievement_from_key(entry->unlock_event);
+    entry->registered = true;
+}
+
+AchievementId meta_content_required_achievement(const char *key)
+{
+    MetaUnlockEventDef *entry = meta_unlock_event_entry(key);
+    if (entry && entry->registered)
+        return entry->achievement;
+
+    MetaContentUnlock id = meta_content_from_key(key);
+    if (id < 0 || id >= META_CONTENT_COUNT) return ACH_COUNT;
+    return META_CONTENT_DEFS[id].required_achievement;
+}
+
+bool meta_content_active(const MetaProgress *meta, const char *key)
+{
+    if (!key || !key[0]) return true;
+    MetaContentUnlock id = meta_content_from_key(key);
+    if (id < 0 || id >= META_CONTENT_COUNT) return false;
+    if (!meta) return false;
+    if (meta_has_content_flag(meta, id))
+        return true;
+
+    switch (id)
+    {
+        case META_CONTENT_PARTY_SLOT_IV: return meta->slot4_unlocked;
+        case META_CONTENT_FORMATION_DRILLS: return meta->formation_drills;
+        case META_CONTENT_PARTY_SLOT_V: return meta->slot5_unlocked;
+        case META_CONTENT_CLASS_PALADIN: return meta->paladin_unlocked;
+        case META_CONTENT_CLASS_WARLOCK: return meta->warlock_unlocked;
+        case META_CONTENT_CLASS_BARD: return meta->bard_unlocked;
+        case META_CONTENT_RELIC_ECHO_BELL: return (meta->relic_unlock_flags & META_RELIC_UNLOCK_ECHO_BELL) != 0;
+        case META_CONTENT_RELIC_SPLIT_PRISM: return (meta->relic_unlock_flags & META_RELIC_UNLOCK_SPLIT_PRISM) != 0;
+        case META_CONTENT_RELIC_BLOOD_AMBER: return (meta->relic_unlock_flags & META_RELIC_UNLOCK_BLOOD_AMBER) != 0;
+        case META_CONTENT_RELIC_TITAN_HEART: return (meta->relic_unlock_flags & META_RELIC_UNLOCK_TITAN_HEART) != 0;
+        case META_CONTENT_RELIC_FRUGAL_TOME: return (meta->relic_unlock_flags & META_RELIC_UNLOCK_FRUGAL_TOME) != 0;
+        default: return false;
+    }
+}
+
+bool meta_content_eligible(const MetaProgress *meta, const char *key)
+{
+    if (!key || !key[0]) return true;
+    if (meta_content_active(meta, key)) return true;
+    AchievementId req = meta_content_required_achievement(key);
+    if (req < 0 || req >= ACH_COUNT) return false;
+    return meta && meta->achievements[req];
+}
+
+void meta_content_activate(MetaProgress *meta, const char *key)
+{
+    if (!meta || !key || !key[0]) return;
+    MetaContentUnlock id = meta_content_from_key(key);
+    if (id < 0 || id >= META_CONTENT_COUNT) return;
+
+    meta_set_content_flag(meta, id);
+    switch (id)
+    {
+        case META_CONTENT_PARTY_SLOT_IV:
+            meta->slot4_unlocked = true;
+            break;
+        case META_CONTENT_FORMATION_DRILLS:
+            meta->formation_drills = true;
+            break;
+        case META_CONTENT_PARTY_SLOT_V:
+            meta->slot4_unlocked = true;
+            meta->slot5_unlocked = true;
+            meta_set_content_flag(meta, META_CONTENT_PARTY_SLOT_IV);
+            break;
+        case META_CONTENT_CLASS_PALADIN:
+            meta->paladin_unlocked = true;
+            break;
+        case META_CONTENT_CLASS_WARLOCK:
+            meta->warlock_unlocked = true;
+            break;
+        case META_CONTENT_CLASS_BARD:
+            meta->bard_unlocked = true;
+            break;
+        case META_CONTENT_RELIC_ECHO_BELL:
+            meta->relic_unlock_flags |= META_RELIC_UNLOCK_ECHO_BELL;
+            break;
+        case META_CONTENT_RELIC_SPLIT_PRISM:
+            meta->relic_unlock_flags |= META_RELIC_UNLOCK_SPLIT_PRISM;
+            break;
+        case META_CONTENT_RELIC_BLOOD_AMBER:
+            meta->relic_unlock_flags |= META_RELIC_UNLOCK_BLOOD_AMBER;
+            break;
+        case META_CONTENT_RELIC_TITAN_HEART:
+            meta->relic_unlock_flags |= META_RELIC_UNLOCK_TITAN_HEART;
+            break;
+        case META_CONTENT_RELIC_FRUGAL_TOME:
+            meta->relic_unlock_flags |= META_RELIC_UNLOCK_FRUGAL_TOME;
+            break;
+        default:
+            break;
+    }
+}
+
+const char *meta_relic_unlock_key(RelicId id)
+{
+    switch (id)
+    {
+        case RELIC_ECHO_BELL: return "relic_echo_bell";
+        case RELIC_SPLIT_PRISM: return "relic_split_prism";
+        case RELIC_BLOOD_AMBER: return "relic_blood_amber";
+        case RELIC_TITAN_HEART: return "relic_titan_heart";
+        case RELIC_FRUGAL_TOME: return "relic_frugal_tome";
+        case RELIC_DUELIST_SIGIL: return "relic_duelist_sigil";
+        case RELIC_FELLOWSHIP_STANDARD: return "relic_fellowship_standard";
+        case RELIC_CHRONICLE_QUILL: return "relic_chronicle_quill";
+        default: return NULL;
+    }
+}
+
+void meta_content_achievement_rewards(AchievementId id, bool achieved, char *out, int out_size)
+{
+    if (!out || out_size <= 0) return;
+    out[0] = '\0';
+    for (int i = 0; i < META_CONTENT_COUNT; i++)
+    {
+        const MetaContentDef *def = &META_CONTENT_DEFS[i];
+        if (meta_content_required_achievement(def->key) != id) continue;
+        const char *name = achieved ? def->name : def->secret_name;
+        if (!name || !name[0]) continue;
+        if (out[0])
+            strncat(out, ", ", out_size - strlen(out) - 1);
+        strncat(out, name, out_size - strlen(out) - 1);
+    }
+}
+
 int meta_relic_unlock_flag(RelicId id)
 {
     switch (id)
@@ -755,14 +1080,17 @@ int meta_relic_unlock_flag(RelicId id)
 
 bool meta_relic_available(const MetaProgress *meta, RelicId id)
 {
-    int flag = meta_relic_unlock_flag(id);
-    if (flag == 0) return true;
-    return meta && ((meta->relic_unlock_flags & flag) != 0);
+    const char *key = meta_relic_unlock_key(id);
+    if (!key) return true;
+    return meta_content_active(meta, key);
 }
 
 void meta_unlock_relic(MetaProgress *meta, RelicId id)
 {
     if (!meta) return;
+    const char *key = meta_relic_unlock_key(id);
+    if (key)
+        meta_content_activate(meta, key);
     int flag = meta_relic_unlock_flag(id);
     if (flag != 0)
         meta->relic_unlock_flags |= flag;
@@ -850,26 +1178,35 @@ int meta_record_run(
     if (renown_gained < 1)
         renown_gained = 1;
 
-    int ach = 0;
-    if (first_run)
-        ach += award_achievement(meta, ACH_FIRST_STEPS, achievement_names, achievement_names_size, run_number, party_classes, party_size);
-    if (won)
-        ach += award_achievement(meta, ACH_CHAMPION, achievement_names, achievement_names_size, run_number, party_classes, party_size);
-    if (won && deaths <= 0)
-        ach += award_achievement(meta, ACH_PERFECTIONIST, achievement_names, achievement_names_size, run_number, party_classes, party_size);
-    if (won && party_size == 1)
-        ach += award_achievement(meta, ACH_SOLO_ARTIST, achievement_names, achievement_names_size, run_number, party_classes, party_size);
-    if (won && party_size >= 5)
-        ach += award_achievement(meta, ACH_FULL_HOUSE, achievement_names, achievement_names_size, run_number, party_classes, party_size);
     meta->interrupts_total += interrupts;
-    if (meta->interrupts_total >= 20)
-        ach += award_achievement(meta, ACH_INTERRUPTED, achievement_names, achievement_names_size, run_number, party_classes, party_size);
-    if (relic_count >= 10)
-        ach += award_achievement(meta, ACH_HOARDER, achievement_names, achievement_names_size, run_number, party_classes, party_size);
-    if (won && best_combat_turns > 0 && best_combat_turns <= 3)
-        ach += award_achievement(meta, ACH_SPEED_DEMON, achievement_names, achievement_names_size, run_number, party_classes, party_size);
-    if (won && area_count > 0 && area_index >= area_count - 1)
-        ach += award_achievement(meta, ACH_COMPLETIONIST, achievement_names, achievement_names_size, run_number, party_classes, party_size);
+
+    AchievementRunStats stats = {
+        .first_run = first_run,
+        .won = won,
+        .area_index = area_index,
+        .floor_reached = floor_reached,
+        .bosses_defeated = bosses_defeated,
+        .party_size = party_size,
+        .party_classes = party_classes,
+        .deaths = deaths,
+        .relic_count = relic_count,
+        .run_interrupts = interrupts,
+        .total_interrupts = meta->interrupts_total,
+        .best_combat_turns = best_combat_turns,
+        .area_count = area_count,
+        .runs_completed = meta->runs_completed,
+        .wins = meta->wins,
+        .total_bosses_defeated = meta->bosses_defeated_total,
+        .ascension_level = meta->ascension_level,
+    };
+
+    int ach = 0;
+    for (int i = 0; i < achievement_count(); i++)
+    {
+        AchievementId id = achievement_at(i);
+        if (achievement_condition_met(id, &stats))
+            ach += award_achievement(meta, id, achievement_names, achievement_names_size, run_number, party_classes, party_size);
+    }
 
     renown_gained += ach;
     if (achievement_renown) *achievement_renown = ach;

@@ -18,7 +18,7 @@
       "name": "Venom Mire",
       "description": "A longer route through poisoned ruins where support enemies and elites pressure the party.",
       "floor_count": 4,
-      "difficulty_percent": 122,
+      "difficulty_percent": 125,
       "map_bg_files": [
         "venom_01.png",
         "venom_02.png",
@@ -31,9 +31,36 @@
       "name": "Cinder Spire",
       "description": "A five-floor climb into dragon fire. Bosses hit harder and the final stretch expects a tuned deck.",
       "floor_count": 5,
-      "difficulty_percent": 145,
+      "difficulty_percent": 160,
       "map_bg_files": [
-        "bg_map_cinder.png"
+        "greenwood_03.png",
+        "venom_04.png"
+      ]
+    },
+    {
+      "id": "hollow_catacombs",
+      "name": "Hollow Catacombs",
+      "description": "An undead gauntlet of curses, shields, and energy drain. Parties need answers for attrition before the crypts answer for them.",
+      "floor_count": 5,
+      "difficulty_percent": 200,
+      "map_bg_files": [
+        "venom_01.png",
+        "venom_02.png",
+        "venom_03.png",
+        "venom_04.png"
+      ]
+    },
+    {
+      "id": "starfall_citadel",
+      "name": "Starfall Citadel",
+      "description": "A six-floor finale where void casters and star-forged champions punish slow decks and fragile formations.",
+      "floor_count": 6,
+      "difficulty_percent": 250,
+      "map_bg_files": [
+        "greenwood_01.png",
+        "venom_02.png",
+        "greenwood_02.png",
+        "venom_04.png"
       ]
     }
   ]
