@@ -88,6 +88,7 @@ static StatusType parse_status(const char *text)
     if (text && strcmp(text, "blight") == 0) return STATUS_BLIGHT;
     if (text && strcmp(text, "thorns") == 0) return STATUS_THORNS;
     if (text && strcmp(text, "death_mark") == 0) return STATUS_DEATH_MARK;
+    if (text && strcmp(text, "silence") == 0) return STATUS_SILENCE;
     return STATUS_NONE;
 }
 
@@ -284,6 +285,12 @@ const CardDef *card_def_by_id(const char *id)
         if (all_cards[i].id && strcmp(all_cards[i].id, id) == 0)
             return &all_cards[i];
     return NULL;
+}
+
+const CardDef *card_def_by_index(int index)
+{
+    if (index < 0 || index >= all_card_count) return NULL;
+    return &all_cards[index];
 }
 
 int card_defs_loaded_count(void)

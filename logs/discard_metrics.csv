@@ -39,3 +39,8 @@ timestamp,run_id,source,action,discard_count,selected_count,selected_cards
 1780574798,"2","boss","confirm","2","2","rog_assass|shm_fury"
 1780575125,"2","elite","confirm","1","1","shm_lightning"
 1780575278,"2","elite","skip","1","0",""
+1780577679,"3","elite","skip","1","0",""
+1780656298,"3","elite","confirm","1","1","clr_flash"
+1780656386,"3","boss","skip","2","1","mag_frostbolt"
+1780656805,"3","boss","confirm","2","2","mag_frostbolt|wlk_curse_frailty"
+1780679143,"3","elite","skip","1","1","wlk_soul_rend"

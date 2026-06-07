@@ -248,7 +248,7 @@ void discard_screen_draw(void)
         for (int j = 0; j < g_state.discard_selected; j++)
             if (g_state.discard_uids[j] == deck->cards[di].uid) { selected = true; break; }
 
-        theme_draw_card_art_seeded(r, deck->cards[di].def, deck->cards[di].upgrade_level, (unsigned int)deck->cards[di].uid);
+        theme_draw_card_art_seeded(r, deck->cards[di].def, deck->cards[di].upgrade_level, (unsigned int)deck->cards[di].uid, -1);
         theme_draw_keyword_badge(r, &deck->cards[di]);
 
         if (selected)

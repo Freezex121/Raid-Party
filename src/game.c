@@ -425,6 +425,7 @@ static const char *game_screen_id(GameScreen screen)
         case SCREEN_DECK: return "deck";
         case SCREEN_ACHIEVEMENTS: return "achievements";
         case SCREEN_LEVEL_UP: return "level_up";
+        case SCREEN_ADMIN: return "admin";
         case SCREEN_SETTINGS: return "settings";
     }
     return "unknown";

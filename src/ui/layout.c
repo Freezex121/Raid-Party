@@ -34,8 +34,8 @@ Rectangle layout_party_frame_rect(int party_count, int index)
 
 Vector2 layout_enemy_position(int enemy_count, int index)
 {
-    int left = 240;
-    int right = VIRT_W - 240;
+    int left = enemy_count > 3 ? 132 : 240;
+    int right = enemy_count > 3 ? VIRT_W - 132 : VIRT_W - 240;
     int span = right - left;
     int x = enemy_count <= 1 ? VIRT_W / 2 : left + (span * index) / (enemy_count - 1);
 
@@ -56,7 +56,9 @@ Rectangle layout_enemy_cast_bar_rect(Vector2 pos, int enemy_count, int enemy_ind
 {
     float y = pos.y + ENEMY_SIZE / 2.0f + 29.0f;
     if (enemy_count == 3 && enemy_index == 1)
-        y += CAST_BAR_HEIGHT;
+        y += CAST_BAR_HEIGHT - 3;
+    if (enemy_count >= 4)
+        y += (enemy_index % 2) * (CAST_BAR_HEIGHT + 2);
     return (Rectangle){
         pos.x - CAST_BAR_W / 2.0f,
         y,

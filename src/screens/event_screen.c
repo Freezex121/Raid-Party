@@ -69,6 +69,70 @@ static const char *event_effect_name(EventEffectType effect)
     return "unknown";
 }
 
+static void event_choice_hint(const EventChoiceDef *choice, char *out, int out_size)
+{
+    if (!out || out_size <= 0) return;
+    out[0] = '\0';
+    if (!choice)
+        return;
+
+    switch (choice->effect)
+    {
+        case EVENT_EFFECT_HEAL_PARTY:
+            snprintf(out, out_size, "Safe recovery for the whole party.");
+            break;
+        case EVENT_EFFECT_GAIN_GOLD_ADD_CURSE:
+            snprintf(out, out_size, "Gold glints, but a curse follows.");
+            break;
+        case EVENT_EFFECT_REMOVE_CARD:
+            snprintf(out, out_size, "Travel lighter by cutting a card.");
+            break;
+        case EVENT_EFFECT_UPGRADE_RANDOM_CARD_HURT_PARTY:
+            snprintf(out, out_size, "Power for a life sacrifice.");
+            break;
+        case EVENT_EFFECT_PAY_GOLD_GAIN_RELIC:
+            snprintf(out, out_size, "Costs %dg. A relic waits beyond the price.", choice->gold);
+            break;
+        case EVENT_EFFECT_PAY_GOLD_ADD_CARD:
+            snprintf(out, out_size, "Costs %dg. Adds a card to the deck.", choice->gold);
+            break;
+        case EVENT_EFFECT_GAIN_GOLD:
+            snprintf(out, out_size, "Safe gold, no obvious strings.");
+            break;
+        case EVENT_EFFECT_PAY_GOLD_UPGRADE_RANDOM_CARD:
+            snprintf(out, out_size, "Costs %dg. Improves one card.", choice->gold);
+            break;
+        case EVENT_EFFECT_GAIN_GOLD_HURT_PARTY:
+            snprintf(out, out_size, "Riches for a life sacrifice.");
+            break;
+        case EVENT_EFFECT_ADD_CARD_ADD_CURSE:
+            snprintf(out, out_size, "A card joins you, and a curse tags along.");
+            break;
+        case EVENT_EFFECT_GAIN_RELIC_ADD_CURSE:
+            snprintf(out, out_size, "A relic answers, but not cleanly.");
+            break;
+        case EVENT_EFFECT_DUPLICATE_RANDOM_CARD_HURT_PARTY:
+            snprintf(out, out_size, "Copies a card through a life sacrifice.");
+            break;
+        case EVENT_EFFECT_TRANSFORM_RANDOM_CARD:
+            snprintf(out, out_size, "Changes a card into something unknown.");
+            break;
+        case EVENT_EFFECT_GAIN_MAX_HP:
+            snprintf(out, out_size, "Permanent vitality for the party.");
+            break;
+        case EVENT_EFFECT_CURSE_FLEETING:
+            snprintf(out, out_size, "Gold with a fleeting imprint.");
+            break;
+        case EVENT_EFFECT_CURSE_EXHAUST:
+            snprintf(out, out_size, "Gold with a burning imprint.");
+            break;
+        case EVENT_EFFECT_NONE:
+        default:
+            snprintf(out, out_size, "Walk away from the strange offer.");
+            break;
+    }
+}
+
 static void log_event_choice_metric(const EventDef *event, int choice_index, bool chosen, bool could_afford, int gold_before, int gold_after)
 {
     const EventChoiceDef *choice = (event && choice_index >= 0 && choice_index < event->choice_count) ? &event->choices[choice_index] : NULL;
@@ -693,17 +757,21 @@ void event_screen_draw(void)
             bool hover = CheckCollisionPointRec(mouse, r);
             bool available = choice_available(&event->choices[i]);
             Color bg = !available ? (Color){ 22, 23, 31, 220 } :
-                       hover ? (Color){ 38, 70, 82, 245 } : (Color){ 18, 25, 38, 235 };
+                       hover ? (Color){ 42, 70, 86, 245 } : (Color){ 18, 25, 38, 235 };
             Color border = !available ? (Color){ 70, 72, 88, 170 } :
                            hover ? RAYWHITE : (Color){ 85, 185, 205, 180 };
             Color title_col = available ? RAYWHITE : (Color){ 105, 108, 125, 220 };
             Color desc_col = available ? (Color){ 180, 190, 210, 225 } : (Color){ 100, 102, 120, 205 };
             DrawRectangleRec(r, bg);
+            DrawRectangleRec((Rectangle){ r.x, r.y, r.width, 5.0f },
+                available ? (Color){ 85, 185, 205, 190 } : (Color){ 74, 76, 92, 150 });
             DrawRectangleLinesEx(r, hover && available ? 2.0f : 1.0f, border);
             draw_text_box((Rectangle){ r.x + 9.0f, r.y + 8.0f, r.width - 18.0f, 18.0f },
                 event->choices[i].label, 10, 0, title_col, TEXT_ALIGN_LEFT);
+            char hint[128];
+            event_choice_hint(&event->choices[i], hint, sizeof(hint));
             draw_text_box((Rectangle){ r.x + 9.0f, r.y + 30.0f, r.width - 18.0f, r.height - 36.0f },
-                event->choices[i].description, 10, 0, desc_col, TEXT_ALIGN_LEFT);
+                hint, 10, 0, desc_col, TEXT_ALIGN_LEFT);
         }
 
         if (event_msg[0])

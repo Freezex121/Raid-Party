@@ -43,3 +43,5 @@ timestamp,tutorial_id,action,screen,runs_completed
 1780574185,"first_shop","skipped","shop","1"
 1780574258,"first_rest","shown","rest","1"
 1780574261,"first_rest","skipped","rest","1"
+1780753597,"first_boss","shown","run","0"
+1780753600,"first_boss","skipped","run","0"

@@ -1,4 +1,5 @@
 #include "party_frames.h"
+#include "game.h"
 #include "raylib.h"
 #include "util/tween.h"
 #include "util/text.h"
@@ -51,6 +52,10 @@ static const char *status_label(StatusType type)
         case STATUS_MARKED:     return "MRK";
         case STATUS_CONDUCTIVE: return "CND";
         case STATUS_BLIGHT:     return "BLT";
+        case STATUS_SILENCE:    return "SIL";
+        case STATUS_THORNS:     return "THR";
+        case STATUS_DEATH_MARK: return "DMK";
+        case STATUS_MATERNAL_BOND: return "MAT";
     }
     return "???";
 }
@@ -69,6 +74,10 @@ static const char *status_icon(StatusType type)
         case STATUS_MARKED: return "M";
         case STATUS_CONDUCTIVE: return "C";
         case STATUS_BLIGHT: return "X";
+        case STATUS_SILENCE: return "S";
+        case STATUS_THORNS: return "H";
+        case STATUS_DEATH_MARK: return "K";
+        case STATUS_MATERNAL_BOND: return "N";
     }
     return "?";
 }
@@ -87,6 +96,10 @@ static const char *status_description(StatusType type)
         case STATUS_MARKED: return "Marked: enables Ranger/Rogue/Mage/Cleric payoffs.";
         case STATUS_CONDUCTIVE: return "Conductive: enables Shaman/Mage chain effects.";
         case STATUS_BLIGHT: return "Blight: enables Warlock, Guardian, Cleric, and Paladin payoffs.";
+        case STATUS_SILENCE: return "Silence: this member's class cards cannot be played this turn.";
+        case STATUS_THORNS: return "Thorns: reflects damage to attackers.";
+        case STATUS_DEATH_MARK: return "Death Mark: takes damage at the start of turns.";
+        case STATUS_MATERNAL_BOND: return "Maternal Bond: heals when an allied unit dies.";
     }
     return "Status effect.";
 }
@@ -105,6 +118,10 @@ static Color status_color(StatusType type)
         case STATUS_MARKED:     return (Color){ 245, 220, 75, 255 };
         case STATUS_CONDUCTIVE: return (Color){ 95, 185, 255, 255 };
         case STATUS_BLIGHT:     return (Color){ 190, 95, 230, 255 };
+        case STATUS_SILENCE:    return (Color){ 190, 130, 255, 255 };
+        case STATUS_THORNS:     return (Color){ 110, 230, 155, 255 };
+        case STATUS_DEATH_MARK: return (Color){ 230, 80, 110, 255 };
+        case STATUS_MATERNAL_BOND: return (Color){ 230, 140, 255, 255 };
     }
     return (Color){ 150, 150, 170, 255 };
 }
@@ -193,8 +210,9 @@ static void draw_member_tooltip(Rectangle anchor, const PartyMember *member)
         title, 10, 0, accent, TEXT_ALIGN_LEFT);
 
     char body[160];
-    snprintf(body, sizeof(body), "HP %d/%d  Shield %d  Aggro %d",
-        member->hp, member->max_hp, member->shield, member->aggro);
+    int shield_cap = party_member_shield_cap_for_percent(member, meta_shield_cap_percent(&g_state.meta));
+    snprintf(body, sizeof(body), "HP %d/%d  Shield %d/%d  Aggro %d",
+        member->hp, member->max_hp, member->shield, shield_cap, member->aggro);
     draw_text_box((Rectangle){ tip.x + 6.0f, tip.y + 19.0f, tip.width - 12.0f, 12.0f },
         body, 10, 0, (Color){ 210, 214, 235, 235 }, TEXT_ALIGN_LEFT);
 
@@ -319,7 +337,8 @@ void party_frames_draw(Party *party)
         if (shown_shield[i] > 0.5f)
         {
             Color shield_col = { 100, 180, 255, 120 };
-            int shield_fill = (int)(bar_w * shown_shield[i] / (m->max_hp / 2));
+            int shield_cap = party_member_shield_cap_for_percent(m, meta_shield_cap_percent(&g_state.meta));
+            int shield_fill = shield_cap > 0 ? (int)(bar_w * shown_shield[i] / (float)shield_cap) : 0;
             if (shield_fill > bar_w) shield_fill = bar_w;
             DrawRectangleRec((Rectangle){ (float)bar_x, (float)bar_y, (float)shield_fill, (float)bar_h }, shield_col);
         }
@@ -398,6 +417,4 @@ void party_frames_draw_tooltips(Party *party)
         }
     }
 }
-
-
 

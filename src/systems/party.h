@@ -80,6 +80,7 @@ int xp_for_level(int level);
 int xp_total_for_level(int level);
 int party_member_xp_into_level(const PartyMember *member);
 int party_member_gain_xp(PartyMember *member, int amount, int *levels_gained);
+int party_member_shield_cap_for_percent(const PartyMember *member, int cap_percent);
 bool party_member_has_perk(const PartyMember *member, PerkId perk);
 int party_member_perk_count(const PartyMember *member, PerkId perk);
 bool party_member_add_perk(PartyMember *member, PerkId perk);

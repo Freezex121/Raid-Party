@@ -8,6 +8,7 @@
 #include "ui/ui.h"
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 static int scroll_offset = 0;
 static int hovered_ach = -1;
@@ -15,6 +16,18 @@ static int hovered_ach = -1;
 static const char *class_short_name(ClassType ct)
 {
     return class_name(ct);
+}
+
+static bool format_achievement_timestamp(int timestamp, char *out, int out_size)
+{
+    if (!out || out_size <= 0) return false;
+    out[0] = '\0';
+    if (timestamp <= 0) return false;
+
+    time_t raw = (time_t)timestamp;
+    struct tm *local = localtime(&raw);
+    if (!local) return false;
+    return strftime(out, (size_t)out_size, "%Y-%m-%d %H:%M", local) > 0;
 }
 
 void achievements_screen_update(void)
@@ -135,7 +148,10 @@ void achievements_screen_draw(void)
         if (unlocked)
         {
             char run_label[16];
-            snprintf(run_label, sizeof(run_label), "Run #%d", g_state.meta.achievement_times[id]);
+            if (g_state.meta.achievement_times[id] > 0)
+                snprintf(run_label, sizeof(run_label), "Run #%d", g_state.meta.achievement_times[id]);
+            else
+                snprintf(run_label, sizeof(run_label), "Saved");
             draw_text_box((Rectangle){ r.x + 5.0f, r.y + 14.0f, r.width - 10.0f, 12.0f },
                 run_label, 10, 0, (Color){ 140, 200, 160, 220 }, TEXT_ALIGN_LEFT);
         }
@@ -180,6 +196,10 @@ void achievements_screen_draw(void)
             char run[32];
             snprintf(run, sizeof(run), "Achieved on run #%d", g_state.meta.achievement_times[id]);
             body_h += ui_line_height(10) + 4;
+
+            char when[32];
+            if (format_achievement_timestamp(g_state.meta.achievement_timestamps[id], when, sizeof(when)))
+                body_h += ui_line_height(10) + 4;
 
             int party_mask = g_state.meta.achievement_party[id];
             if (party_mask != 0)
@@ -240,10 +260,21 @@ void achievements_screen_draw(void)
         if (unlocked)
         {
             char run[32];
-            snprintf(run, sizeof(run), "Achieved on run #%d", g_state.meta.achievement_times[id]);
+            if (g_state.meta.achievement_times[id] > 0)
+                snprintf(run, sizeof(run), "Achieved on run #%d", g_state.meta.achievement_times[id]);
+            else
+                snprintf(run, sizeof(run), "Achieved before run metadata");
             draw_text_box((Rectangle){ tip.x + 6.0f, (float)ly, tip.width - 12.0f, 12.0f },
                 run, 10, 0, (Color){ 175, 184, 210, 225 }, TEXT_ALIGN_LEFT);
             ly += ui_line_height(10) + 4;
+
+            char when[32];
+            if (format_achievement_timestamp(g_state.meta.achievement_timestamps[id], when, sizeof(when)))
+            {
+                draw_text_box((Rectangle){ tip.x + 6.0f, (float)ly, tip.width - 12.0f, 12.0f },
+                    when, 10, 0, (Color){ 175, 184, 210, 225 }, TEXT_ALIGN_LEFT);
+                ly += ui_line_height(10) + 4;
+            }
 
             int party_mask = g_state.meta.achievement_party[id];
             if (party_mask != 0)

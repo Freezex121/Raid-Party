@@ -6,6 +6,7 @@
 
 #define MAX_DECK_SIZE 60
 #define MAX_HAND_SIZE 10
+#define CARD_LIFESTEAL_PERCENT 15
 
 typedef enum {
     CARD_ATTACK,

@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -14,6 +15,14 @@ static int clamp_int(int value, int min_value, int max_value)
     if (value < min_value) return min_value;
     if (value > max_value) return max_value;
     return value;
+}
+
+static int current_unix_timestamp(void)
+{
+    time_t now = time(NULL);
+    if (now <= 0) return 0;
+    if (now > 2147483647) return 2147483647;
+    return (int)now;
 }
 
 typedef struct {
@@ -356,23 +365,29 @@ void meta_load(MetaProgress *meta)
                 else if (strcmp(key, "tutorial_seen_discard") == 0) meta->tutorial_seen_discard = value != 0;
                 else if (strcmp(key, "tutorial_seen_game_over") == 0) meta->tutorial_seen_game_over = value != 0;
                 else if (strcmp(key, "tutorial_seen_meta_shop") == 0) meta->tutorial_seen_meta_shop = value != 0;
-                else if (strncmp(key, "achievement_", 12) == 0)
-                {
-                    int idx = atoi(key + 12);
-                    if (idx >= 0 && idx < ACH_COUNT)
-                        meta->achievements[idx] = value != 0;
-                }
                 else if (strncmp(key, "achievement_time_", 17) == 0)
                 {
                     int idx = atoi(key + 17);
                     if (idx >= 0 && idx < ACH_COUNT)
                         meta->achievement_times[idx] = value;
                 }
+                else if (strncmp(key, "achievement_timestamp_", 22) == 0)
+                {
+                    int idx = atoi(key + 22);
+                    if (idx >= 0 && idx < ACH_COUNT)
+                        meta->achievement_timestamps[idx] = value;
+                }
                 else if (strncmp(key, "achievement_party_", 18) == 0)
                 {
                     int idx = atoi(key + 18);
                     if (idx >= 0 && idx < ACH_COUNT)
                         meta->achievement_party[idx] = value;
+                }
+                else if (strncmp(key, "achievement_", 12) == 0)
+                {
+                    int idx = atoi(key + 12);
+                    if (idx >= 0 && idx < ACH_COUNT)
+                        meta->achievements[idx] = value != 0;
                 }
             }
             while (*p && *p != '\n') p++;
@@ -432,23 +447,29 @@ void meta_load(MetaProgress *meta)
         else if (strcmp(key, "tutorial_seen_discard") == 0) meta->tutorial_seen_discard = value != 0;
         else if (strcmp(key, "tutorial_seen_game_over") == 0) meta->tutorial_seen_game_over = value != 0;
         else if (strcmp(key, "tutorial_seen_meta_shop") == 0) meta->tutorial_seen_meta_shop = value != 0;
-        else if (strncmp(key, "achievement_", 12) == 0)
-        {
-            int idx = atoi(key + 12);
-            if (idx >= 0 && idx < ACH_COUNT)
-                meta->achievements[idx] = value != 0;
-        }
         else if (strncmp(key, "achievement_time_", 17) == 0)
         {
             int idx = atoi(key + 17);
             if (idx >= 0 && idx < ACH_COUNT)
                 meta->achievement_times[idx] = value;
         }
+        else if (strncmp(key, "achievement_timestamp_", 22) == 0)
+        {
+            int idx = atoi(key + 22);
+            if (idx >= 0 && idx < ACH_COUNT)
+                meta->achievement_timestamps[idx] = value;
+        }
         else if (strncmp(key, "achievement_party_", 18) == 0)
         {
             int idx = atoi(key + 18);
             if (idx >= 0 && idx < ACH_COUNT)
                 meta->achievement_party[idx] = value;
+        }
+        else if (strncmp(key, "achievement_", 12) == 0)
+        {
+            int idx = atoi(key + 12);
+            if (idx >= 0 && idx < ACH_COUNT)
+                meta->achievements[idx] = value != 0;
         }
     }
 
@@ -534,6 +555,7 @@ void meta_save(const MetaProgress *meta)
         if (meta->achievements[i])
         {
             FMT("achievement_time_%d=%d\n", i, meta->achievement_times[i]);
+            FMT("achievement_timestamp_%d=%d\n", i, meta->achievement_timestamps[i]);
             FMT("achievement_party_%d=%d\n", i, meta->achievement_party[i]);
         }
     }
@@ -618,6 +640,7 @@ void meta_save(const MetaProgress *meta)
         if (meta->achievements[i])
         {
             fprintf(f, "achievement_time_%d=%d\n", i, meta->achievement_times[i]);
+            fprintf(f, "achievement_timestamp_%d=%d\n", i, meta->achievement_timestamps[i]);
             fprintf(f, "achievement_party_%d=%d\n", i, meta->achievement_party[i]);
         }
     fclose(f);
@@ -1115,6 +1138,7 @@ static int award_achievement(MetaProgress *meta, AchievementId id, char *names, 
 
     meta->achievements[id] = true;
     meta->achievement_times[id] = run_number;
+    meta->achievement_timestamps[id] = current_unix_timestamp();
     int party_mask = 0;
     for (int i = 0; i < party_size && i < 16; i++)
         if (party_classes[i] >= 0 && party_classes[i] < 24)

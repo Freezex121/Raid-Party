@@ -69,6 +69,7 @@ typedef struct {
     bool bard_unlocked;
     bool achievements[ACH_COUNT];
     int achievement_times[ACH_COUNT];
+    int achievement_timestamps[ACH_COUNT];
     int achievement_party[ACH_COUNT];
     bool start_prep;
     bool start_energize;

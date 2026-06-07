@@ -16,6 +16,7 @@ static Button shop_btn;
 static Button codex_btn;
 static Button ach_btn;
 static Button settings_btn;
+static Button admin_btn;
 static Button prev_area_btn;
 static Button next_area_btn;
 static Button asc_down_btn;
@@ -89,6 +90,13 @@ void title_screen_update(void)
             "SETTINGS",
             (Color){ 42, 48, 70, 255 },
             (Color){ 70, 78, 110, 255 },
+            WHITE
+        );
+        admin_btn = button_create(
+            (Rectangle){ 12.0f, (float)(VIRT_H - 31), 92.0f, (float)BTN_H },
+            "ADMIN",
+            (Color){ 54, 48, 78, 255 },
+            (Color){ 92, 82, 132, 255 },
             WHITE
         );
         Rectangle area_panel = area_panel_rect();
@@ -183,6 +191,7 @@ void title_screen_update(void)
     button_update(&codex_btn);
     button_update(&ach_btn);
     button_update(&settings_btn);
+    button_update(&admin_btn);
     button_update(&prev_area_btn);
     button_update(&next_area_btn);
     if (g_state.meta.max_ascension_unlocked > 0)
@@ -232,6 +241,11 @@ void title_screen_update(void)
     {
         initialized = false;
         game_open_settings(SCREEN_TITLE);
+    }
+    else if (admin_btn.pressed_this_frame || IsKeyPressed(KEY_F10))
+    {
+        initialized = false;
+        game_change_screen(SCREEN_ADMIN);
     }
 }
 
@@ -343,6 +357,7 @@ void title_screen_draw(void)
     button_draw_9slice(&codex_btn);
     button_draw_9slice(&ach_btn);
     button_draw_9slice(&settings_btn);
+    button_draw_9slice(&admin_btn);
 
     if (g_state.tutorial_active && g_state.tutorial_step == TUTORIAL_STEP_META_SHOP)
     {

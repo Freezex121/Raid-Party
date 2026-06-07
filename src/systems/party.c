@@ -494,6 +494,14 @@ int party_member_gain_xp(PartyMember *member, int amount, int *levels_gained)
     return gained;
 }
 
+int party_member_shield_cap_for_percent(const PartyMember *member, int cap_percent)
+{
+    if (!member || member->max_hp <= 0) return 0;
+    if (cap_percent < 0) cap_percent = 0;
+    int cap = (member->max_hp * cap_percent + 99) / 100;
+    return cap < 1 ? 1 : cap;
+}
+
 bool party_member_has_perk(const PartyMember *member, PerkId perk)
 {
     return party_member_perk_count(member, perk) > 0;

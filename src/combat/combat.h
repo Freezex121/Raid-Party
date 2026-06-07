@@ -20,6 +20,7 @@ typedef enum {
     TGT_NONE,
     TGT_SELECT_ENEMY,
     TGT_SELECT_ALLY,
+    TGT_CONFIRM_CARD,
 } TargetMode;
 
 typedef enum {
@@ -39,6 +40,7 @@ typedef struct {
     int ability_idx;
     int remaining_turns;
     int index;
+    int stage_index;
 } EnemyIntent;
 
 typedef struct {
@@ -52,6 +54,32 @@ typedef struct {
     int interrupt_cooldown;
     bool interrupted_recently;
     int phase;
+    int accumulator;
+    bool invulnerable;
+    InvulnerableUntilType invulnerable_until;
+    int invulnerable_turns;
+    int invulnerable_clear_damage;
+    int invulnerable_pending_damage;
+    int tethered_ally;
+    int tether_turns;
+    bool tether_transferrable;
+    int reflect_pct;
+    ReflectType reflect_type;
+    int reflect_turns;
+    int reflect_cap;
+    int turn_damage_received;
+    unsigned int thresholds_triggered_mask;
+    int phase_energy_delta;
+    int phase_hand_delta;
+    float phase_damage_scale_delta;
+    int phase_cast_time_reduction;
+    int opening_cursor;
+    int pattern_cursor;
+    int linked_group;
+    int revive_timer;
+    int revive_stagger_damage;
+    int reaction_counts[MAX_ENEMY_CARDS];
+    bool reaction_fired[MAX_ENEMY_CARDS];
     int pos_x, pos_y;
     StatusEffect statuses[MAX_STATUSES];
     int status_count;
@@ -102,6 +130,36 @@ typedef struct {
     int target_enemy;
     int target_ally;
 } EnemyCardThrow;
+
+#define MAX_ARENA_EFFECTS 8
+#define MAX_LINKED_GROUPS 4
+#define MAX_STOLEN_CARDS 8
+
+typedef struct {
+    ArenaAuraType type;
+    int value;
+    int turns_remaining;
+    int disrupt_turns;
+    int clear_on_damage_threshold;
+    int damage_this_turn;
+    int source_enemy;
+} ArenaEffect;
+
+typedef struct {
+    bool active;
+    bool shared_hp;
+    char id[16];
+    int hp;
+    int max_hp;
+} LinkedEnemyGroup;
+
+typedef struct {
+    bool active;
+    int card_idx;
+    int return_turns;
+    bool use_against_party;
+    int owner_enemy;
+} StolenCardState;
 
 typedef struct {
     CombatPhase phase;
@@ -154,6 +212,18 @@ typedef struct {
     float enemy_damage_scale;
     float enemy_damage_buff_scale;
     int enemy_damage_buff_turns;
+    ArenaEffect arena_effects[MAX_ARENA_EFFECTS];
+    int arena_effect_count;
+    LinkedEnemyGroup linked_groups[MAX_LINKED_GROUPS];
+    int linked_group_count;
+    StolenCardState stolen_cards[MAX_STOLEN_CARDS];
+    int temp_card_cost_delta;
+    int temp_card_cost_turns;
+    int temp_hand_size_delta;
+    int temp_hand_size_turns;
+    int player_energy_drained_this_turn;
+    int resolving_ally_idx;
+    int last_player_attacker;
     float player_damage_mult;
     int player_buff_turns;
     int player_extra_draw;
@@ -197,12 +267,42 @@ typedef struct {
     EnemyCardThrow enemy_card_throws[MAX_ENEMY_CARD_THROWS];
 } CombatState;
 
+typedef struct {
+    int damage_per_hit;
+    int raw_damage_total;
+    int hp_damage_total;
+    int blocked_total;
+    int hits;
+    int targets;
+    int heal_total;
+    int shield_total;
+    int revive_hp;
+    bool invalid_target;
+    bool will_interrupt;
+    bool will_channel;
+    bool will_echo;
+} CombatCardPreview;
+
+typedef struct {
+    int damage_per_hit;
+    int total_damage;
+    int repeats;
+    int targets;
+    int heal;
+    int shield;
+} CombatEnemyAbilityPreview;
+
 void combat_start(CombatState *cs, const Party *party, const EncounterDef *encounter);
 void combat_update(CombatState *cs);
 void combat_end_turn(CombatState *cs);
+int combat_spawn_enemy(CombatState *cs, const char *enemy_id, int count);
 int combat_sudden_death_damage(int completed_turn);
 void combat_draw_card_throws(CombatState *cs);
 void combat_draw_enemy_card_throws(CombatState *cs);
 bool combat_any_pending(CombatState *cs);
+int combat_silenced_class_mask(const CombatState *cs);
+bool combat_card_preview(const CombatState *cs, int hand_idx, int target_enemy, int target_ally, CombatCardPreview *out);
+bool combat_enemy_ability_preview(const CombatState *cs, int enemy_idx, CombatEnemyAbilityPreview *out);
+int boss_arena_value(const CombatState *cs, ArenaAuraType type);
 
 #endif

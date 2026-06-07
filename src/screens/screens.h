@@ -49,6 +49,9 @@ void achievements_screen_draw(void);
 void level_up_screen_update(void);
 void level_up_screen_draw(void);
 
+void admin_screen_update(void);
+void admin_screen_draw(void);
+
 void settings_screen_update(void);
 void settings_screen_draw(void);
 

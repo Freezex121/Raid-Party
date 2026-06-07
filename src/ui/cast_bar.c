@@ -36,7 +36,7 @@ static const char *intent_icon(IntentType intent, bool is_wipe)
     }
 }
 
-void cast_bar_draw_ability_tooltip(const EnemyCardDef *ability, Rectangle bounds)
+void cast_bar_draw_ability_tooltip_preview(const EnemyCardDef *ability, Rectangle bounds, int damage, int repeats, int targets, int heal, int shield)
 {
     if (!ability) return;
 
@@ -66,12 +66,25 @@ void cast_bar_draw_ability_tooltip(const EnemyCardDef *ability, Rectangle bounds
         case INTENT_BUFF:      intent_name = "BUFF — strengthens enemies"; break;
         default:               intent_name = "UNKNOWN"; break;
     }
-    snprintf(details, sizeof(details), "%s\n\n%s\n\nDmg %d   Heal %d   Shield %d\n%s",
+    if (repeats < 1) repeats = 1;
+    if (damage < 0) damage = 0;
+    if (heal < 0) heal = 0;
+    if (shield < 0) shield = 0;
+
+    char damage_line[64];
+    if (damage > 0 && repeats > 1)
+        snprintf(damage_line, sizeof(damage_line), "Dmg %d x%d", damage, repeats);
+    else if (damage > 0 && targets > 1)
+        snprintf(damage_line, sizeof(damage_line), "Dmg %d each", damage);
+    else
+        snprintf(damage_line, sizeof(damage_line), "Dmg %d", damage);
+
+    snprintf(details, sizeof(details), "%s\n\n%s\n\n%s   Heal %d   Shield %d\n%s",
         ability->description,
         intent_name,
-        ability->base_damage,
-        ability->heal_amount,
-        ability->shield_amount,
+        damage_line,
+        heal,
+        shield,
         (ability->is_wipe || ability->intent == INTENT_WIPE) ? "Uninterruptible" : "Interruptible");
 
     int title_h = measure_text_box(ability->name, body_w - 4, 10, 0);
@@ -105,6 +118,19 @@ void cast_bar_draw_ability_tooltip(const EnemyCardDef *ability, Rectangle bounds
         TEXT_ALIGN_LEFT, &tooltip_scroll, true);
 }
 
+void cast_bar_draw_ability_tooltip(const EnemyCardDef *ability, Rectangle bounds)
+{
+    if (!ability) return;
+    cast_bar_draw_ability_tooltip_preview(
+        ability,
+        bounds,
+        ability->base_damage,
+        ability->repeats < 1 ? 1 : ability->repeats,
+        1,
+        ability->heal_amount,
+        ability->shield_amount);
+}
+
 void cast_bar_draw_ex(const char *ability_name, int remaining_turns, int total_turns, bool is_wipe, int bar_x, int bar_y)
 {
     int bar_w = CAST_BAR_W, bar_h = CAST_BAR_HEIGHT;
@@ -134,9 +160,14 @@ void cast_bar_draw_ex(const char *ability_name, int remaining_turns, int total_t
     }
 }
 
-void cast_bar_draw_ability(const EnemyCardDef *ability, int remaining_turns, int total_turns, int bar_x, int bar_y)
+void cast_bar_draw_ability_preview(const EnemyCardDef *ability, int remaining_turns, int total_turns, int bar_x, int bar_y, int damage, int repeats, int targets, int heal, int shield)
 {
     if (!ability) return;
+
+    if (damage < 0) damage = 0;
+    if (repeats < 1) repeats = 1;
+    if (heal < 0) heal = 0;
+    if (shield < 0) shield = 0;
 
     int bar_w = CAST_BAR_W, bar_h = CAST_BAR_HEIGHT;
     bool locked = ability->is_wipe || ability->intent == INTENT_WIPE;
@@ -159,12 +190,16 @@ void cast_bar_draw_ability(const EnemyCardDef *ability, int remaining_turns, int
         icon, 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
 
     char amount[48];
-    if (ability->heal_amount > 0)
-        snprintf(amount, sizeof(amount), "+%d", ability->heal_amount);
-    else if (ability->shield_amount > 0 && ability->base_damage <= 0)
-        snprintf(amount, sizeof(amount), "+%dS", ability->shield_amount);
+    if (heal > 0)
+        snprintf(amount, sizeof(amount), "+%d", heal);
+    else if (shield > 0 && damage <= 0)
+        snprintf(amount, sizeof(amount), "+%dS", shield);
+    else if (damage > 0 && repeats > 1)
+        snprintf(amount, sizeof(amount), "%dx%dD", damage, repeats);
+    else if (damage > 0 && targets > 1)
+        snprintf(amount, sizeof(amount), "%dD ea", damage);
     else
-        snprintf(amount, sizeof(amount), "%dD", ability->base_damage);
+        snprintf(amount, sizeof(amount), "%dD", damage);
 
     char turns_text[20];
     snprintf(turns_text, sizeof(turns_text), "%dT", remaining_turns);
@@ -184,6 +219,22 @@ void cast_bar_draw_ability(const EnemyCardDef *ability, int remaining_turns, int
 
     if (locked)
         DrawText("!", bar_x + bar_w - turns_w - 38, bar_y + 14, 10, (Color){ 250, 105, 80, 240 });
+}
+
+void cast_bar_draw_ability(const EnemyCardDef *ability, int remaining_turns, int total_turns, int bar_x, int bar_y)
+{
+    if (!ability) return;
+    cast_bar_draw_ability_preview(
+        ability,
+        remaining_turns,
+        total_turns,
+        bar_x,
+        bar_y,
+        ability->base_damage,
+        ability->repeats < 1 ? 1 : ability->repeats,
+        1,
+        ability->heal_amount,
+        ability->shield_amount);
 }
 
 

@@ -20,3 +20,5 @@ timestamp,run_id,area,floor,source,offered,picked
 1780573859,"2","1","2","boss_reward","poison_fang|void_stone|mark_of_the_hunt","poison_fang"
 1780574439,"2","1","3","boss_reward","hunters_compass|lantern_oil|gilded_charm","gilded_charm"
 1780574811,"2","1","4","boss_reward","hunters_compass|veil_pin|leech_blade","veil_pin"
+1780656395,"3","2","2","boss_reward","bottled_storm|lingering_sigil|explorer_lantern","explorer_lantern"
+1780656815,"3","2","3","boss_reward","grave_bell|field_rations|crystal_ball","crystal_ball"

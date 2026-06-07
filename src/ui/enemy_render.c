@@ -72,6 +72,8 @@ static const char *status_icon(StatusType type)
         case STATUS_MARKED:     return "M";
         case STATUS_CONDUCTIVE: return "C";
         case STATUS_BLIGHT:     return "X";
+        case STATUS_SILENCE:    return "S";
+        case STATUS_MATERNAL_BOND: return "N";
         default:                return "?";
     }
 }
@@ -90,6 +92,10 @@ static const char *status_name(StatusType type)
         case STATUS_RENEW: return "RENEW";
         case STATUS_TOTEM_HEAL: return "TOTEM";
         case STATUS_ENERGY_DRAIN: return "ENERGY DRAIN";
+        case STATUS_SILENCE: return "SILENCE";
+        case STATUS_THORNS:     return "THORNS";
+        case STATUS_DEATH_MARK: return "DEATH MARK";
+        case STATUS_MATERNAL_BOND: return "MATERNAL BOND";
         default: return "STATUS";
     }
 }
@@ -108,6 +114,10 @@ static const char *status_description(StatusType type)
         case STATUS_RENEW: return "Renew: heals over time.";
         case STATUS_TOTEM_HEAL: return "Totem: healing over time.";
         case STATUS_ENERGY_DRAIN: return "Energy Drain: reduces available energy.";
+        case STATUS_SILENCE: return "Silence: class cards cannot be played this turn.";
+        case STATUS_THORNS: return "Thorns: reflects damage to attackers.";
+        case STATUS_DEATH_MARK: return "Death Mark: takes damage at the start of turns.";
+        case STATUS_MATERNAL_BOND: return "Maternal Bond: heals the unit whenever an allied enemy dies.";
         default: return "Status effect.";
     }
 }
@@ -123,6 +133,10 @@ static Color status_icon_color(StatusType type)
         case STATUS_TRAP:       return (Color){ 180, 125, 230, 255 };
         case STATUS_BLEED:      return (Color){ 210, 65, 80, 255 };
         case STATUS_WEAKNESS:   return (Color){ 165, 170, 195, 255 };
+        case STATUS_SILENCE:    return (Color){ 190, 130, 255, 255 };
+        case STATUS_THORNS:     return (Color){ 110, 230, 155, 255 };
+        case STATUS_DEATH_MARK: return (Color){ 230, 80, 110, 255 };
+        case STATUS_MATERNAL_BOND: return (Color){ 230, 140, 255, 255 };
         default:                return (Color){ 155, 160, 180, 255 };
     }
 }
@@ -188,7 +202,9 @@ static void draw_status_tooltip(Rectangle anchor, StatusType status)
 
 void enemy_render_draw(EnemyState *enemy, bool highlighted, bool targeting)
 {
-    if (!enemy->def || enemy->hp <= 0) return;
+    if (!enemy) return;
+    bool reviving = enemy->hp <= 0 && enemy->revive_timer > 0;
+    if (!enemy->def || (enemy->hp <= 0 && !reviving)) return;
 
     int cx = enemy->pos_x;
     int cy = enemy->pos_y;
@@ -198,7 +214,7 @@ void enemy_render_draw(EnemyState *enemy, bool highlighted, bool targeting)
 
     Color accent = enemy_accent(enemy->def->id);
     Color shadow = (Color){ 0, 0, 0, 80 };
-    Color body = darken(accent, 0.42f);
+    Color body = darken(accent, reviving ? 0.22f : 0.42f);
 
     if (targeting)
     {
@@ -265,6 +281,68 @@ void enemy_render_draw(EnemyState *enemy, bool highlighted, bool targeting)
         snprintf(shield_text, sizeof(shield_text), "S%d", enemy->shield);
         DrawText(shield_text, cx - MeasureText(shield_text, 10) / 2, hp_y + 11, 10, (Color){ 130, 200, 255, 235 });
     }
+
+    int badge_y = hp_y + 22;
+    if (enemy->invulnerable)
+    {
+        DrawText("IMM", cx - MeasureText("IMM", 10) / 2, badge_y, 10, (Color){ 150, 220, 255, 245 });
+        badge_y += 10;
+    }
+    if (enemy->def->accumulate && enemy->accumulator > 0)
+    {
+        int bar_w = 8;
+        int bar_h = 48;
+        int bar_x = cx - 18 - bar_w - 3;
+        int bar_y = draw_y - bar_h / 2;
+
+        DrawRectangleRec((Rectangle){ (float)bar_x, (float)bar_y, (float)bar_w, (float)bar_h }, (Color){ 20, 20, 30, 230 });
+        DrawRectangleLinesEx((Rectangle){ (float)bar_x, (float)bar_y, (float)bar_w, (float)bar_h }, 1.0f, (Color){ 60, 60, 80, 200 });
+
+        Color layer_colors[4] = {
+            { 80, 200, 80, 255 },
+            { 220, 200, 50, 255 },
+            { 230, 150, 40, 255 },
+            { 220, 60, 60, 255 }
+        };
+
+        int segments = 4;
+        float seg_h = (float)bar_h / (float)segments;
+        float max_val = 50.0f;
+        float val_per_seg = max_val / (float)segments;
+
+        for (int seg = 0; seg < segments; seg++)
+        {
+            float seg_start = (float)seg * val_per_seg;
+            if (enemy->accumulator <= seg_start) break;
+
+            float fill_in_seg = (float)enemy->accumulator - seg_start;
+            if (fill_in_seg > val_per_seg) fill_in_seg = val_per_seg;
+            float fill_ratio = fill_in_seg / val_per_seg;
+
+            float seg_y = (float)bar_y + (float)bar_h - (float)(seg + 1) * seg_h;
+            float fill_px = seg_h * fill_ratio;
+
+            DrawRectangleRec(
+                (Rectangle){ (float)(bar_x + 1), seg_y + seg_h - fill_px, (float)(bar_w - 2), fill_px },
+                layer_colors[seg]);
+        }
+    }
+    if (enemy->tethered_ally >= 0)
+    {
+        DrawText("CHAIN", cx - MeasureText("CHAIN", 10) / 2, badge_y, 10, (Color){ 195, 150, 255, 245 });
+        badge_y += 10;
+    }
+    if (enemy->reflect_pct > 0 && enemy->reflect_turns > 0)
+    {
+        DrawText("REF", cx - MeasureText("REF", 10) / 2, badge_y, 10, (Color){ 110, 230, 155, 245 });
+        badge_y += 10;
+    }
+    if (reviving)
+    {
+        char rev_text[24];
+        snprintf(rev_text, sizeof(rev_text), "REV %d", enemy->revive_timer);
+        DrawText(rev_text, cx - MeasureText(rev_text, 10) / 2, badge_y, 10, (Color){ 140, 230, 170, 245 });
+    }
 }
 
 void enemy_render_draw_status_tooltip(EnemyState *enemy)
@@ -291,4 +369,3 @@ void enemy_render_draw_status_tooltip(EnemyState *enemy)
         }
     }
 }
-

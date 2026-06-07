@@ -92,30 +92,6 @@ static void log_combat_result_metric(bool victory)
     telemetry_push_json("combat_result", json);
 }
 
-static float preview_combo_mult(CombatState *cs, const CardDef *card)
-{
-    if (!card) return 1.0f;
-    if (cs->combo_prime_index >= 0 && cs->combo_prime_index < synergy_combo_count())
-    {
-        const SynergyComboDef *c = synergy_combo_by_index(cs->combo_prime_index);
-        if (c)
-        {
-            if (strcmp(c->consume_card_type, "aoe") == 0 && card->target == TARGET_ALL_ENEMIES && c->multiply_damage > 1.0f)
-                return c->multiply_damage;
-            if (strcmp(c->consume_card_type, "damage") == 0 && card->damage > 0 && c->multiply_damage > 1.0f)
-                return c->multiply_damage;
-            if (strcmp(c->consume_card_type, "group_heal_or_shield") == 0 && card->target == TARGET_ALL_ALLIES)
-                return 1.5f;
-        }
-    }
-    return 1.0f;
-}
-
-static int preview_hits(const CardDef *card)
-{
-    return card_repeat_hits(card);
-}
-
 static void draw_preview_box(int x, int y, const char *title, const char *line1, const char *line2, Color accent)
 {
     int w = 132;
@@ -132,6 +108,74 @@ static void draw_preview_box(int x, int y, const char *title, const char *line1,
     if (line2 && line2[0])
         draw_text_box((Rectangle){ (float)(x + 5), (float)(y + 31), (float)(w - 10), 12.0f },
             line2, 10, 0, (Color){ 180, 180, 205, 230 }, TEXT_ALIGN_LEFT);
+}
+
+static void format_card_preview_lines(const CardDef *card, const CombatCardPreview *preview, char *line1, int line1_size, char *line2, int line2_size)
+{
+    if (!card || !preview || !line1 || !line2 || line1_size <= 0 || line2_size <= 0) return;
+    line1[0] = '\0';
+    line2[0] = '\0';
+
+    if (preview->invalid_target)
+    {
+        snprintf(line1, line1_size, "Invalid target");
+        return;
+    }
+
+    if (preview->will_channel)
+    {
+        snprintf(line1, line1_size, "Starts channel");
+        if (card->channel_turns > 0)
+            snprintf(line2, line2_size, "%d turn%s", card->channel_turns, card->channel_turns == 1 ? "" : "s");
+        return;
+    }
+
+    if (preview->raw_damage_total > 0)
+    {
+        if (preview->hp_damage_total > 0)
+            snprintf(line1, line1_size, preview->targets > 1 ? "-%d HP total" : "-%d HP", preview->hp_damage_total);
+        else
+            snprintf(line1, line1_size, "Blocked by Shield");
+
+        if (preview->blocked_total > 0)
+            snprintf(line2, line2_size, "%d blocked by Shield", preview->blocked_total);
+        else if (preview->hits > 1)
+            snprintf(line2, line2_size, "%d hits at %d", preview->hits, preview->damage_per_hit);
+        else if (preview->targets > 1)
+            snprintf(line2, line2_size, "%d targets", preview->targets);
+    }
+    else if (preview->revive_hp > 0)
+    {
+        snprintf(line1, line1_size, "Revive at %d HP", preview->revive_hp);
+    }
+    else if (preview->heal_total > 0 && preview->shield_total > 0)
+    {
+        snprintf(line1, line1_size, "+%d HP, +%d Shield", preview->heal_total, preview->shield_total);
+    }
+    else if (preview->heal_total > 0)
+    {
+        snprintf(line1, line1_size, "+%d HP", preview->heal_total);
+    }
+    else if (preview->shield_total > 0)
+    {
+        snprintf(line1, line1_size, "+%d Shield", preview->shield_total);
+    }
+    else
+    {
+        snprintf(line1, line1_size, "Apply effect");
+    }
+
+    if (!line2[0])
+    {
+        if (preview->will_interrupt)
+            snprintf(line2, line2_size, "Interrupts current cast");
+        else if (preview->will_echo)
+            snprintf(line2, line2_size, "Echoes after cast");
+        else if (card->burn_stacks > 0)
+            snprintf(line2, line2_size, "+%d Burning", card->burn_stacks);
+        else if (card->aggro_self > 0)
+            snprintf(line2, line2_size, "+%d aggro to caster", card->aggro_self);
+    }
 }
 
 static void draw_hud_tooltip(Rectangle anchor, const char *title, const char *body, Color accent)
@@ -238,59 +282,44 @@ static void draw_target_preview(CombatState *cs)
     const CardDef *card = inst->def;
     if (!card) return;
 
-    float mult = preview_combo_mult(cs, card);
-    int dmg = (int)(card_damage(card, inst->upgrade_level) * mult);
-    int heal = (int)(card_heal(card, inst->upgrade_level) * mult);
-    int shield = (int)(card_shield(card, inst->upgrade_level) * mult);
-    int hits = preview_hits(card);
-
     char line1[96] = "";
     char line2[96] = "";
+    CombatCardPreview preview = { 0 };
 
     if (cs->target_mode == TGT_SELECT_ENEMY && cs->hovered_enemy >= 0)
     {
         EnemyState *e = &cs->enemies[cs->hovered_enemy];
-        int total_damage = dmg * hits;
-        if (total_damage > 0)
-            snprintf(line1, sizeof(line1), "-%d HP%s", total_damage, hits > 1 ? TextFormat(" (%dx)", hits) : "");
-        else
-            snprintf(line1, sizeof(line1), "Apply effect");
-
-        if (card->interrupt)
-            snprintf(line2, sizeof(line2), "Interrupts current cast");
-        else if (card->burn_stacks > 0)
-            snprintf(line2, sizeof(line2), "+%d Burning", card->burn_stacks);
-        else if (card->aggro_self > 0)
-            snprintf(line2, sizeof(line2), "+%d aggro to caster", card->aggro_self);
+        if (!combat_card_preview(cs, cs->target_hand_idx, cs->hovered_enemy, -1, &preview))
+            return;
+        format_card_preview_lines(card, &preview, line1, sizeof(line1), line2, sizeof(line2));
 
         draw_preview_box(e->pos_x - 46, e->pos_y + 28, "Preview", line1, line2, (Color){ 255, 230, 110, 245 });
     }
     else if (cs->target_mode == TGT_SELECT_ALLY && cs->hovered_ally >= 0)
     {
-        PartyMember *pm = &cs->party.members[cs->hovered_ally];
-        bool revive = card_has_effect(card, CARD_EFFECT_REVIVE_TARGET);
-        if (!pm->alive && !revive)
-            snprintf(line1, sizeof(line1), "Invalid target");
-        else if (revive && pm->alive)
-            snprintf(line1, sizeof(line1), "Target is already alive");
-        else if (revive && !pm->alive)
-            snprintf(line1, sizeof(line1), "Revive at %d HP", pm->max_hp / 2);
-        else if (heal > 0 && shield > 0)
-            snprintf(line1, sizeof(line1), "+%d HP, +%d Shield", heal, shield);
-        else if (heal > 0)
-            snprintf(line1, sizeof(line1), "+%d HP", heal);
-        else if (shield > 0)
-            snprintf(line1, sizeof(line1), "+%d Shield", shield);
-        else
-            snprintf(line1, sizeof(line1), "Apply effect");
-
-        if (card_has_effect(card, CARD_EFFECT_TRANSFER_AGGRO_TO_GUARDIAN))
+        if (!combat_card_preview(cs, cs->target_hand_idx, -1, cs->hovered_ally, &preview))
+            return;
+        format_card_preview_lines(card, &preview, line1, sizeof(line1), line2, sizeof(line2));
+        if (!line2[0] && card_has_effect(card, CARD_EFFECT_TRANSFER_AGGRO_TO_GUARDIAN))
             snprintf(line2, sizeof(line2), "Moves aggro to Guardian");
-        else if (card_has_effect(card, CARD_EFFECT_APPLY_STATUS_TARGET_ALLY))
+        else if (!line2[0] && card_has_effect(card, CARD_EFFECT_APPLY_STATUS_TARGET_ALLY))
             snprintf(line2, sizeof(line2), "Renew: +5 HP for 3 turns");
 
         Rectangle ally_rect = layout_party_frame_rect(cs->party.count, cs->hovered_ally);
         draw_preview_box(snap_i(ally_rect.x), snap_i(ally_rect.y + ally_rect.height + 6), "Preview", line1, line2, (Color){ 120, 245, 165, 245 });
+    }
+    else if (cs->target_mode == TGT_CONFIRM_CARD)
+    {
+        if (!combat_card_preview(cs, cs->target_hand_idx, -1, -1, &preview))
+            return;
+        format_card_preview_lines(card, &preview, line1, sizeof(line1), line2, sizeof(line2));
+
+        HandLayout hand_layout = layout_hand(cs->deck.hand_count);
+        Rectangle card_rect = layout_hand_card_rect(hand_layout, cs->target_hand_idx);
+        card_rect.y += cs->target_offset;
+        int x = snap_i(card_rect.x + card_rect.width * 0.5f - 66.0f);
+        int y = snap_i(card_rect.y - 48.0f);
+        draw_preview_box(x, y, "Confirm", line1, line2, (Color){ 255, 230, 110, 245 });
     }
 }
 
@@ -641,6 +670,14 @@ void run_screen_update(void)
         combat_initialized = false;
 
         bool was_victory = (strstr(g_state.combat.result_message, "VICTORY") != 0);
+        if (g_state.debug_admin_mode)
+        {
+            memcpy(&g_state.run_party, &g_state.combat.party, sizeof(Party));
+            g_state.run_party_active = true;
+            game_change_screen(SCREEN_ADMIN);
+            return;
+        }
+
         log_combat_result_metric(was_victory);
         memcpy(&g_state.run_party, &g_state.combat.party, sizeof(Party));
         g_state.run_party_active = true;
@@ -719,6 +756,65 @@ void run_screen_update(void)
     }
 }
 
+static Rectangle aura_rects[MAX_ARENA_EFFECTS];
+static int aura_rect_count = 0;
+
+static void draw_arena_effects(CombatState *cs)
+{
+    aura_rect_count = 0;
+    if (!cs || cs->arena_effect_count <= 0) return;
+    int x = 184;
+    int y = 64;
+    for (int i = 0; i < cs->arena_effect_count; i++)
+    {
+        ArenaEffect *aura = &cs->arena_effects[i];
+        if (aura->type == AURA_NONE) continue;
+        char label[48];
+        if (aura->disrupt_turns > 0)
+            snprintf(label, sizeof(label), "%s OFF", enemy_arena_aura_name(aura->type));
+        else
+            snprintf(label, sizeof(label), "%s %d", enemy_arena_aura_name(aura->type), aura->value);
+        int w = MeasureText(label, 10) + 10;
+        Rectangle r = { (float)x, (float)y, (float)w, 15.0f };
+        Color bg = aura->disrupt_turns > 0 ? (Color){ 35, 38, 48, 210 } : (Color){ 48, 34, 72, 220 };
+        DrawRectangleRec(r, bg);
+        DrawRectangleLinesEx(r, 1.0f, aura->disrupt_turns > 0 ? (Color){ 105, 110, 130, 220 } : (Color){ 185, 125, 255, 230 });
+        draw_text_box((Rectangle){ r.x + 5.0f, r.y + 3.0f, r.width - 10.0f, r.height - 4.0f },
+            label, 10, 0, RAYWHITE, TEXT_ALIGN_CENTER);
+        if (aura_rect_count < MAX_ARENA_EFFECTS)
+            aura_rects[aura_rect_count++] = r;
+        x += w + 4;
+        if (x > VIRT_W - 120)
+        {
+            x = 184;
+            y += 17;
+        }
+    }
+}
+
+static void draw_arena_effect_tooltips(CombatState *cs)
+{
+    Vector2 mouse = GetMousePosition();
+    for (int i = 0; i < aura_rect_count && i < cs->arena_effect_count; i++)
+    {
+        if (CheckCollisionPointRec(mouse, aura_rects[i]))
+        {
+            ArenaEffect *aura = &cs->arena_effects[i];
+            if (aura->type == AURA_NONE) return;
+            const char *name = enemy_arena_aura_name(aura->type);
+            const char *desc = enemy_arena_aura_description(aura->type);
+            char body[256];
+            if (aura->disrupt_turns > 0)
+                snprintf(body, sizeof(body), "%s\n\nCurrently disrupted — will resume in %d turn%s.",
+                    desc, aura->disrupt_turns, aura->disrupt_turns == 1 ? "" : "s");
+            else
+                snprintf(body, sizeof(body), "%s", desc);
+            draw_hud_tooltip(aura_rects[i], name, body, (Color){ 185, 125, 255, 255 });
+            return;
+        }
+    }
+}
+
 void run_screen_draw(void)
 {
     CombatState *cs = &g_state.combat;
@@ -737,6 +833,7 @@ void run_screen_draw(void)
     party_frames_draw(&cs->party);
 
     bool targeting = cs->target_mode != TGT_NONE;
+    draw_arena_effects(cs);
 
     if (targeting && cs->target_mode == TGT_SELECT_ENEMY)
     {
@@ -760,11 +857,18 @@ void run_screen_draw(void)
             {
                 int ab_idx = cs->enemies[i].intent.ability_idx;
                 Rectangle bar = layout_enemy_cast_bar_rect((Vector2){ (float)cs->enemies[i].pos_x, (float)cs->enemies[i].pos_y }, cs->enemy_count, i);
-                cast_bar_draw_ability(
+                CombatEnemyAbilityPreview preview = { 0 };
+                combat_enemy_ability_preview(cs, i, &preview);
+                cast_bar_draw_ability_preview(
                     &cs->enemies[i].def->cards[ab_idx],
                     cs->enemies[i].intent.remaining_turns,
-                    cs->enemies[i].def->cards[ab_idx].cast_time,
-                    (int)bar.x, (int)bar.y
+                    cs->enemies[i].intent.index > 0 ? cs->enemies[i].intent.index : cs->enemies[i].def->cards[ab_idx].cast_time,
+                    (int)bar.x, (int)bar.y,
+                    preview.damage_per_hit,
+                    preview.repeats,
+                    preview.targets,
+                    preview.heal,
+                    preview.shield
                 );
             }
         }
@@ -820,7 +924,9 @@ void run_screen_draw(void)
 
     draw_discard_pile(cs);
     draw_hand_synergy_glows(cs);
-    hand_render_draw(&cs->deck, &cs->energy, cs->hovered_card, cs->channel_class, cs->target_hand_idx, cs->target_offset, cs->combo_prime_index);
+    int aura_cost_delta = boss_arena_value(cs, AURA_COST_UP);
+    if (cs->temp_card_cost_turns > 0) aura_cost_delta += cs->temp_card_cost_delta;
+    hand_render_draw(&cs->deck, &cs->energy, cs->hovered_card, cs->channel_class, combat_silenced_class_mask(cs), cs->target_hand_idx, cs->target_offset, cs->combo_prime_index, aura_cost_delta);
     combat_draw_card_throws(cs);
     combat_draw_enemy_card_throws(cs);
     draw_combat_feedback(cs);
@@ -860,10 +966,12 @@ void run_screen_draw(void)
     snprintf(energy_big, sizeof(energy_big), "%d/%d", cs->energy.current, cs->energy.max);
     draw_text_box((Rectangle){ energy_panel.x + 8.0f, energy_panel.y + 18.0f, energy_panel.width - 16.0f, 20.0f },
         energy_big, 18, 0, (Color){ 255, 225, 95, 245 }, TEXT_ALIGN_LEFT);
+    int net_regen = cs->energy.regen - boss_arena_value(cs, AURA_ENERGY_DRAIN);
+    if (net_regen < 0) net_regen = 0;
     char regen_text[16];
-    snprintf(regen_text, sizeof(regen_text), "+%d/turn", cs->energy.regen);
+    snprintf(regen_text, sizeof(regen_text), "+%d/turn", net_regen);
     draw_text_box((Rectangle){ energy_panel.x + 10.0f, energy_panel.y + 36.0f, energy_panel.width - 20.0f, 12.0f },
-        regen_text, 10, 0, (Color){ 180, 180, 205, 220 }, TEXT_ALIGN_LEFT);
+        regen_text, 10, 0, net_regen < cs->energy.regen ? (Color){ 230, 180, 70, 230 } : (Color){ 180, 180, 205, 220 }, TEXT_ALIGN_LEFT);
 
     // Deck button
     Vector2 mouse = GetMousePosition();
@@ -892,11 +1000,21 @@ void run_screen_draw(void)
         if (!cs->enemies[i].def || cs->enemies[i].hp <= 0 || cs->enemies[i].intent.ability_idx < 0) continue;
         int ab_idx = cs->enemies[i].intent.ability_idx;
         Rectangle bar = layout_enemy_cast_bar_rect((Vector2){ (float)cs->enemies[i].pos_x, (float)cs->enemies[i].pos_y }, cs->enemy_count, i);
-        cast_bar_draw_ability_tooltip(&cs->enemies[i].def->cards[ab_idx], bar);
+        CombatEnemyAbilityPreview preview = { 0 };
+        combat_enemy_ability_preview(cs, i, &preview);
+        cast_bar_draw_ability_tooltip_preview(
+            &cs->enemies[i].def->cards[ab_idx],
+            bar,
+            preview.damage_per_hit,
+            preview.repeats,
+            preview.targets,
+            preview.heal,
+            preview.shield);
     }
     for (int i = 0; i < cs->enemy_count; i++)
         enemy_render_draw_status_tooltip(&cs->enemies[i]);
     party_frames_draw_tooltips(&cs->party);
+    draw_arena_effect_tooltips(cs);
     draw_combat_hud_tooltips(cs, turn_rect, energy_panel, deck_btn, end_turn_btn, inspector);
 
     // PRIMED combo hover tooltip

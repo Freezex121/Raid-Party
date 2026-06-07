@@ -161,6 +161,8 @@ static const char *status_name(StatusType status)
         case STATUS_BLIGHT:     return "BLIGHT";
         case STATUS_THORNS:     return "THORNS";
         case STATUS_DEATH_MARK: return "DEATH MARK";
+        case STATUS_SILENCE:    return "SILENCE";
+        case STATUS_MATERNAL_BOND: return "MATERNAL BOND";
         default:                return "STATUS";
     }
 }
@@ -751,10 +753,10 @@ void theme_draw_class_portrait(ClassType ct, int cx, int cy, int radius, bool al
 void theme_draw_card_art(Rectangle bounds, const CardDef *card, int upgrade_level)
 {
     unsigned int seed = theme_card_seed_from_id(card && card->id ? card->id : "card", 0);
-    theme_draw_card_art_seeded(bounds, card, upgrade_level, seed);
+    theme_draw_card_art_seeded(bounds, card, upgrade_level, seed, -1);
 }
 
-void theme_draw_card_art_seeded(Rectangle bounds, const CardDef *card, int upgrade_level, unsigned int seed)
+void theme_draw_card_art_seeded(Rectangle bounds, const CardDef *card, int upgrade_level, unsigned int seed, int cost_override)
 {
     bounds = snap_rect(bounds);
 
@@ -799,7 +801,11 @@ void theme_draw_card_art_seeded(Rectangle bounds, const CardDef *card, int upgra
     draw_text_box((Rectangle){ (float)name_x, (float)name_y, (float)name_w, (float)(name_band_h - (name_y - name_band_y)) },
         card->name, 10, 0, RAYWHITE, TEXT_ALIGN_LEFT);
 
-    draw_card_stat_number(dest, 0, card->cost, (Color){ 255, 255, 0, 255 });
+    int display_cost = cost_override >= 0 ? cost_override : card->cost;
+    Color cost_color = (cost_override >= 0 && cost_override != card->cost)
+        ? (cost_override > card->cost ? (Color){ 255, 80, 80, 255 } : (Color){ 80, 220, 80, 255 })
+        : (Color){ 255, 255, 0, 255 };
+    draw_card_stat_number(dest, 0, display_cost, cost_color);
     draw_card_stat_number(dest, 1, card_stat_heal(card, upgrade_level), (Color){ 255, 255, 255, 255 });
     draw_card_stat_number(dest, 2, card_stat_damage(card, upgrade_level), (Color){ 200, 0, 0, 255 });
     draw_card_stat_number(dest, 3, card_shield(card, upgrade_level), (Color){ 0, 0, 255, 255 });

@@ -26,7 +26,7 @@ void theme_draw_cost_gem(int cx, int cy, int cost, bool enabled);
 void theme_draw_effect_badge(Rectangle bounds, const char *label, Color color);
 void theme_draw_class_portrait(ClassType ct, int cx, int cy, int radius, bool alive);
 void theme_draw_card_art(Rectangle bounds, const CardDef *card, int upgrade_level);
-void theme_draw_card_art_seeded(Rectangle bounds, const CardDef *card, int upgrade_level, unsigned int seed);
+void theme_draw_card_art_seeded(Rectangle bounds, const CardDef *card, int upgrade_level, unsigned int seed, int cost_override);
 void theme_draw_keyword_icon(Rectangle bounds, KeywordIcon keyword);
 void theme_draw_keyword_badge(Rectangle bounds, const CardInstance *inst);
 Rectangle theme_draw_card_tooltip(Rectangle bounds, const CardDef *card, int upgrade_level);

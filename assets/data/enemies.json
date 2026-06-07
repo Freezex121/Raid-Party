@@ -860,7 +860,7 @@
           "cost": 2,
           "base_damage": 6,
           "cast_time": 3,
-          "description": "Deals 6 damage to all and silences channeling.",
+          "description": "Deals 6 damage to all and silences their class cards for a turn.",
           "is_wipe": false,
           "heal_amount": 0,
           "shield_amount": 0,
@@ -1560,7 +1560,7 @@
           "cost": 1,
           "base_damage": 3,
           "cast_time": 3,
-          "description": "Deals 3 damage and interrupts channeling.",
+          "description": "Deals 3 damage and silences the target's class cards for a turn.",
           "is_wipe": false,
           "heal_amount": 0,
           "shield_amount": 0,
@@ -2805,6 +2805,759 @@
           "is_wipe": true,
           "heal_amount": 0,
           "shield_amount": 0,
+          "count": 1
+        }
+      ]
+    },
+    {
+      "id": "rageforged_colossus",
+      "name": "Rageforged Colossus",
+      "max_hp": 230,
+      "hand_size": 3,
+      "energy_per_turn": 2,
+      "accumulate": true,
+      "accumulator_cap": 15,
+      "gain_on_boss_attacked": 1,
+      "gain_on_player_attack": 1,
+      "gain_on_turn_start": 1,
+      "decay_per_turn": 2,
+      "rage_scale": 0.45,
+      "rage_hp_threshold": 50,
+      "rage_max_mult": 1.8,
+      "damage_thresholds": [
+        { "threshold": 30, "response": "gain_shield:12" }
+      ],
+      "cards": [
+        {
+          "name": "Iron Backhand",
+          "intent": "attack",
+          "target": "tank",
+          "cost": 0,
+          "base_damage": 10,
+          "cast_time": 1,
+          "description": "Deals 10 damage and builds pressure.",
+          "count": 2
+        },
+        {
+          "name": "Fury Blast",
+          "intent": "tank_buster",
+          "target": "tank",
+          "cost": 1,
+          "base_damage": 7,
+          "cast_time": 2,
+          "description": "Spends all Charge for bonus damage.",
+          "spend_all": true,
+          "damage_per_spent": 4,
+          "count": 2
+        },
+        {
+          "name": "Molten Guard",
+          "intent": "shield",
+          "target": "self",
+          "cost": 1,
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains shield and cools down.",
+          "shield_amount": 18,
+          "count": 1
+        },
+        {
+          "name": "Seismic Smash",
+          "intent": "aoe",
+          "target": "all",
+          "cost": 2,
+          "base_damage": 9,
+          "cast_time": 3,
+          "description": "Deals damage to all allies.",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "id": "twin_oracle_sun",
+      "name": "Sun Oracle",
+      "max_hp": 120,
+      "hand_size": 2,
+      "energy_per_turn": 2,
+      "linked_group_id": "twin_oracles",
+      "linked_revive": true,
+      "linked_revive_hp": 35,
+      "linked_revive_turns": 2,
+      "cards": [
+        {
+          "name": "Solar Ray",
+          "intent": "attack",
+          "target": "random",
+          "cost": 0,
+          "base_damage": 8,
+          "cast_time": 1,
+          "description": "Deals 8 damage.",
+          "count": 2
+        },
+        {
+          "name": "Daybreak Ward",
+          "intent": "aoe_shield",
+          "target": "all",
+          "cost": 1,
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "All enemies gain shield.",
+          "shield_amount": 12,
+          "count": 1
+        }
+      ]
+    },
+    {
+      "id": "twin_oracle_moon",
+      "name": "Moon Oracle",
+      "max_hp": 120,
+      "hand_size": 2,
+      "energy_per_turn": 2,
+      "linked_group_id": "twin_oracles",
+      "linked_revive": true,
+      "linked_revive_hp": 35,
+      "linked_revive_turns": 2,
+      "cards": [
+        {
+          "name": "Lunar Cut",
+          "intent": "attack",
+          "target": "lowest_hp",
+          "cost": 0,
+          "base_damage": 7,
+          "cast_time": 1,
+          "description": "Deals 7 damage to the weakest ally.",
+          "status": "weakness",
+          "status_amount": 20,
+          "status_turns": 2,
+          "count": 2
+        },
+        {
+          "name": "Rewrite Fate",
+          "intent": "heal",
+          "target": "lowest_hp",
+          "cost": 1,
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Heals the shared oracle pool.",
+          "heal_amount": 16,
+          "count": 1
+        }
+      ]
+    },
+    {
+      "id": "soul_warden",
+      "name": "Soul Warden",
+      "max_hp": 210,
+      "hand_size": 3,
+      "energy_per_turn": 2,
+      "opening_sequence": [1],
+      "cards": [
+        {
+          "name": "Jailer Strike",
+          "intent": "attack",
+          "target": "tank",
+          "cost": 0,
+          "base_damage": 9,
+          "cast_time": 1,
+          "description": "Deals 9 damage.",
+          "count": 2
+        },
+        {
+          "name": "Soul Chain",
+          "intent": "buff",
+          "target": "self",
+          "cost": 1,
+          "base_damage": 0,
+          "cast_time": 1,
+          "description": "Tethers a vulnerable ally.",
+          "tether": true,
+          "tether_duration": 2,
+          "tether_target": "lowest_hp",
+          "count": 2
+        },
+        {
+          "name": "Punish the Bound",
+          "intent": "tank_buster",
+          "target": "tank",
+          "cost": 1,
+          "base_damage": 15,
+          "cast_time": 2,
+          "description": "Hits the tethered ally if one is chained.",
+          "count": 1
+        },
+        {
+          "name": "Warden's Oath",
+          "intent": "shield",
+          "target": "self",
+          "cost": 1,
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains shield.",
+          "shield_amount": 20,
+          "count": 1
+        }
+      ]
+    },
+    {
+      "id": "plague_spreader",
+      "name": "Plague Spreader",
+      "max_hp": 220,
+      "hand_size": 3,
+      "energy_per_turn": 2,
+      "phases": [
+        {
+          "trigger_hp_pct": 50,
+          "on_enter": {
+            "gain_shield": 12,
+            "apply_status_to_party": { "type": "blight", "turns": 3, "value": 2 }
+          },
+          "modify_stats": { "energy_per_turn_delta": 1 },
+          "new_cards": [3, 5]
+        }
+      ],
+      "cards": [
+        {
+          "name": "Noxious Spit",
+          "intent": "attack",
+          "target": "random",
+          "cost": 0,
+          "base_damage": 6,
+          "cast_time": 1,
+          "description": "Deals damage and applies Blight.",
+          "status": "blight",
+          "status_amount": 1,
+          "status_turns": 3,
+          "count": 2
+        },
+        {
+          "name": "Plague Cloud",
+          "intent": "aoe",
+          "target": "all",
+          "cost": 1,
+          "base_damage": 5,
+          "cast_time": 2,
+          "description": "Deals damage and applies Blight to all.",
+          "status": "blight",
+          "status_amount": 1,
+          "status_turns": 3,
+          "count": 1
+        },
+        {
+          "name": "Toxic Burst",
+          "intent": "attack",
+          "target": "random",
+          "cost": 1,
+          "base_damage": 4,
+          "cast_time": 2,
+          "description": "Detonates Blight on one target.",
+          "detonate_status": "blight",
+          "detonate_mult": 8,
+          "count": 2
+        },
+        {
+          "name": "Putrid Regurgitate",
+          "intent": "aoe",
+          "target": "all",
+          "cost": 2,
+          "base_damage": 3,
+          "cast_time": 3,
+          "description": "Detonates Blight on all allies.",
+          "detonate_status": "blight",
+          "detonate_mult": 6,
+          "detonate_target": "all",
+          "count": 1
+        },
+        {
+          "name": "Fester",
+          "intent": "buff",
+          "target": "self",
+          "cost": 1,
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains shield and doubles Blight.",
+          "shield_amount": 12,
+          "double_status_on_party": true,
+          "double_status": "blight",
+          "count": 1
+        },
+        {
+          "name": "Mutagen",
+          "intent": "heal",
+          "target": "self",
+          "cost": 1,
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Consumes Blight for healing.",
+          "detonate_status": "blight",
+          "detonate_heal_mult": 8,
+          "detonate_clear": false,
+          "detonate_target": "all",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "id": "mindrender",
+      "name": "Mindrender",
+      "max_hp": 210,
+      "hand_size": 3,
+      "energy_per_turn": 2,
+      "phases": [
+        {
+          "trigger_hp_pct": 50,
+          "on_enter": { "gain_energy": 1 },
+          "modify_stats": { "energy_per_turn_delta": 1 },
+          "new_cards": [3, 5]
+        }
+      ],
+      "cards": [
+        {
+          "name": "Memory Lash",
+          "intent": "attack",
+          "target": "random",
+          "cost": 0,
+          "base_damage": 7,
+          "cast_time": 1,
+          "description": "Deals 7 damage.",
+          "count": 2
+        },
+        {
+          "name": "Forget",
+          "intent": "attack",
+          "target": "random",
+          "cost": 1,
+          "base_damage": 5,
+          "cast_time": 2,
+          "description": "Shuffles Dazed into the draw pile.",
+          "curse_count": 2,
+          "curse_card_id": "dazed",
+          "curse_pile": "draw",
+          "count": 2
+        },
+        {
+          "name": "Erase",
+          "intent": "buff",
+          "target": "self",
+          "cost": 1,
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Steals a card from hand.",
+          "steal_card": true,
+          "steal_return_turns": 2,
+          "count": 1
+        },
+        {
+          "name": "Echo of the Past",
+          "intent": "aoe",
+          "target": "all",
+          "cost": 2,
+          "base_damage": 7,
+          "cast_time": 3,
+          "description": "Uses stolen cards against the party.",
+          "steal_use_against": true,
+          "count": 1
+        },
+        {
+          "name": "Knowledge Ward",
+          "intent": "shield",
+          "target": "self",
+          "cost": 1,
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains shield.",
+          "shield_amount": 18,
+          "count": 1
+        },
+        {
+          "name": "Rite of Oblivion",
+          "intent": "wipe",
+          "target": "all",
+          "cost": 2,
+          "base_damage": 12,
+          "cast_time": 3,
+          "description": "Deals damage and exhausts cards from draw.",
+          "exhaust_from_deck": 2,
+          "count": 1
+        }
+      ]
+    },
+    {
+      "id": "swarmling",
+      "name": "Swarmling",
+      "max_hp": 12,
+      "hand_size": 2,
+      "energy_per_turn": 1,
+      "cards": [
+        {
+          "name": "Sting",
+          "intent": "attack",
+          "target": "random",
+          "cost": 0,
+          "base_damage": 8,
+          "cast_time": 1,
+          "description": "Deals 8 damage.",
+          "count": 2
+        },
+        {
+          "name": "Poison Sting",
+          "intent": "attack",
+          "target": "random",
+          "cost": 1,
+          "base_damage": 5,
+          "cast_time": 1,
+          "description": "Deals damage and Bleed.",
+          "status": "bleed",
+          "status_amount": 1,
+          "status_turns": 2,
+          "count": 1
+        },
+        {
+          "name": "Burst",
+          "intent": "aoe",
+          "target": "all",
+          "cost": 1,
+          "base_damage": 3,
+          "cast_time": 2,
+          "description": "Deals damage and Bleed to all.",
+          "status": "bleed",
+          "status_amount": 1,
+          "status_turns": 2,
+          "count": 1
+        }
+      ]
+    },
+    {
+      "id": "swarm_mother",
+      "name": "Swarm Mother",
+      "max_hp": 260,
+      "hand_size": 3,
+      "energy_per_turn": 2,
+      "minion_buffs": [
+        { "effect": "damage_boost", "value": 20 }
+      ],
+      "phases": [
+        {
+          "trigger_hp_pct": 50,
+          "on_enter": { "gain_shield": 15 },
+          "modify_stats": { "cast_time_reduction": 1 },
+          "new_cards": [5]
+        }
+      ],
+      "cards": [
+        {
+          "name": "Lay Eggs",
+          "intent": "buff",
+          "target": "self",
+          "cost": 0,
+          "base_damage": 0,
+          "cast_time": 1,
+          "description": "Summons a Swarmling.",
+          "summon_id": "swarmling",
+          "summon_count": 1,
+          "count": 3
+        },
+        {
+          "name": "Brood Burst",
+          "intent": "buff",
+          "target": "self",
+          "cost": 1,
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Summons two Swarmlings.",
+          "summon_id": "swarmling",
+          "summon_count": 2,
+          "count": 2
+        },
+        {
+          "name": "Hive Pulse",
+          "intent": "buff_attack",
+          "target": "self",
+          "cost": 1,
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Increases enemy damage briefly.",
+          "buff_damage": 25,
+          "buff_turns": 2,
+          "count": 1
+        },
+        {
+          "name": "Royal Jelly",
+          "intent": "heal",
+          "target": "self",
+          "cost": 1,
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Heals the mother.",
+          "heal_amount": 15,
+          "count": 1
+        },
+        {
+          "name": "Brood Bond",
+          "intent": "buff",
+          "target": "self",
+          "cost": 1,
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains Maternal Bond: heals whenever a Swarmling dies.",
+          "shield_amount": 8,
+          "status": "maternal_bond",
+          "status_amount": 5,
+          "status_turns": 15,
+          "count": 1
+        },
+        {
+          "name": "Harden Shell",
+          "intent": "shield",
+          "target": "self",
+          "cost": 1,
+          "base_damage": 0,
+          "cast_time": 1,
+          "description": "Gains shield and becomes invulnerable until adds are dead.",
+          "shield_amount": 20,
+          "set_invulnerable": true,
+          "invulnerable_until": "all_adds_dead",
+          "count": 1
+        },
+        {
+          "name": "Desperate Swarm",
+          "intent": "buff",
+          "target": "self",
+          "cost": 2,
+          "base_damage": 0,
+          "cast_time": 3,
+          "description": "Summons Swarmlings and gains shield.",
+          "summon_id": "swarmling",
+          "summon_count": 2,
+          "shield_amount": 15,
+          "count": 1
+        }
+      ]
+    },
+    {
+      "id": "nullifier",
+      "name": "The Nullifier",
+      "max_hp": 240,
+      "hand_size": 3,
+      "energy_per_turn": 2,
+      "arena_auras": [
+        { "type": "cost_up", "value": 1, "duration": 0, "clear_on_damage_threshold": 10 },
+        { "type": "energy_drain", "value": 1, "duration": 0, "clear_on_damage_threshold": 10 }
+      ],
+      "phases": [
+        {
+          "trigger_hp_pct": 50,
+          "on_enter": {
+            "gain_shield": 16,
+            "apply_arena_auras": [
+              { "type": "cost_up", "value": 2, "duration": 0, "clear_on_damage_threshold": 10 },
+              { "type": "energy_drain", "value": 2, "duration": 0, "clear_on_damage_threshold": 10 }
+            ]
+          },
+          "modify_stats": { "energy_per_turn_delta": 1 },
+          "new_cards": [5]
+        }
+      ],
+      "cards": [
+        {
+          "name": "Null Bolt",
+          "intent": "attack",
+          "target": "random",
+          "cost": 0,
+          "base_damage": 6,
+          "cast_time": 1,
+          "description": "Deals 6 damage.",
+          "count": 2
+        },
+        {
+          "name": "Energy Siphon",
+          "intent": "tank_buster",
+          "target": "tank",
+          "cost": 1,
+          "base_damage": 8,
+          "cast_time": 2,
+          "description": "Deals damage and drains energy next turn.",
+          "status": "energy_drain",
+          "status_amount": 1,
+          "status_turns": 2,
+          "count": 2
+        },
+        {
+          "name": "Suppression Wave",
+          "intent": "aoe",
+          "target": "all",
+          "cost": 1,
+          "base_damage": 5,
+          "cast_time": 2,
+          "description": "Deals damage and silences.",
+          "interrupts": true,
+          "count": 1
+        },
+        {
+          "name": "Void Collapse",
+          "intent": "tank_buster",
+          "target": "tank",
+          "cost": 2,
+          "base_damage": 18,
+          "cast_time": 2,
+          "description": "Deals extra damage per energy drained.",
+          "damage_per_player_energy_drained": 4,
+          "count": 1
+        },
+        {
+          "name": "Aegis of the Void",
+          "intent": "shield",
+          "target": "self",
+          "cost": 1,
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains shield and Thorns.",
+          "shield_amount": 16,
+          "status": "thorns",
+          "status_amount": 3,
+          "status_turns": 3,
+          "count": 1
+        },
+        {
+          "name": "True Null",
+          "intent": "wipe",
+          "target": "all",
+          "cost": 2,
+          "base_damage": 14,
+          "cast_time": 3,
+          "description": "Deals damage and sets player energy to zero.",
+          "set_player_energy_zero": true,
+          "count": 1
+        }
+      ]
+    },
+    {
+      "id": "storm_elemental",
+      "name": "Storm Elemental",
+      "max_hp": 25,
+      "hand_size": 2,
+      "energy_per_turn": 1,
+      "cards": [
+        {
+          "name": "Lightning Strike",
+          "intent": "attack",
+          "target": "random",
+          "cost": 0,
+          "base_damage": 6,
+          "cast_time": 1,
+          "description": "Deals 6 damage.",
+          "count": 2
+        },
+        {
+          "name": "Arcane Surge",
+          "intent": "aoe",
+          "target": "all",
+          "cost": 1,
+          "base_damage": 4,
+          "cast_time": 2,
+          "description": "Deals 4 damage to all.",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "id": "storm_titan",
+      "name": "Storm Titan",
+      "max_hp": 340,
+      "hand_size": 3,
+      "energy_per_turn": 2,
+      "rage_scale": 0.35,
+      "rage_hp_threshold": 50,
+      "rage_max_mult": 1.7,
+      "phases": [
+        {
+          "trigger_hp_pct": 75,
+          "on_enter": {
+            "set_invulnerable": true,
+            "spawn_enemies": { "id": "storm_elemental", "count": 2 },
+            "apply_arena_aura": { "type": "cost_up", "value": 1, "duration": 0 }
+          },
+          "modify_stats": { "damage_scale_delta": 0.1 }
+        },
+        {
+          "trigger_hp_pct": 50,
+          "on_enter": {
+            "set_invulnerable": true,
+            "spawn_enemies": { "id": "storm_elemental", "count": 2 },
+            "apply_arena_aura": { "type": "damage_tick", "value": 3, "duration": 0 }
+          },
+          "modify_stats": { "damage_scale_delta": 0.15, "cast_time_reduction": 1 }
+        },
+        {
+          "trigger_hp_pct": 25,
+          "on_enter": {
+            "set_invulnerable": true,
+            "spawn_enemies": { "id": "storm_elemental", "count": 2 },
+            "apply_arena_aura": { "type": "enemy_damage_up", "value": 100, "duration": 0 }
+          },
+          "modify_stats": { "damage_scale_delta": 0.25, "cast_time_reduction": 1 }
+        }
+      ],
+      "pattern_cycle": [0, 1, 2, 3],
+      "pattern_loop": true,
+      "ai_override": "pattern",
+      "cards": [
+        {
+          "name": "Lightning Bolt",
+          "intent": "attack",
+          "target": "random",
+          "cost": 1,
+          "base_damage": 10,
+          "cast_time": 1,
+          "description": "Deals 10 damage.",
+          "count": 2
+        },
+        {
+          "name": "Storm Sweep",
+          "intent": "aoe",
+          "target": "all",
+          "cost": 1,
+          "base_damage": 8,
+          "cast_time": 2,
+          "description": "Deals 8 damage to all.",
+          "count": 1
+        },
+        {
+          "name": "Thunder Crash",
+          "intent": "tank_buster",
+          "target": "tank",
+          "cost": 2,
+          "base_damage": 20,
+          "cast_time": 2,
+          "description": "Deals heavy damage.",
+          "count": 1
+        },
+        {
+          "name": "Cloud Shield",
+          "intent": "shield",
+          "target": "self",
+          "cost": 1,
+          "base_damage": 0,
+          "cast_time": 2,
+          "description": "Gains shield.",
+          "shield_amount": 20,
+          "count": 1
+        },
+        {
+          "name": "Tempest Ritual",
+          "intent": "wipe",
+          "target": "all",
+          "cost": 2,
+          "base_damage": 16,
+          "cast_time": 4,
+          "description": "A staged ritual with warning pulses.",
+          "cast_stages": 3,
+          "stage_labels": ["Charging", "Calling Storm", "Firing"],
+          "stage_effects": [
+            { "turn": 1, "effect": "damage_tick", "value": 2 },
+            { "turn": 2, "effect": "spawn_enemy", "enemy_id": "storm_elemental", "count": 1 }
+          ],
+          "interruptible_stages": [1, 2],
+          "stage_warning": true,
           "count": 1
         }
       ]

@@ -5,7 +5,7 @@
 #include "enemy_defs.h"
 
 typedef struct {
-    const EnemyDef *enemies[3];
+    const EnemyDef *enemies[MAX_ENEMIES];
     int count;
 } EncounterDef;
 

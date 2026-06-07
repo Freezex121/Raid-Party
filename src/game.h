@@ -47,6 +47,7 @@ typedef enum {
     SCREEN_DECK,
     SCREEN_ACHIEVEMENTS,
     SCREEN_LEVEL_UP,
+    SCREEN_ADMIN,
     SCREEN_SETTINGS
 } GameScreen;
 
@@ -121,6 +122,7 @@ typedef struct {
     bool tutorial_active;
     bool tutorial_reward_pending;
     int tutorial_step;
+    bool debug_admin_mode;
 } GameState;
 
 extern GameState g_state;

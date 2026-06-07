@@ -805,7 +805,7 @@ void shop_screen_draw(void)
 
         Rectangle card_rect = sale_card_rect();
         if (shop_card)
-            theme_draw_card_art_seeded(card_rect, shop_card, 0, theme_card_seed_from_id(shop_card->id, 91u));
+            theme_draw_card_art_seeded(card_rect, shop_card, 0, theme_card_seed_from_id(shop_card->id, 91u), -1);
 
         bool deck_space = g_state.run_deck.card_count < MAX_DECK_SIZE;
         char cost_label[48];

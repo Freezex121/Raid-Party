@@ -17,6 +17,8 @@ typedef enum {
     STATUS_BLIGHT,
     STATUS_THORNS,
     STATUS_DEATH_MARK,
+    STATUS_SILENCE,
+    STATUS_MATERNAL_BOND,
 } StatusType;
 
 typedef struct {

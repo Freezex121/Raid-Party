@@ -78,7 +78,7 @@ int card_instance_lifesteal(const CardInstance *inst)
 {
     if (!inst || !inst->def) return 0;
     if (inst->lifesteal_override >= 0)
-        return inst->lifesteal_override == 1 ? (inst->def->lifesteal > 0 ? inst->def->lifesteal : 1) : 0;
+        return inst->lifesteal_override == 1 ? (inst->def->lifesteal > 0 ? inst->def->lifesteal : CARD_LIFESTEAL_PERCENT) : 0;
     return inst->def->lifesteal;
 }
 

@@ -403,7 +403,7 @@ void reward_screen_draw(void)
         const CardDef *card = g_state.reward_cards[i];
         Rectangle card_rect = layout_reward_card_rect(g_state.reward_count, i);
         unsigned int seed = theme_card_seed_from_id(card && card->id ? card->id : "reward", (unsigned int)(i + 1));
-        theme_draw_card_art_seeded(card_rect, card, g_state.reward_upgrade_level[i], seed);
+        theme_draw_card_art_seeded(card_rect, card, g_state.reward_upgrade_level[i], seed, -1);
         if (g_state.reward_keyword[i] >= 0 && g_state.reward_keyword[i] < KW_COUNT)
             theme_draw_keyword_icon(card_rect, (KeywordIcon)g_state.reward_keyword[i]);
     }

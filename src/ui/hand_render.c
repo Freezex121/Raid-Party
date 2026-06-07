@@ -65,19 +65,19 @@ static int effective_cost(const CardDef *card, int combo_prime_index)
     return card->cost;
 }
 
-static void draw_hand_card(Rectangle r, const CardInstance *inst, int upgrade_level, unsigned int seed, bool show_highlight, bool low_energy, bool locked)
+static void draw_hand_card(Rectangle r, const CardInstance *inst, int upgrade_level, unsigned int seed, bool show_highlight, bool low_energy, const char *lock_label, int cost_override)
 {
     const CardDef *card = inst ? inst->def : NULL;
     if (!card) return;
 
-    theme_draw_card_art_seeded(r, card, upgrade_level, seed);
+    theme_draw_card_art_seeded(r, card, upgrade_level, seed, cost_override);
     theme_draw_keyword_badge(r, inst);
 
-    if (locked)
+    if (lock_label && lock_label[0])
     {
         DrawRectangleRec(r, (Color){ 180, 50, 50, 80 });
         draw_text_box((Rectangle){ r.x + 4, r.y + r.height / 2 - 8, r.width - 8, 16 },
-            "CHANNELING", 10, 0, (Color){ 255, 200, 100, 230 }, TEXT_ALIGN_CENTER);
+            lock_label, 10, 0, (Color){ 255, 200, 100, 230 }, TEXT_ALIGN_CENTER);
         return;
     }
 
@@ -90,7 +90,7 @@ static void draw_hand_card(Rectangle r, const CardInstance *inst, int upgrade_le
         DrawRectangleLinesEx(r, 2.0f, (Color){ 255, 255, 200, 220 });
 }
 
-void hand_render_draw(Deck *deck, Energy *energy, int hovered_card, ClassType channel_class, int target_idx, float target_offset, int combo_prime_index)
+void hand_render_draw(Deck *deck, Energy *energy, int hovered_card, ClassType channel_class, int silenced_class_mask, int target_idx, float target_offset, int combo_prime_index, int aura_cost_delta)
 {
     LOG_T("HRD: start");
 
@@ -113,8 +113,9 @@ void hand_render_draw(Deck *deck, Energy *energy, int hovered_card, ClassType ch
     Rectangle draw_rects[MAX_HAND_SIZE] = { 0 };
     bool draw_valid[MAX_HAND_SIZE] = { 0 };
     bool draw_low_energy[MAX_HAND_SIZE] = { 0 };
-    bool draw_locked[MAX_HAND_SIZE] = { 0 };
+    const char *draw_lock_label[MAX_HAND_SIZE] = { 0 };
     int draw_upgrade_level[MAX_HAND_SIZE] = { 0 };
+    int draw_cost_override[MAX_HAND_SIZE] = { 0 };
     unsigned int draw_seed[MAX_HAND_SIZE] = { 0 };
     const CardInstance *draw_instances[MAX_HAND_SIZE] = { 0 };
 
@@ -153,18 +154,28 @@ void hand_render_draw(Deck *deck, Energy *energy, int hovered_card, ClassType ch
         float select_offset = (i == target_idx) ? target_offset : 0.0f;
         float draw_y = base_rect.y + hover_offset + select_offset + deal_offset;
 
-        bool low_energy = energy->current < effective_cost(card, combo_prime_index);
+        int eff_cost = effective_cost(card, combo_prime_index) + aura_cost_delta;
+        if (eff_cost < 0) eff_cost = 0;
+        bool low_energy = energy->current < eff_cost;
         int cw = hand_layout.card_w;
         int ch = hand_layout.card_h;
         int cx = x;
         int cy = (int)draw_y;
 
-        bool locked = (channel_class != CLASS_NONE && card->class == channel_class);
+        const char *lock_label = NULL;
+        bool channel_locked = (channel_class != CLASS_NONE && card->class == channel_class);
+        bool silence_locked = (card->class != CLASS_NONE && card->class >= 0 && card->class < 31 &&
+            (silenced_class_mask & (1 << card->class)) != 0);
+        if (channel_locked)
+            lock_label = "CHANNELING";
+        else if (silence_locked)
+            lock_label = "SILENCED";
         draw_rects[i] = (Rectangle){ (float)cx, (float)cy, (float)cw, (float)ch };
         draw_valid[i] = true;
         draw_low_energy[i] = low_energy;
-        draw_locked[i] = locked;
+        draw_lock_label[i] = lock_label;
         draw_upgrade_level[i] = upgrade_level;
+        draw_cost_override[i] = eff_cost;
         draw_seed[i] = (unsigned int)uid;
         draw_instances[i] = inst;
     }
@@ -172,17 +183,17 @@ void hand_render_draw(Deck *deck, Energy *energy, int hovered_card, ClassType ch
     for (int i = 0; i < deck->hand_count; i++)
     {
         if (!draw_valid[i] || i == hovered_card || i == target_idx) continue;
-        draw_hand_card(draw_rects[i], draw_instances[i], draw_upgrade_level[i], draw_seed[i], false, draw_low_energy[i], draw_locked[i]);
+        draw_hand_card(draw_rects[i], draw_instances[i], draw_upgrade_level[i], draw_seed[i], false, draw_low_energy[i], draw_lock_label[i], draw_cost_override[i]);
     }
 
     if (target_idx >= 0 && target_idx < deck->hand_count && target_idx != hovered_card && draw_valid[target_idx])
     {
-        draw_hand_card(draw_rects[target_idx], draw_instances[target_idx], draw_upgrade_level[target_idx], draw_seed[target_idx], true, draw_low_energy[target_idx], draw_locked[target_idx]);
+        draw_hand_card(draw_rects[target_idx], draw_instances[target_idx], draw_upgrade_level[target_idx], draw_seed[target_idx], true, draw_low_energy[target_idx], draw_lock_label[target_idx], draw_cost_override[target_idx]);
     }
 
     if (hovered_card >= 0 && hovered_card < deck->hand_count && draw_valid[hovered_card])
     {
-        draw_hand_card(draw_rects[hovered_card], draw_instances[hovered_card], draw_upgrade_level[hovered_card], draw_seed[hovered_card], false, draw_low_energy[hovered_card], draw_locked[hovered_card]);
+        draw_hand_card(draw_rects[hovered_card], draw_instances[hovered_card], draw_upgrade_level[hovered_card], draw_seed[hovered_card], false, draw_low_energy[hovered_card], draw_lock_label[hovered_card], draw_cost_override[hovered_card]);
     }
     LOG_T("HRD: end");
 }
